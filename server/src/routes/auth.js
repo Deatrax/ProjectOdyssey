@@ -1,0 +1,74 @@
+const express = require("express");
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+
+const router = express.Router();
+
+// generate JWT
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, username: user.username },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+};
+
+// -- API -- //
+
+// SIGNUP
+router.post("/signup", async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ message: "All fields required" });
+
+    const exists = await User.findOne({ username });
+    if (exists)
+      return res.status(400).json({ message: "Username already taken" });
+
+    const newUser = await User.create({ username, password });
+
+    const token = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(201).json({
+      message: "Signup successful",
+      token,
+      user: { id: newUser._id, username: newUser.username },
+    });
+  } catch (err) {
+    next(err); // pass error to Express error handler
+  }
+});
+
+// LOGIN
+router.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ message: "All fields required" });
+
+    const user = await User.findOne({ username });
+    if (!user)
+      return res.status(400).json({ message: "Invalid username or password" });
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid username or password" });
+
+    const token = generateToken(user);
+
+    res.json({
+      message: "Login successful!",
+      token,
+      user: { id: user._id, username: user.username },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
