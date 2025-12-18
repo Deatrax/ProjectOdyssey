@@ -141,13 +141,13 @@ const SignupPage: React.FC = () => {
             </button>
 
             {/* Sign-in Link */}
-            <button
+            {/* <button
               type="button"
               className="w-full py-3 bg-transparent border-2 border-green-500 hover:bg-green-900 text-green-500 font-medium rounded-lg transition"
               onClick={() => router.push("/login")}
             >
               Log in
-            </button>
+            </button> */}
           </form>
         </div>
       </div>
