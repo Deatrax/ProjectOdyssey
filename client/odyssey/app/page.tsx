@@ -19,7 +19,7 @@ const LandingPage: React.FC = () => {
           <a href="#">Destinations</a>
           <a href="#">Pricing</a>
           {/* Sign-in navigates to /login */}
-          <Link href="/login">
+          <Link href="/signup">
             <button className="signin-btn">Sign-in</button>
           </Link>
         </div>
