@@ -1,65 +1,139 @@
-import Image from "next/image";
+import React from "react";
+import "./landingPage.css";
 
-export default function Home() {
+const LandingPage: React.FC = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div>
+      <div className="navbar">
+        <div className="nav-left">
+          <span className="logo-icon">🌐</span>
+          <span className="logo-text">Odyssey</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="nav-right">
+          <a className="active" href="#">About</a>
+          <a href="#">Destinations</a>
+          <a href="#">Pricing</a>
+          <button className="signin-btn">Sign-in</button>
         </div>
-      </main>
+      </div>
+
+      <div className="header">
+        <div className="first">
+          <div id="text">
+            <h1>Your Journey, <br /> Unified</h1>
+            <p>
+              Simplify trip organization with intuitive planning tools and connect with a vibrant
+              community of travelers. Powered by AI for personalized itineraries and optimized
+              routes.
+            </p>
+            <br />
+            <button className="btn" id="travel">Start Planning Now</button>
+            <button className="btn" id="learn">Learn more</button>
+          </div>
+          <div id="travelIMG">
+            <img src="cover.png" alt="" />
+          </div>
+        </div>
+
+        <div className="second">
+          <div className="box ai">
+            <h3>✨ AI Assistant</h3>
+            <p>Personalized itineraries generated in seconds</p>
+          </div>
+
+          <div className="box routes">
+            <h3>🗺️ Smart Routes</h3>
+            <p>
+              AI-powered route optimization that saves time and money,
+              ensuring you visit attractions in the most efficient sequence.
+            </p>
+          </div>
+
+          <div className="box explore">
+            <h3>🌍 Discover and Explore</h3>
+            <p>
+              Browse destinations categorized by <strong>Nature</strong>,
+              <strong>Urban Lifestyle</strong>, and <strong>History & Museums</strong> to find your
+              perfect adventure.
+            </p>
+          </div>
+
+          <div className="box memory">
+            <h3>📸 Memory Lane</h3>
+            <p>
+              Automatically chronicle your travel history with a beautiful timeline of all the places
+              you've visited.
+            </p>
+          </div>
+
+          <div className="box community">
+            <h3>👥 Community</h3>
+            <p>Connect with travelers worldwide</p>
+          </div>
+
+          <div className="box budget">
+            <h3>💰 Budget Estimates</h3>
+            <p>
+              Get accurate cost estimates for transportation, accommodation, and activities before
+              you book.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="third">
+        <div className="sec">
+          <h3>120K+</h3>
+          <p>Happy Travellers</p>
+        </div>
+
+        <div className="sec">
+          <h3>500K+</h3>
+          <p>Destinations</p>
+        </div>
+
+        <div className="sec">
+          <h3>10K+</h3>
+          <p>Shared itineraries</p>
+        </div>
+
+        <div className="sec">
+          <h3>5K+</h3>
+          <p>New users daily</p>
+        </div>
+      </div>
+
+      <div className="pad">
+        <div className="four">
+          <h1>How It Works</h1>
+          <p>Start your journey in three simple steps</p>
+          <h2>1</h2>
+          <h4>Search for your target destination and browse through our curated selection of attractions</h4>
+          <h2>2</h2>
+          <h4>Use our AI assistant or manual planner to create the perfect itinerary with optimized routes and estimated costs</h4>
+          <h2>3</h2>
+          <h4>Share your journey with the community and discover hidden gems from fellow travelers.</h4>
+        </div>
+      </div>
+
+      <div className="pad">
+        <div className="five">
+          <div className="plan">
+            <h3>Ready to Start Your Adventure?</h3>
+            <p>Join thousands of travelers planning their perfect trips</p>
+            <button className="start-btn">Start Planning Now</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="pad">
+        <div className="six">
+          <h6>©Odyssey. Made with ❤️ by Route6</h6>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default LandingPage;

@@ -124,7 +124,7 @@ body {
     top: 16px;
     z-index: 1000;
 
-    background: rgba(245, 239, 230, 0.65);
+    background: rgba(245, 239, 230, 0.95);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
 
