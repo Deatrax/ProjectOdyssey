@@ -1,9 +1,13 @@
+"use client"; // Make it a client component for interactivity
+
 import React from "react";
+import Link from "next/link";
 import "./landingPage.css";
 
 const LandingPage: React.FC = () => {
   return (
     <div>
+      {/* Navbar */}
       <div className="navbar">
         <div className="nav-left">
           <span className="logo-icon">🌐</span>
@@ -14,10 +18,14 @@ const LandingPage: React.FC = () => {
           <a className="active" href="#">About</a>
           <a href="#">Destinations</a>
           <a href="#">Pricing</a>
-          <button className="signin-btn">Sign-in</button>
+          {/* Sign-in navigates to /login */}
+          <Link href="/login">
+            <button className="signin-btn">Sign-in</button>
+          </Link>
         </div>
       </div>
 
+      {/* Header */}
       <div className="header">
         <div className="first">
           <div id="text">
@@ -32,10 +40,11 @@ const LandingPage: React.FC = () => {
             <button className="btn" id="learn">Learn more</button>
           </div>
           <div id="travelIMG">
-            <img src="cover.png" alt="" />
+            <img src="/cover.png" alt="Travel Cover" />
           </div>
         </div>
 
+        {/* Features */}
         <div className="second">
           <div className="box ai">
             <h3>✨ AI Assistant</h3>
@@ -82,6 +91,7 @@ const LandingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Stats */}
       <div className="third">
         <div className="sec">
           <h3>120K+</h3>
@@ -104,6 +114,7 @@ const LandingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* How it works */}
       <div className="pad">
         <div className="four">
           <h1>How It Works</h1>
@@ -117,6 +128,7 @@ const LandingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Call to action */}
       <div className="pad">
         <div className="five">
           <div className="plan">
@@ -127,6 +139,7 @@ const LandingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Footer */}
       <div className="pad">
         <div className="six">
           <h6>©Odyssey. Made with ❤️ by Route6</h6>
