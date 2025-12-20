@@ -9,6 +9,16 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 2. NEW: Check if user is already logged in
+  useEffect(() => {
+    // Check if we have a token saved
+    const token = localStorage.getItem("token");
+    if (token) {
+      // If yes, redirect immediately to dashboard
+      router.push("/dashboard");
+    }
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
