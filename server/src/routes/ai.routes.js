@@ -1,35 +1,34 @@
-console.log("ai.routes loaded");
-
-// src/routes/ai.routes.js
-const express = require("express");
-const router = express.Router();
+const router = require("express").Router();
+const { detectIntent } = require("../services/ai/intent");
+const { searchPlaces } = require("../repositories/places.repo");
+const { callGemini } = require("../services/ai/geminiClient");
 
 router.post("/chat", async (req, res) => {
-  const { message, tripDraftId } = req.body;
+  const { message } = req.body;
 
-  // Step 1: just return a mock response in the FINAL format
+  const intent = detectIntent(message);
+
+  // 1️⃣ DB-first search (mocked)
+  const dbResults = await searchPlaces(message);
+
+  // 2️⃣ Decision
+  if (dbResults.length >= 3 || dbResults.length > 0) {
+    return res.json({
+      message: "Here are some places from our database.",
+      cards: dbResults,
+      itineraryPreview: null,
+      source: "db",
+    });
+  }
+
+  // 3️⃣ AI fallback
+  const aiResponse = await callGemini(message);
+
   return res.json({
-    message: `Mock AI reply for: "${message}"`,
-    cards: [
-      {
-        placeId: "mock_001",
-        name: "Cox's Bazar",
-        category: "nature",
-        shortDesc: "Long sandy sea beach with nearby attractions.",
-        estCostPerDay: 3500,
-        actions: ["add_to_collection", "open_details"],
-      },
-      {
-        placeId: "mock_002",
-        name: "Kuakata",
-        category: "nature",
-        shortDesc: "Beach known for sunrise and sunset views.",
-        estCostPerDay: 3000,
-        actions: ["add_to_collection", "open_details"],
-      },
-    ],
+    message: aiResponse.message,
+    cards: aiResponse.cards,
     itineraryPreview: null,
-    meta: { tripDraftId: tripDraftId ?? null },
+    source: "ai",
   });
 });
 
