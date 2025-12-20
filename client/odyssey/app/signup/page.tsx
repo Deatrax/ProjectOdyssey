@@ -1,11 +1,69 @@
-// app/signup/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const SignupPage: React.FC = () => {
   const router = useRouter();
+  
+  // 1. State for form data
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    dob: ""
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // 2. Handle Input Change
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // 3. Handle Submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    // Basic Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Connect to your Backend
+      const res = await fetch("http://127.0.0.1:4000/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          dob: formData.dob
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Signup failed");
+
+      // Success! Save token and go to dashboard
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      router.push("/dashboard");
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen">
@@ -43,14 +101,19 @@ const SignupPage: React.FC = () => {
       <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
         <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
           <h2 className="text-white text-2xl font-semibold mb-6">Welcome Traveller</h2>
+          
+          {error && <div className="bg-red-500/20 text-red-200 text-sm p-3 rounded-lg mb-4 border border-red-500">{error}</div>}
 
-          <form className="space-y-4">
-            {/* Name */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name / Username */}
             <div>
-              <label className="text-gray-400 text-sm block mb-2">Name</label>
+              <label className="text-gray-400 text-sm block mb-2">Username</label>
               <input
+                name="username"
                 type="text"
-                placeholder="Enter your name"
+                required
+                onChange={handleChange}
+                placeholder="Enter your username"
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -59,7 +122,10 @@ const SignupPage: React.FC = () => {
             <div>
               <label className="text-gray-400 text-sm block mb-2">Email</label>
               <input
+                name="email"
                 type="email"
+                required
+                onChange={handleChange}
                 placeholder="Enter your email"
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -69,7 +135,10 @@ const SignupPage: React.FC = () => {
             <div>
               <label className="text-gray-400 text-sm block mb-2">Password</label>
               <input
+                name="password"
                 type="password"
+                required
+                onChange={handleChange}
                 placeholder="Enter your password"
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -79,7 +148,10 @@ const SignupPage: React.FC = () => {
             <div>
               <label className="text-gray-400 text-sm block mb-2">Confirm Password</label>
               <input
+                name="confirmPassword"
                 type="password"
+                required
+                onChange={handleChange}
                 placeholder="Confirm"
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -89,18 +161,17 @@ const SignupPage: React.FC = () => {
             <div>
               <label className="text-gray-400 text-sm block mb-2">Date of Birth</label>
               <input
+                name="dob"
                 type="date"
+                required
+                onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             {/* Terms Checkbox */}
             <div className="flex items-start gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="terms"
-                className="mt-1 w-4 h-4 rounded border-gray-300 text-green-500 focus:ring-green-500"
-              />
+              <input type="checkbox" id="terms" required className="mt-1 w-4 h-4 rounded border-gray-300 text-green-500 focus:ring-green-500" />
               <label htmlFor="terms" className="text-gray-400 text-sm">
                 By signing up, you agree to our{" "}
                 <a href="#" className="text-green-500 hover:underline">Terms of Service</a> and{" "}
@@ -111,9 +182,10 @@ const SignupPage: React.FC = () => {
             {/* Sign-up Button */}
             <button
               type="submit"
-              className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition mt-6"
+              disabled={loading}
+              className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition mt-6 disabled:opacity-50"
             >
-              Sign-up
+              {loading ? "Creating Account..." : "Sign Up"}
             </button>
 
             {/* Divider */}

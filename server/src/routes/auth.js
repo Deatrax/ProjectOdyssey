@@ -17,6 +17,8 @@ const generateToken = (user) => {
 
 // SIGNUP
 router.post("/signup", async (req, res, next) => {
+  console.log("Signup Route Hit!"); // <--- Add this
+  // console.log("Body:", req.body);   // <--- Add this
   try {
     const { username, password, email, dob } = req.body;
     if (!username || !password || !email || !dob)
