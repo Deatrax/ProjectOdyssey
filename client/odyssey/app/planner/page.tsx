@@ -3,13 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import {
   DndContext,
-  closestCenter,
   useDroppable,
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
   MeasuringStrategy,
   DragOverEvent,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
+  CollisionDetection,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -20,18 +23,33 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 type Item = { id: string; text: string };
-type ColumnId = "left" | "right" | "chat";
 type ActiveTab = "chat" | "destinations" | "summaries";
+type DestinationsView = "search" | "collections";
+
+/* -------------------- Custom Collision Logic -------------------- */
+// This fixes the "jumping to end" issue by prioritizing item-level collisions
+const customCollisionStrategy: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) return pointerCollisions;
+  return rectIntersection(args);
+};
 
 /* -------------------- Sortable Item -------------------- */
 function SortableItem({
   id,
   text,
   isIndicatorBefore,
-  onRemove,
-}: Item & { isIndicatorBefore?: boolean; onRemove?: () => void }) {
+  onAction,
+  actionType = "remove",
+  disabled = false,
+}: Item & { 
+  isIndicatorBefore?: boolean; 
+  onAction?: () => void;
+  actionType?: "add" | "remove";
+  disabled?: boolean;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
+    useSortable({ id, disabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -41,20 +59,31 @@ function SortableItem({
     borderRadius: "14px",
     background: "#ffffff",
     boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+    position: "relative"
   };
 
   return (
     <div ref={setNodeRef} style={style}>
       {isIndicatorBefore && (
-        <div style={{ height: "3px", background: "#1db954", marginBottom: "6px", borderRadius: "2px" }} />
+        <div style={{ position: "absolute", top: "-6px", left: 0, right: 0, height: "4px", background: "#1db954", borderRadius: "2px", zIndex: 10 }} />
       )}
-      <div style={{ display: "flex", alignItems: "center", padding: "14px", cursor: isDragging ? "grabbing" : "grab" }}>
-        <span {...attributes} {...listeners} style={{ flex: 1, fontSize: "14px" }}>{text}</span>
+      <div style={{ display: "flex", alignItems: "center", padding: "14px", cursor: disabled ? "default" : (isDragging ? "grabbing" : "grab") }}>
+        <span {...(disabled ? {} : { ...attributes, ...listeners })} style={{ flex: 1, fontSize: "14px" }}>{text}</span>
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove && onRemove(); }}
-          style={{ marginLeft: "12px", background: "#000", color: "#fff", border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontWeight: 600 }}
+          onClick={(e) => { e.stopPropagation(); onAction && onAction(); }}
+          style={{ 
+            marginLeft: "12px", 
+            background: actionType === "add" ? "#1db954" : "#000", 
+            color: "#fff", 
+            border: "none", 
+            borderRadius: "6px", 
+            padding: "4px 10px", 
+            cursor: "pointer", 
+            fontWeight: 600,
+            fontSize: "16px"
+          }}
         >
-          ×
+          {actionType === "add" ? "+" : "×"}
         </button>
       </div>
     </div>
@@ -64,55 +93,71 @@ function SortableItem({
 /* -------------------- Column -------------------- */
 function Column({
   id,
-  title,
   items,
   dropIndicatorIndex,
-  onRemoveItem,
+  onActionItem,
+  actionType,
   children,
-  width,
   transparent = false,
+  isSortable = true,
 }: {
-  id: ColumnId;
-  title?: string;
+  id: string;
   items: Item[];
   dropIndicatorIndex?: number | null;
-  onRemoveItem: (id: string) => void;
+  onActionItem: (id: string) => void;
+  actionType: "add" | "remove";
   children?: React.ReactNode;
-  width?: string;
   transparent?: boolean;
+  isSortable?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+
+  const content = (
+    <div 
+      ref={setNodeRef} 
+      style={{ 
+        flex: 1, 
+        overflowY: "auto", 
+        padding: "4px",
+        minHeight: "200px",
+      }}
+    >
+      {items.map((item, index) => (
+        <SortableItem
+          key={item.id}
+          {...item}
+          actionType={actionType}
+          disabled={!isSortable}
+          isIndicatorBefore={dropIndicatorIndex === index}
+          onAction={() => onActionItem(item.id)}
+        />
+      ))}
+      {dropIndicatorIndex === items.length && items.length > 0 && (
+        <div style={{ height: "4px", background: "#1db954", marginTop: "-6px", marginBottom: "10px", borderRadius: "2px" }} />
+      )}
+    </div>
+  );
 
   return (
     <div
       style={{
-        width: width || "100%",
+        flex: 1,
         height: "100%",
-        background: transparent ? "transparent" : (id === "left" ? "transparent" : isOver ? "#e0f2fe" : "#ffffff"),
+        background: transparent ? "transparent" : (isOver ? "#f0fdf4" : "#ffffff"),
         padding: transparent ? "0px" : "16px",
         borderRadius: "18px",
         display: "flex",
         flexDirection: "column",
-        border: (id === "right" && !transparent) ? "2px dashed #eeeeee" : "none",
+        border: (!transparent) ? "2px dashed #eeeeee" : "none",
+        minHeight: 0,
       }}
     >
-      {title && !transparent && <h4 style={{ marginBottom: "12px", fontWeight: 600 }}>{title}</h4>}
       {children}
-      <div ref={setNodeRef} style={{ flex: 1, overflowY: "auto", paddingRight: "6px", minHeight: "60px" }}>
+      {isSortable ? (
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item, index) => (
-            <SortableItem
-              key={item.id}
-              {...item}
-              isIndicatorBefore={dropIndicatorIndex === index}
-              onRemove={() => onRemoveItem(item.id)}
-            />
-          ))}
-          {dropIndicatorIndex === items.length && (
-            <div style={{ height: "3px", background: "#1db954", marginBottom: "6px", borderRadius: "2px" }} />
-          )}
+          {content}
         </SortableContext>
-      </div>
+      ) : content}
     </div>
   );
 }
@@ -145,8 +190,8 @@ function ChatColumn({
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   return (
-    <div ref={setNodeRef} style={{ width: "100%", flex: 1, display: "flex", flexDirection: "column", borderRadius: "18px" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+    <div ref={setNodeRef} style={{ width: "100%", flex: 1, display: "flex", flexDirection: "column", borderRadius: "18px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px", display: "flex", flexDirection: "column", gap: "10px", minHeight: 0 }}>
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -166,116 +211,153 @@ function ChatColumn({
         ))}
         <div ref={chatEndRef} />
       </div>
-      <div style={{ padding: "10px", display: "flex", gap: "8px" }}>
+      <div style={{ padding: "10px", display: "flex", gap: "8px", flexShrink: 0 }}>
         <input
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder="Where to ?..."
-          style={{ flex: 1, padding: "12px", borderRadius: "25px", border: "none", background: "#d1d5db", fontWeight: "bold", outline: "none" }}
+          style={{ flex: 1, padding: "12px", borderRadius: "25px", border: "none", background: "#ffffff", fontWeight: "bold", outline: "none", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)" }}
         />
       </div>
     </div>
   );
 }
 
-/* -------------------- Page -------------------- */
+/* -------------------- Main Page -------------------- */
 export default function Page() {
-  const [left, setLeft] = useState<Item[]>([]);
-  const [right, setRight] = useState<Item[]>([]);
+  const [searchResults, setSearchResults] = useState<Item[]>([]);
+  const [itinerary, setItinerary] = useState<Item[]>([]);
+  const [collections, setCollections] = useState<Item[]>([]);
+  
   const [chat, setChat] = useState<{ id: string; text: string; user?: boolean }[]>([]);
   const [activeItem, setActiveItem] = useState<Item | null>(null);
-  const [dropIndicator, setDropIndicator] = useState<{ column: ColumnId; index: number } | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ column: string; index: number } | null>(null);
   const [input, setInput] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
+  const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
   const [tripName, setTripName] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const addItem = () => {
+  const handleSearch = async () => {
     if (!input.trim()) return;
-    setLeft((prev) => [...prev, { id: crypto.randomUUID(), text: input }]);
-    setInput("");
+    setLoading(true);
+    setTimeout(() => {
+      const mockResults: Item[] = [
+        { id: crypto.randomUUID(), text: `${input} - Popular Landmark` },
+        { id: crypto.randomUUID(), text: `${input} - City Center` },
+        { id: crypto.randomUUID(), text: `Hidden Gem in ${input}` },
+        { id: crypto.randomUUID(), text: `Top Rated Restaurant in ${input}` },
+      ];
+      setSearchResults(mockResults);
+      setLoading(false);
+    }, 800);
   };
 
-  const handleRemoveItem = (id: string) => {
-    setLeft((prev) => prev.filter((i) => i.id !== id));
-    setRight((prev) => prev.filter((i) => i.id !== id));
+  const handleAddToCollections = (id: string) => {
+    const item = searchResults.find(i => i.id === id);
+    if (item) setCollections(prev => [...prev, { ...item, id: crypto.randomUUID() }]);
   };
 
-  const findColumn = (id: string): ColumnId | null => {
-    if (left.some((i) => i.id === id)) return "left";
-    if (right.some((i) => i.id === id)) return "right";
-    if (id === "left" || id === "right") return id as ColumnId;
+  const findColumn = (id: string): string | null => {
+    if (id === "itinerary" || itinerary.some((i) => i.id === id)) return "itinerary";
+    if (id === "collections" || collections.some((i) => i.id === id)) return "collections";
+    if (id === "search" || searchResults.some((i) => i.id === id)) return "search";
     return null;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = event.active.id as string;
-    setActiveItem(left.find((i) => i.id === id) || right.find((i) => i.id === id) || null);
+    const item = [...itinerary, ...collections].find(i => i.id === id);
+    setActiveItem(item || null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over || over.id === "chat") { setDropIndicator(null); return; }
-    const to = findColumn(over.id as string);
-    if (!to) return;
-    const targetItems = to === "left" ? left : right;
-    let index = targetItems.findIndex((i) => i.id === over.id);
-    if (index === -1) index = targetItems.length;
-    setDropIndicator({ column: to, index });
+
+    const overId = over.id as string;
+    const colId = findColumn(overId);
+
+    if (!colId || colId === "search") { setDropIndicator(null); return; } 
+
+    const items = colId === "itinerary" ? itinerary : collections;
+    const overItemIndex = items.findIndex((i) => i.id === overId);
+    
+    let index: number;
+
+    if (overItemIndex !== -1) {
+      const overRect = over.rect;
+      // Get the mouse position relative to the item being hovered
+      const cursorY = event.activatorEvent instanceof MouseEvent 
+        ? (event.activatorEvent as MouseEvent).clientY 
+        : (event.activatorEvent as TouchEvent).touches[0].clientY;
+      
+      const threshold = overRect.top + overRect.height / 2;
+      index = cursorY > threshold ? overItemIndex + 1 : overItemIndex;
+    } else {
+      index = items.length;
+    }
+
+    setDropIndicator({ column: colId, index });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveItem(null);
-    if (!over) return;
+    
+    if (!over) { setDropIndicator(null); return; }
 
     if (over.id === "chat") {
-      const item = left.find((i) => i.id === active.id) || right.find((i) => i.id === active.id);
-      if (item) setChatInput((p) => p + (p ? " " : "") + item.text);
+      if (activeItem) setChatInput((p) => p + (p ? " " : "") + activeItem.text);
       setDropIndicator(null);
       return;
     }
 
-    const from = findColumn(active.id as string);
-    const to = findColumn(over.id as string);
-    if (!from || !to) return;
+    const fromCol = findColumn(active.id as string);
+    const toCol = dropIndicator?.column;
+    
+    if (!fromCol || !toCol) { setDropIndicator(null); return; }
 
-    const source = from === "left" ? left : right;
-    const target = to === "left" ? left : right;
-    const sourceIndex = source.findIndex((i) => i.id === active.id);
-    const moving = source[sourceIndex];
+    const targetIndex = dropIndicator.index;
+    const sourceItems = fromCol === "itinerary" ? itinerary : collections;
+    const targetItems = toCol === "itinerary" ? itinerary : collections;
+    const setSource = fromCol === "itinerary" ? setItinerary : setCollections;
+    const setTarget = toCol === "itinerary" ? setItinerary : setCollections;
 
-    if (from === to) {
-      const reordered = arrayMove(source, sourceIndex, dropIndicator?.index ?? sourceIndex);
-      from === "left" ? setLeft(reordered) : setRight(reordered);
+    if (fromCol === toCol) {
+      const oldIndex = sourceItems.findIndex(i => i.id === active.id);
+      // Adjust targetIndex for arrayMove if moving downwards
+      const newIdx = targetIndex > oldIndex ? targetIndex - 1 : targetIndex;
+      setSource(arrayMove(sourceItems, oldIndex, newIdx));
     } else {
-      if (from === "left") {
-        const copyOfItem = { ...moving, id: crypto.randomUUID() };
-        const newTarget = [...target.slice(0, dropIndicator?.index ?? target.length), copyOfItem, ...target.slice(dropIndicator?.index ?? target.length)];
-        setRight(newTarget);
-      } else {
-        const newSource = source.filter((i) => i.id !== active.id);
-        const newTarget = [...target.slice(0, dropIndicator?.index ?? target.length), moving, ...target.slice(dropIndicator?.index ?? target.length)];
-        setRight(newSource);
-        setLeft(newTarget);
+      const movingItem = sourceItems.find(i => i.id === active.id);
+      if (!movingItem) return;
+
+      const newTarget = [...targetItems];
+      newTarget.splice(targetIndex, 0, { ...movingItem, id: crypto.randomUUID() });
+      setTarget(newTarget);
+      
+      if (!(fromCol === "collections" && toCol === "itinerary")) {
+        setSource(sourceItems.filter(i => i.id !== active.id));
       }
     }
     setDropIndicator(null);
   };
 
-  const tabButtonStyle = (tab: ActiveTab) => ({
+  const sharedTabStyles = (isActive: boolean) => ({
     flex: 1,
     padding: "8px 12px",
-    background: activeTab === tab ? "#1db954" : "transparent",
-    color: activeTab === tab ? "#fff" : "#000",
+    background: isActive ? "#1db954" : "transparent",
+    color: isActive ? "#fff" : "#000",
     border: "none",
     borderRadius: "8px",
     fontWeight: "bold",
     cursor: "pointer",
-    transition: "0.2s",
-    fontSize: "13px"
-  });
+    fontSize: "13px",
+    transition: "all 0.2s ease"
+  } as React.CSSProperties);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Inter, sans-serif", background: "#ffffff", overflow: "hidden" }}>
@@ -291,76 +373,81 @@ export default function Page() {
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
       </header>
 
-      <main style={{ padding: "20px 5%", flex: 1, display: "flex", flexDirection: "column", background: "#ffffff", overflow: "hidden" }}>
-        <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}>
-          
-          {/* HEADER ROW - Synchronizes vertical start of columns */}
-          <div style={{ display: "flex", gap: "30px", marginBottom: "12px", alignItems: "center", flexShrink: 0 }}>
-            {/* Left Header */}
+      <main style={{ padding: "20px 5%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+        <DndContext 
+          collisionDetection={customCollisionStrategy} 
+          onDragStart={handleDragStart} 
+          onDragOver={handleDragOver} 
+          onDragEnd={handleDragEnd} 
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        >
+          <div style={{ display: "flex", gap: "30px", marginBottom: "12px", flexShrink: 0 }}>
             <div style={{ width: "55%", display: "flex", alignItems: "center", gap: "10px" }}>
-              <button style={{ 
-                background: "white", 
-                border: "1px solid #d9d9d9", 
-                borderRadius: "6px", 
-                width: "28px", 
-                height: "28px", 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                cursor: "pointer",
-                fontSize: "16px"
-              }}>
-                ←
-              </button>
+              <button style={{ background: "white", border: "1px solid #d9d9d9", borderRadius: "6px", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>←</button>
               <h3 style={{ margin: 0, fontWeight: 700, fontSize: "20px" }}>Itinerary</h3>
             </div>
-
-            {/* Right Header (Tabs) */}
             <div style={{ width: "45%", display: "flex", gap: "4px", background: "#d1d5db", borderRadius: "10px", padding: "4px" }}>
-              <button onClick={() => setActiveTab("chat")} style={tabButtonStyle("chat")}>Chat</button>
-              <button onClick={() => setActiveTab("destinations")} style={tabButtonStyle("destinations")}>Destinations</button>
-              <button onClick={() => setActiveTab("summaries")} style={tabButtonStyle("summaries")}>Summaries</button>
+              <button onClick={() => setActiveTab("chat")} style={sharedTabStyles(activeTab === "chat")}>Chat</button>
+              <button onClick={() => setActiveTab("destinations")} style={sharedTabStyles(activeTab === "destinations")}>Destinations</button>
+              <button onClick={() => setActiveTab("summaries")} style={sharedTabStyles(activeTab === "summaries")}>Summaries</button>
             </div>
           </div>
 
-          {/* COLUMN CONTENT ROW */}
-          <div style={{ display: "flex", flexDirection: "row", gap: "30px", alignItems: "stretch", flex: 1, overflow: "hidden" }}>
-            {/* Left Column Container */}
-            <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <Column 
-                id="right" 
-                items={right} 
-                dropIndicatorIndex={dropIndicator?.column === "right" ? dropIndicator.index : null} 
-                onRemoveItem={handleRemoveItem} 
-                width="100%" 
-              />
+          <div style={{ display: "flex", flexDirection: "row", gap: "30px", flex: 1, overflow: "hidden", minHeight: 0 }}>
+            <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+              <Column id="itinerary" items={itinerary} actionType="remove" dropIndicatorIndex={dropIndicator?.column === "itinerary" ? dropIndicator.index : null} onActionItem={(id) => setItinerary(itinerary.filter(i => i.id !== id))} />
             </div>
 
-            {/* Right Column Container */}
-            <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden" }}>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden", minHeight: 0 }}>
                 {activeTab === "chat" && <ChatColumn messages={chat} setMessages={setChat} chatInput={chatInput} setChatInput={setChatInput} />}
                 
                 {activeTab === "destinations" && (
-                  <Column id="left" items={left} dropIndicatorIndex={dropIndicator?.column === "left" ? dropIndicator.index : null} onRemoveItem={handleRemoveItem} width="100%" transparent>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                      <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Add item" style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", background: "#fff", outline: "none" }} />
-                      <button onClick={addItem} style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600 }}>Add</button>
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+                    <div style={{ display: "flex", gap: "12px", background: "#d1d5db", borderRadius: "10px", padding: "4px", marginBottom: "16px", flexShrink: 0 }}>
+                      <button onClick={() => setDestinationsView("search")} style={sharedTabStyles(destinationsView === "search")}>Search</button>
+                      <button onClick={() => setDestinationsView("collections")} style={sharedTabStyles(destinationsView === "collections")}>Collections ({collections.length})</button>
                     </div>
-                  </Column>
-                )}
 
-                {activeTab === "summaries" && (
-                  <div style={{ flex: 1, padding: "20px", textAlign: "center", color: "#666" }}>
-                    <p>No summaries generated yet.</p>
+                    {destinationsView === "search" ? (
+                      <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false}>
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexShrink: 0 }}>
+                          <input 
+                            value={input} 
+                            onChange={(e) => setInput(e.target.value)} 
+                            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                            placeholder="Search destinations..." 
+                            style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }} 
+                          />
+                          <button onClick={handleSearch} style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
+                            {loading ? "..." : "Search"}
+                          </button>
+                        </div>
+                      </Column>
+                    ) : (
+                      <Column id="collections" items={collections} actionType="remove" dropIndicatorIndex={dropIndicator?.column === "collections" ? dropIndicator.index : null} onActionItem={(id) => setCollections(collections.filter(i => i.id !== id))} transparent isSortable={true} />
+                    )}
                   </div>
                 )}
-              </div>
+
+                {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
             </div>
           </div>
 
-          <DragOverlay>
-            {activeItem && <div style={{ padding: "14px", background: "#fff", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.15)", minWidth: "200px" }}>{activeItem.text}</div>}
+          <DragOverlay dropAnimation={null}>
+            {activeItem && (
+              <div style={{ 
+                padding: "14px", 
+                background: "#fff", 
+                borderRadius: "12px", 
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                width: "100%",
+                maxWidth: "300px",
+                fontSize: "14px",
+                opacity: 0.9
+              }}>
+                {activeItem.text}
+              </div>
+            )}
           </DragOverlay>
         </DndContext>
       </main>
