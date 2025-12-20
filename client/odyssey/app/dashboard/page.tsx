@@ -8,20 +8,56 @@ import Image from "next/image";
 const DashboardPage: React.FC = () => {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true); // Add loading state
 
   // --- PROTECTION LOGIC ---
   useEffect(() => {
-    // 1. Check for token
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const validateSession = async () => {
+      const token = localStorage.getItem("token");
+      
+      // 1. Immediate check: No token? Go to login.
+      if (!token) {
+        router.push("/login");
+        return;
+      }
 
-    if (!token || !userData) {
-      // 2. If missing, redirect to login
-      router.push("/login");
-    } else {
-      // 3. If present, load user data
-      setUser(JSON.parse(userData));
-    }
+      try {
+        // 2. Verification check: Ask backend if token is valid
+        // NOTE: Use the same IP/URL that worked for your login (e.g., localhost:4000 or your PC IP)
+        const res = await fetch("http://localhost:4000/api/user/profile", {
+          method: "GET",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+        });
+
+        // 3. If backend says error (401/403), the token is bad/expired
+        if (!res.ok) {
+          throw new Error("Invalid token");
+        }
+
+        // 4. Token is good! Load user data
+        const data = await res.json();
+        setUser(data.user);
+        
+        // Optional: Update local storage with fresh user data
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+      } catch (err) {
+        console.error("Session expired:", err);
+        alert("session expired, please login again");
+        // 5. CRITICAL: Wipe storage so Login page doesn't bounce us back
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateSession();
   }, [router]);
 
   // Prevent flash of content while checking auth
