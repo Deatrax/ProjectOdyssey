@@ -29,20 +29,22 @@
 <body class="bg-[#FFF5E9] min-h-screen">
     <!-- Navigation -->
 
-    <nav class=" flex items-center justify-between sticky top-4 z-50
-            px-8 py-4 mx-16 my-8
-            bg-[#FFF5E9]/10
-            backdrop-blur-lg
-            border border-white/30
-            rounded-2xl
-            shadow-lg">
+   <!-- NAVBAR -->
+<nav class="sticky top-4 z-50 px-8 py-4 mx-4 md:mx-16 my-6
+            bg-[#FFF5E9]/10 backdrop-blur-lg
+            border border-white/30 rounded-2xl shadow-lg">
+
+    <div class="flex items-center justify-between">
+        <!-- Logo -->
         <div class="flex items-center gap-2">
             <div class="w-8 h-8 flex items-center justify-center">
                 <img src="Odyssey_Logo.png" alt="Odyssey Logo" class="w-full h-full object-contain">
             </div>
-            <span class="text-2xl font-medium font-odyssey tracking-wider"> Odyssey </span>
+            <span class="text-2xl font-medium font-odyssey tracking-wider">Odyssey</span>
         </div>
-        <div class="flex items-center gap-8">
+
+        <!-- Desktop Menu (UNCHANGED) -->
+        <div class="hidden md:flex items-center gap-8">
             <a href="#" class="text-gray-700 hover:text-gray-900 font-medium">About</a>
             <a href="#" class="text-gray-700 hover:text-gray-900 font-medium">Destinations</a>
             <a href="#" class="text-gray-700 hover:text-gray-900 font-medium">Pricing</a>
@@ -50,7 +52,26 @@
                 Sign-in
             </button>
         </div>
-    </nav>
+
+        <!-- Mobile Hamburger -->
+        <button id="menu-btn" class="md:hidden p-2 rounded-lg hover:bg-white/40 transition">
+            <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden mt-6 flex flex-col gap-4">
+        <a href="#" class="text-gray-700 font-medium">About</a>
+        <a href="#" class="text-gray-700 font-medium">Destinations</a>
+        <a href="#" class="text-gray-700 font-medium">Pricing</a>
+        <button class="w-full px-6 py-2 border-2 border-green-500 text-green-700 rounded-full hover:bg-green-50 transition font-medium">
+            Sign-in
+        </button>
+    </div>
+</nav>
 
     <!-- Sign-up Form -->
     <div class="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
@@ -168,5 +189,15 @@
             ©Odyssey. Made with <span class="text-red-500">❤️</span> by Route6
         </p>
     </footer>
+
+<script>
+    const btn = document.getElementById('menu-btn');
+    const menu = document.getElementById('mobile-menu');
+
+    btn.addEventListener('click', () => {
+        menu.classList.toggle('hidden');
+    });
+</script>
+    
 </body>
 </html>
