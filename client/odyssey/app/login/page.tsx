@@ -1,11 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    
+
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // Store Token
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Redirect
+      router.push("/dashboard");
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen flex flex-col">
     {/* Navigation */}
@@ -54,18 +88,21 @@ const LoginPage: React.FC = () => {
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
           <h2 className="text-white text-2xl font-semibold mb-2">
-            Welcome Traveller
+            Welcome Back Traveller
           </h2>
           <p className="text-gray-400 text-sm mb-6">
             Please login with your Odyssey account
           </p>
+          
+          {error && <div className="text-red-400 text-sm mb-4 text-center">{error}</div>}
 
-          <form className="space-y-4">
-            {/* Username */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <input
                 type="text"
                 placeholder="Username"
+                value={formData.username}
+                onChange={(e) => setFormData({...formData, username: e.target.value})}
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -75,6 +112,8 @@ const LoginPage: React.FC = () => {
               <input
                 type="password"
                 placeholder="Password"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -104,20 +143,13 @@ const LoginPage: React.FC = () => {
               </svg>
               Sign in with Google
             </button>
-
             {/* Login Button */}
-            <button
-              type="submit"
-              className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition"
-            >
-              Login
+            <button type="submit" disabled={loading} className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition">
+              {loading ? "Logging in..." : "Login"}
             </button>
-                      <button
-              type="button"
-              className="w-full py-3 bg-transparent border-2 border-green-500 hover:bg-green-900 text-green-500 font-medium rounded-lg transition"
-              onClick={() => router.push("/signup")}
-            >
-              sign up
+            
+            <button type="button" onClick={() => router.push("/signup")} className="w-full py-3 border-2 border-green-500 text-green-500 rounded-lg">
+               Create Account
             </button>
             {/* Problem logging in link */}
             <div className="text-center pt-2">
