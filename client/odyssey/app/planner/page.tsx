@@ -21,6 +21,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useRouter } from "next/navigation";
 
 type Item = { id: string; text: string };
 type ActiveTab = "chat" | "destinations" | "summaries";
@@ -238,7 +239,9 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
   const [tripName, setTripName] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSearch = async () => {
     if (!input.trim()) return;
@@ -361,6 +364,7 @@ export default function Page() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Inter, sans-serif", background: "#ffffff", overflow: "hidden" }}>
+    
       <header style={{ padding: "12px 5%", height: "64px", flexShrink: 0, display: "flex", alignItems: "center", background: "#fff6eb", gap: "12px", borderBottom: "1px solid #e5e7eb" }}>
         <input 
           value={tripName} 
@@ -383,7 +387,7 @@ export default function Page() {
         >
           <div style={{ display: "flex", gap: "30px", marginBottom: "12px", flexShrink: 0 }}>
             <div style={{ width: "55%", display: "flex", alignItems: "center", gap: "10px" }}>
-              <button style={{ background: "white", border: "1px solid #d9d9d9", borderRadius: "6px", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>←</button>
+              <button onClick={() => router.push("/dashboard")} style={{ background: "white", border: "1px solid #d9d9d9", borderRadius: "6px", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>←</button>
               <h3 style={{ margin: 0, fontWeight: 700, fontSize: "20px" }}>Itinerary</h3>
             </div>
             <div style={{ width: "45%", display: "flex", gap: "4px", background: "#d1d5db", borderRadius: "10px", padding: "4px" }}>

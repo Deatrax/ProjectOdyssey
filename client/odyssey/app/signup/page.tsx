@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import "./landingPage.css";
 
 const SignupPage: React.FC = () => {
   const router = useRouter();
@@ -67,35 +68,23 @@ const SignupPage: React.FC = () => {
 
   return (
     <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen">
-      {/* Navigation */}
-      <nav className="flex items-center justify-between px-8 py-4 bg-stone-900/15 backdrop-blur-xl border border-white/20 rounded-full mx-16 my-8">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 -960 960 960"
-              width="24px"
-              fill="#F19E39"
-            >
-              <path d="m300-300 280-80 80-280-280 80-80 280Zm180-120q-25 0-42.5-17.5T420-480q0-25 17.5-42.5T480-540q25 0 42.5 17.5T540-480q0 25-17.5 42.5T480-420Zm0 340q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q133 0 226.5-93.5T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 133 93.5 226.5T480-160Zm0-320Z" />
-            </svg>
-          </div>
-          <span className="text-2xl font-medium font-odyssey tracking-wider">Odyssey</span>
+      {/* Navbar */}
+      <div className="navbar">
+        <div className="nav-left">
+          <span className="logo-icon">🌐</span>
+          <span className="logo-text">Odyssey</span>
         </div>
 
-        <div className="flex items-center gap-8">
-          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">About</a>
-          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">Destinations</a>
-          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">Pricing</a>
-          <button
-            className="px-6 py-2 border-2 border-green-500 text-green-700 rounded-full hover:bg-green-50 transition font-medium"
-            onClick={() => router.push("/login")}
-          >
-            Sign-in
-          </button>
+        <div className="nav-right">
+          <a className="active" href="#">About</a>
+          <a href="#">Destinations</a>
+          <a href="#">Pricing</a>
+          {/* Sign-in navigates to /login */}
+          <Link href="/login">
+            <button className="signin-btn">Sign-in</button>
+          </Link>
         </div>
-      </nav>
+      </div>
 
       {/* Sign-up Form */}
       <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
@@ -225,7 +214,7 @@ const SignupPage: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-300 py-6 text-center">
+      <footer className="bg-gray-300 mt-[100px] py-6 text-center">
         <p className="text-gray-800 text-sm">
           ©Odyssey. Made with <span className="text-red-500">❤️</span> by Route6
         </p>
