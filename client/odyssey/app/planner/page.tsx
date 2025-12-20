@@ -23,7 +23,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 
-type Item = { id: string; text: string };
+type Item = {
+  id: string;                 // frontend UUID
+  placeId?: string;           // DB id OR external id
+  name: string;
+  description?: string;
+  category?: "nature" | "history" | "museum" | "urban";
+  visitDurationMin?: number;
+  source: "db" | "ai";
+};
+
 type ActiveTab = "chat" | "destinations" | "summaries";
 type DestinationsView = "search" | "collections";
 
@@ -38,7 +47,7 @@ const customCollisionStrategy: CollisionDetection = (args) => {
 /* -------------------- Sortable Item -------------------- */
 function SortableItem({
   id,
-  text,
+  name,
   isIndicatorBefore,
   onAction,
   actionType = "remove",
@@ -46,7 +55,7 @@ function SortableItem({
 }: Item & { 
   isIndicatorBefore?: boolean; 
   onAction?: () => void;
-  actionType?: "add" | "remove";
+  actionType?: "add" | "remove"; 
   disabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -68,8 +77,8 @@ function SortableItem({
       {isIndicatorBefore && (
         <div style={{ position: "absolute", top: "-6px", left: 0, right: 0, height: "4px", background: "#1db954", borderRadius: "2px", zIndex: 10 }} />
       )}
-      <div style={{ display: "flex", alignItems: "center", padding: "14px", cursor: disabled ? "default" : (isDragging ? "grabbing" : "grab") }}>
-        <span {...(disabled ? {} : { ...attributes, ...listeners })} style={{ flex: 1, fontSize: "14px" }}>{text}</span>
+      <div style={{ display: "flex", alignItems: "center", padding: "14px", cursor: disabled ? "default" : (isDragging ? "grabbing" : "grab") }}> 
+        <span {...(disabled ? {} : { ...attributes, ...listeners })} style={{ flex: 1, fontSize: "14px" }}>{name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); onAction && onAction(); }}
           style={{ 
@@ -248,10 +257,10 @@ export default function Page() {
     setLoading(true);
     setTimeout(() => {
       const mockResults: Item[] = [
-        { id: crypto.randomUUID(), text: `${input} - Popular Landmark` },
-        { id: crypto.randomUUID(), text: `${input} - City Center` },
-        { id: crypto.randomUUID(), text: `Hidden Gem in ${input}` },
-        { id: crypto.randomUUID(), text: `Top Rated Restaurant in ${input}` },
+        { id: crypto.randomUUID(), name: `${input} - Popular Landmark`, source: "ai" },
+        { id: crypto.randomUUID(), name: `${input} - City Center`, source: "ai" },
+        { id: crypto.randomUUID(), name: `Hidden Gem in ${input}`, source: "ai" },
+        { id: crypto.randomUUID(), name: `Top Rated Restaurant in ${input}`, source: "ai" },
       ];
       setSearchResults(mockResults);
       setLoading(false);
@@ -313,7 +322,7 @@ export default function Page() {
     if (!over) { setDropIndicator(null); return; }
 
     if (over.id === "chat") {
-      if (activeItem) setChatInput((p) => p + (p ? " " : "") + activeItem.text);
+      if (activeItem) setChatInput((p) => p + (p ? " " : "") + activeItem.name);
       setDropIndicator(null);
       return;
     }
@@ -449,7 +458,7 @@ export default function Page() {
                 fontSize: "14px",
                 opacity: 0.9
               }}>
-                {activeItem.text}
+                {activeItem.name}
               </div>
             )}
           </DragOverlay>
