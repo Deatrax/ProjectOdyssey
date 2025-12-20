@@ -1,11 +1,34 @@
 // app/dashboard/page.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react"; // Import useEffect
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-
 const DashboardPage: React.FC = () => {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  // --- PROTECTION LOGIC ---
+  useEffect(() => {
+    // 1. Check for token
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
+
+    if (!token || !userData) {
+      // 2. If missing, redirect to login
+      router.push("/login");
+    } else {
+      // 3. If present, load user data
+      setUser(JSON.parse(userData));
+    }
+  }, [router]);
+
+  // Prevent flash of content while checking auth
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#FFF5E9]">Loading Odyssey...</div>;
+  }
+
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
       {/* Navigation */}
