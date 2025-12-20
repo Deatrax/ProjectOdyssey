@@ -5,6 +5,8 @@ const cors = require('cors'); // <--- CRITICAL FOR FRONTEND CONNECTION
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth'); 
 const protectedRoutes = require("./routes/protected");
+const aiRoutes = require("./routes/ai.routes");
+
 
 const app = express();
 
@@ -22,6 +24,9 @@ app.use(express.json());
 connectDB();
 
 // 4. Mount Routes
+app.use("/api/ai", aiRoutes);
+
+
 // This means "server/src/routes/auth.js" becomes "http://localhost:PORT/api/auth/..."
 app.use('/api/auth', authRoutes);
 app.use('/api/user', protectedRoutes);
