@@ -48,18 +48,25 @@ const customCollisionStrategy: CollisionDetection = (args) => {
 function SortableItem({
   id,
   name,
+  visitDurationMin,
   isIndicatorBefore,
   onAction,
   actionType = "remove",
   disabled = false,
-}: Item & { 
-  isIndicatorBefore?: boolean; 
+}: Item & {
+  isIndicatorBefore?: boolean;
   onAction?: () => void;
-  actionType?: "add" | "remove"; 
+  actionType?: "add" | "remove";
   disabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -69,28 +76,77 @@ function SortableItem({
     borderRadius: "14px",
     background: "#ffffff",
     boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-    position: "relative"
+    position: "relative",
   };
 
   return (
     <div ref={setNodeRef} style={style}>
+      {/* Drop indicator */}
       {isIndicatorBefore && (
-        <div style={{ position: "absolute", top: "-6px", left: 0, right: 0, height: "4px", background: "#1db954", borderRadius: "2px", zIndex: 10 }} />
+        <div
+          style={{
+            position: "absolute",
+            top: "-6px",
+            left: 0,
+            right: 0,
+            height: "4px",
+            background: "#1db954",
+            borderRadius: "2px",
+            zIndex: 10,
+          }}
+        />
       )}
-      <div style={{ display: "flex", alignItems: "center", padding: "14px", cursor: disabled ? "default" : (isDragging ? "grabbing" : "grab") }}> 
-        <span {...(disabled ? {} : { ...attributes, ...listeners })} style={{ flex: 1, fontSize: "14px" }}>{name}</span>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "14px",
+          cursor: disabled
+            ? "default"
+            : isDragging
+            ? "grabbing"
+            : "grab",
+        }}
+      >
+        {/* Drag handle + content */}
+        <div
+          {...(disabled ? {} : { ...attributes, ...listeners })}
+          style={{ flex: 1 }}
+        >
+          <div style={{ fontSize: "14px", fontWeight: 600 }}>
+            {name}
+          </div>
+
+          {visitDurationMin && (
+            <div
+              style={{
+                marginTop: "4px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              ⏱ {visitDurationMin} min
+            </div>
+          )}
+        </div>
+
+        {/* Action button */}
         <button
-          onClick={(e) => { e.stopPropagation(); onAction && onAction(); }}
-          style={{ 
-            marginLeft: "12px", 
-            background: actionType === "add" ? "#1db954" : "#000", 
-            color: "#fff", 
-            border: "none", 
-            borderRadius: "6px", 
-            padding: "4px 10px", 
-            cursor: "pointer", 
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction && onAction();
+          }}
+          style={{
+            marginLeft: "12px",
+            background: actionType === "add" ? "#1db954" : "#000",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            padding: "4px 10px",
+            cursor: "pointer",
             fontWeight: 600,
-            fontSize: "16px"
+            fontSize: "16px",
           }}
         >
           {actionType === "add" ? "+" : "×"}
@@ -99,6 +155,7 @@ function SortableItem({
     </div>
   );
 }
+
 
 /* -------------------- Column -------------------- */
 function Column({
