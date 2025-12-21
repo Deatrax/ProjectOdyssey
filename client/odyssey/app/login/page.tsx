@@ -2,10 +2,17 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-
+import { signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { useEffect } from "react";
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+    const { status } = useSession();
+    useEffect(() => {
+      if (status === "authenticated") router.replace("/dashboard");
+  }, [status, router]);
+
   return (
     <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen flex flex-col">
     {/* Navigation */}
@@ -82,6 +89,7 @@ const LoginPage: React.FC = () => {
             {/* Google Sign-in */}
             <button
               type="button"
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
               className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-lg transition flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

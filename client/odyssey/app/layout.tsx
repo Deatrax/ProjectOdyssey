@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
-
+import Providers from "./providers";
 import "./globals.css";
 
 // Load fonts with CSS variables for easy usage
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} ${robotoMono.variable} antialiased`}>
-        {children}
+       <Providers>{children}</Providers>
       </body>
     </html>
   );

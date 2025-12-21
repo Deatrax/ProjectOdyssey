@@ -3,9 +3,21 @@
 
 import React from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 
 const DashboardPage: React.FC = () => {
+  const { status } = useSession();
+  const router = useRouter();
+  useEffect(() => {
+    if (status === "unauthenticated") router.replace("/login");
+  }, [status, router]);
+
+  if (status === "loading") return null;        // or a loading UI
+  if (status === "unauthenticated") return null;
+
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
       {/* Navigation */}
