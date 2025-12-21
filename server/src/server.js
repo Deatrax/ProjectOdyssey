@@ -12,7 +12,7 @@ const app = express();
 
 // 1. Enable CORS (Allow localhost:3000 to talk to this server)
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+  origin: ["http://localhost:3000", "http://127.0.0.1:3000","http://113.11.100.133:55680"],
   credentials: true
 }));
 

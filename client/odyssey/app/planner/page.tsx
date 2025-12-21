@@ -22,14 +22,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import LocationModal from "../components/LocationModal"; // Import your Modal
+import LocationModal from "../components/LocationModal"; // Import the modal
 
-// --- UPDATED TYPE (To support AI data) ---
+// --- TYPES (Updated to include data for Modal) ---
 type Item = {
   id: string;                 
   placeId?: string;           
-  name: string; // Map 'text' to this for UI
-  text?: string; // Fallback for your original UI
+  name: string;               // Map 'text' to 'name'
+  text?: string;              // Keep 'text' for compatibility with your UI
   description?: string;
   category?: string;
   visitDurationMin?: number;
@@ -49,7 +49,7 @@ const customCollisionStrategy: CollisionDetection = (args) => {
   return rectIntersection(args);
 };
 
-/* -------------------- Sortable Item (YOUR ORIGINAL + Click) -------------------- */
+/* -------------------- Sortable Item (MODIFIED: Added Info Button) -------------------- */
 function SortableItem({
   id,
   text,
@@ -57,9 +57,9 @@ function SortableItem({
   onAction,
   actionType = "remove",
   disabled = false,
-  // New props for Modal
+  // New props
   itemData,
-  onClick
+  onViewDetails 
 }: any) {
   const {
     attributes,
@@ -81,7 +81,8 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`sortable-item ${isDragging ? "z-50" : ""}`} // Preserving class behavior
+      // This class ensures your original styling works
+      className={`sortable-item ${isDragging ? "z-50" : ""}`}
     >
       <div style={{ 
         padding: "12px", 
@@ -95,7 +96,7 @@ function SortableItem({
         justifyContent: "space-between",
         position: "relative"
       }}>
-        {/* Indicator Logic */}
+        {/* Drop Indicator Logic */}
         {isIndicatorBefore !== undefined && (
           <div style={{
             position: "absolute",
@@ -108,31 +109,36 @@ function SortableItem({
           }} />
         )}
 
-        {/* Clickable Area for Modal */}
+        {/* --- MAIN CARD CONTENT (Draggable) --- */}
         <div 
-          onClick={() => onClick && onClick(itemData)} 
-          style={{ flex: 1, cursor: "pointer", display: "flex", flexDirection: "column" }}
+          style={{ flex: 1, cursor: disabled ? "default" : "grab", display: "flex", flexDirection: "column" }}
           {...attributes} 
           {...listeners}
         >
           <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>{text}</span>
+          
+          {/* Optional: Show tiny details below name */}
           {itemData?.category && (
-             <span style={{ fontSize: "10px", color: "#6b7280", textTransform: "uppercase", marginTop: "2px" }}>
-               {itemData.category}
+             <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", marginTop: "2px" }}>
+               {itemData.category} {itemData.visitDurationMin ? `• ${itemData.visitDurationMin}m` : ""}
              </span>
           )}
         </div>
 
-        {onAction && (
+        {/* --- BUTTON GROUP --- */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          
+          {/* 1. INFO BUTTON (New) */}
           <button
             onClick={(e) => {
-              e.stopPropagation();
-              onAction(id);
+              e.stopPropagation(); // Don't trigger drag
+              if (onViewDetails) onViewDetails(itemData);
             }}
+            onPointerDown={(e) => e.stopPropagation()} // Don't start drag
             style={{
-              background: actionType === "add" ? "#ecfdf5" : "#fef2f2",
-              color: actionType === "add" ? "#059669" : "#dc2626",
-              border: "none",
+              background: "#eff6ff",
+              color: "#3b82f6",
+              border: "1px solid #dbeafe",
               borderRadius: "50%",
               width: "24px", 
               height: "24px",
@@ -140,21 +146,47 @@ function SortableItem({
               alignItems: "center", 
               justifyContent: "center", 
               cursor: "pointer",
-              fontSize: "16px",
-              marginLeft: "8px"
+              fontSize: "12px",
+              fontWeight: "bold"
             }}
-            onPointerDown={(e) => e.stopPropagation()} // Stop drag when clicking button
+            title="View Details"
           >
-            {actionType === "add" ? "+" : "×"}
+            i
           </button>
-        )}
+
+          {/* 2. ACTION BUTTON (Add/Remove) */}
+          {onAction && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()} // Don't start drag
+              style={{
+                background: actionType === "add" ? "#ecfdf5" : "#fef2f2",
+                color: actionType === "add" ? "#059669" : "#dc2626",
+                border: "none",
+                borderRadius: "50%",
+                width: "24px", 
+                height: "24px",
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                cursor: "pointer",
+                fontSize: "16px"
+              }}
+            >
+              {actionType === "add" ? "+" : "×"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/* -------------------- Column Component (YOUR ORIGINAL) -------------------- */
-function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, transparent, isSortable = true, onItemClick }: any) {
+/* -------------------- Column Component (YOUR ORIGINAL + Prop passing) -------------------- */
+function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, transparent, isSortable = true, onViewDetails }: any) {
   const { setNodeRef } = useDroppable({ id });
 
   return (
@@ -173,16 +205,16 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
     >
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }} className="custom-scrollbar">
         {isSortable ? (
-          <SortableContext items={items.map((i:any) => i.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={items.map((i: any) => i.id)} strategy={verticalListSortingStrategy}>
             {items.map((item: any, index: number) => (
               <SortableItem
                 key={item.id}
                 id={item.id}
-                text={item.name} // Map name to text
-                itemData={item}  // Pass full data for modal
+                text={item.name} // Display Name
+                itemData={item}  // Pass full object
                 actionType={actionType}
                 onAction={onActionItem}
-                onClick={onItemClick}
+                onViewDetails={onViewDetails} // Pass down function
                 isIndicatorBefore={
                   dropIndicatorIndex === index ? true :
                   dropIndicatorIndex === index + 1 ? false : undefined
@@ -191,6 +223,7 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
             ))}
           </SortableContext>
         ) : (
+          // Non-sortable items (e.g., search results)
           items.map((item: any) => (
             <SortableItem
               key={item.id}
@@ -199,11 +232,12 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
               itemData={item}
               actionType={actionType}
               onAction={onActionItem}
-              onClick={onItemClick}
+              onViewDetails={onViewDetails}
               disabled={true}
             />
           ))
         )}
+        
         {items.length === 0 && !transparent && (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "14px", fontStyle: "italic" }}>
             Drop items here
@@ -214,8 +248,8 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
   );
 }
 
-/* -------------------- Chat Column (Updated to Render Cards) -------------------- */
-function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onItemClick, loading }: any) {
+/* -------------------- Chat Column (Updated for Cards) -------------------- */
+function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -236,19 +270,19 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
               {msg.text}
             </div>
             
-            {/* THIS IS THE NEW PART: Render Cards INSIDE Chat */}
+            {/* RENDER AI CARDS */}
             {msg.cards && msg.cards.length > 0 && (
-              <div style={{ marginTop: "8px", width: "85%", alignSelf: "flex-start" }}>
+              <div style={{ marginTop: "10px", width: "90%" }}>
                 {msg.cards.map((card: any) => (
                   <SortableItem 
                     key={card.id} 
                     id={card.id} 
-                    text={card.name}
-                    itemData={card} 
+                    text={card.name} 
+                    itemData={card}
                     actionType="add" 
-                    onAction={() => onAddCard(card)} // Click "+" to add to collections
-                    onClick={onItemClick}
-                    disabled={true} // Not draggable (as requested), just clickable
+                    onAction={() => onAddCard(card)} // Add to collections
+                    onViewDetails={onViewDetails}    // View details
+                    disabled={true}                  // Chat items are fixed
                   />
                 ))}
               </div>
@@ -279,13 +313,11 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
 export default function PlannerPage() {
   const router = useRouter();
 
-  // State
+  // --- STATE ---
   const [tripName, setTripName] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
-  const [input, setInput] = useState("");
   
-  // Data State
   const [itinerary, setItinerary] = useState<Item[]>([]);
   const [collections, setCollections] = useState<Item[]>([
     { id: "c1", name: "Louvre Museum", category: "museum" },
@@ -298,29 +330,56 @@ export default function PlannerPage() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState("");
 
-  // DnD State
+  // Drag State
   const [activeItem, setActiveItem] = useState<Item | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ column: string; index: number } | null>(null);
 
-  // Modal State
+  // Modal State (NEW)
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Item | null>(null);
 
-  // --- HANDLER: Open Modal ---
-  const handleItemClick = (item: Item) => {
+  // --- HANDLER: OPEN MODAL ---
+  const handleViewDetails = (item: Item) => {
     setSelectedLocation(item);
     setModalOpen(true);
   };
 
-  // --- HANDLER: Add to Collections (From Chat) ---
+  // --- HANDLER: ADD TO COLLECTIONS ---
   const handleAddToCollections = (card: Item) => {
+    // Avoid duplicates
     if (!collections.find(c => c.name === card.name)) {
-      setCollections(prev => [...prev, { ...card, id: `col-${Date.now()}` }]);
+      setCollections(prev => [...prev, { ...card, id: `col-${Date.now()}-${Math.random()}` }]);
     }
   };
 
-  // --- HANDLER: Send Message (AI Logic) ---
+  // --- HANDLER: SAVE TRIP ---
+  const handleSaveTrip = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+        alert("Please login to save.");
+        router.push("/login");
+        return;
+    }
+    try {
+        const res = await fetch("http://localhost:4000/api/trips", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify({ name: tripName, itinerary, collections })
+        });
+        if(res.ok) {
+            alert("Trip Saved Successfully!");
+        } else {
+            alert("Failed to save trip.");
+        }
+    } catch(e) { console.error(e); }
+  };
+
+  // --- HANDLER: SEND MESSAGE (AI) ---
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -338,12 +397,13 @@ export default function PlannerPage() {
       });
       const data = await res.json();
 
+      // PARSE THE AI RESPONSE
       let aiCards: Item[] = [];
       
-      // Parse cards from response
+      // 1. Direct cards
       if (data.cards) aiCards = [...aiCards, ...data.cards];
       
-      // Parse Itinerary Preview
+      // 2. Itinerary Preview (Nested days)
       if (data.itineraryPreview?.days) {
         data.itineraryPreview.days.forEach((day: any) => {
           if (day.items) {
@@ -351,7 +411,8 @@ export default function PlannerPage() {
                 aiCards.push({
                    ...item, 
                    id: `ai-${Date.now()}-${Math.random()}`, 
-                   description: `Day ${day.day} - ${item.time || 'Visit'}`
+                   description: `Day ${day.day} - ${item.time || 'Visit'}`,
+                   source: "ai"
                 });
              });
           }
@@ -360,7 +421,7 @@ export default function PlannerPage() {
 
       setChat(prev => [...prev, {
         id: Date.now().toString() + "ai",
-        text: data.message || data.reply,
+        text: data.message || data.reply || "Here is a plan for you.",
         sender: "ai",
         cards: aiCards
       }]);
@@ -373,9 +434,10 @@ export default function PlannerPage() {
     }
   };
 
-  // --- DRAG HANDLERS (EXACTLY YOUR ORIGINAL LOGIC) ---
+  // --- DRAG HANDLERS (EXACT ORIGINAL LOGIC) ---
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
+    // Only drag from Collections or Itinerary (Chat is disabled for drag)
     const item = collections.find((i) => i.id === active.id) || itinerary.find((i) => i.id === active.id);
     if (item) setActiveItem(item);
   };
@@ -418,7 +480,6 @@ export default function PlannerPage() {
     if (!overColumnId) return;
 
     if (activeColumnId === overColumnId) {
-        // Reordering within same column
         if (activeColumnId === "itinerary") {
             const oldIndex = itinerary.findIndex(i => i.id === activeId);
             const newIndex = itinerary.findIndex(i => i.id === overId);
@@ -429,7 +490,6 @@ export default function PlannerPage() {
             if (oldIndex !== newIndex) setCollections(arrayMove(collections, oldIndex, newIndex));
         }
     } else {
-        // Moving between columns
         if (activeColumnId === "collections" && overColumnId === "itinerary") {
             const item = collections.find(i => i.id === activeId);
             if (item) {
@@ -463,7 +523,7 @@ export default function PlannerPage() {
           placeholder="Trip name" 
           style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }} 
         />
-        <button style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600 }}>Itinerary</button>
+        <button onClick={handleSaveTrip} style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>Save</button>
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Maps</button>
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
       </header>
@@ -489,8 +549,6 @@ export default function PlannerPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "row", gap: "30px", flex: 1, overflow: "hidden", minHeight: 0 }}>
-            
-            {/* LEFT: ITINERARY COLUMN */}
             <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
               <Column 
                 id="itinerary" 
@@ -498,11 +556,10 @@ export default function PlannerPage() {
                 actionType="remove" 
                 dropIndicatorIndex={dropIndicator?.column === "itinerary" ? dropIndicator.index : null} 
                 onActionItem={(id: string) => setItinerary(itinerary.filter(i => i.id !== id))} 
-                onItemClick={handleItemClick} // Click opens modal
+                onViewDetails={handleViewDetails} // Pass Modal trigger
               />
             </div>
 
-            {/* RIGHT: TABS CONTENT */}
             <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden", minHeight: 0 }}>
                 {activeTab === "chat" && (
                   <ChatColumn 
@@ -510,8 +567,8 @@ export default function PlannerPage() {
                     chatInput={chatInput} 
                     setChatInput={setChatInput} 
                     onSendMessage={handleSendMessage}
-                    onAddCard={handleAddToCollections}
-                    onItemClick={handleItemClick}
+                    onAddCard={handleAddToCollections} // Adds to Collections
+                    onViewDetails={handleViewDetails} // View Details
                     loading={loading}
                   />
                 )}
@@ -524,15 +581,16 @@ export default function PlannerPage() {
                     </div>
 
                     {destinationsView === "search" ? (
-                      <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false} onItemClick={handleItemClick}>
+                      <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false} onViewDetails={handleViewDetails}>
                         <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexShrink: 0 }}>
                           <input 
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSendMessage(e)}
                             placeholder="Search destinations..." 
                             style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }} 
                           />
-                          <button style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
+                          <button onClick={handleSendMessage} style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
                             Search
                           </button>
                         </div>
@@ -546,7 +604,7 @@ export default function PlannerPage() {
                         onActionItem={(id: string) => setCollections(collections.filter(i => i.id !== id))} 
                         transparent 
                         isSortable={true} 
-                        onItemClick={handleItemClick}
+                        onViewDetails={handleViewDetails} // Info button
                       />
                     )}
                   </div>
