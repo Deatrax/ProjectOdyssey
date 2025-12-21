@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   useDroppable,
@@ -22,45 +21,44 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-// Import the new modal
-import LocationModal from "../components/LocationModal";
+import { useRouter } from "next/navigation";
+import LocationModal from "../components/LocationModal"; // Import your Modal
 
-// --- TYPES (Updated to match your Backend) ---
-type Item = { 
-  id: string; 
-  name: string; // "text" mapped to name
+// --- UPDATED TYPE (To support AI data) ---
+type Item = {
+  id: string;                 
+  placeId?: string;           
+  name: string; // Map 'text' to this for UI
+  text?: string; // Fallback for your original UI
+  description?: string;
   category?: string;
   visitDurationMin?: number;
   time?: string;
-  description?: string;
   images?: string[];
   reviews?: any[];
-};
-
-type ChatMessage = {
-  id: string;
-  text: string;
-  sender: "user" | "ai";
-  cards?: Item[];
+  source?: "db" | "ai";
 };
 
 type ActiveTab = "chat" | "destinations" | "summaries";
 type DestinationsView = "search" | "collections";
 
-// --- CUSTOM COLLISION LOGIC (Yours) ---
+/* -------------------- Custom Collision Logic (YOUR ORIGINAL) -------------------- */
 const customCollisionStrategy: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   if (pointerCollisions.length > 0) return pointerCollisions;
   return rectIntersection(args);
 };
 
-// --- SORTABLE ITEM (Updated with onClick) ---
+/* -------------------- Sortable Item (YOUR ORIGINAL + Click) -------------------- */
 function SortableItem({
   id,
-  item, // Pass the full item object
-  actionType = "remove",
+  text,
+  isIndicatorBefore,
   onAction,
+  actionType = "remove",
   disabled = false,
+  // New props for Modal
+  itemData,
   onClick
 }: any) {
   const {
@@ -83,9 +81,7 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      // Added onClick here to open modal
-      onClick={() => onClick && onClick(item)}
-      className="sortable-card" // Keeping class for dnd
+      className={`sortable-item ${isDragging ? "z-50" : ""}`} // Preserving class behavior
     >
       <div style={{ 
         padding: "12px", 
@@ -97,13 +93,32 @@ function SortableItem({
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between",
-        cursor: "pointer" // Visual cue
+        position: "relative"
       }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-          <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>{item.name}</span>
-          {item.category && (
-             <span style={{ fontSize: "10px", color: "#6b7280", textTransform: "uppercase", fontWeight: "bold" }}>
-               {item.category} • {item.visitDurationMin ? `${item.visitDurationMin}m` : ""}
+        {/* Indicator Logic */}
+        {isIndicatorBefore !== undefined && (
+          <div style={{
+            position: "absolute",
+            left: 0, right: 0,
+            height: "2px",
+            background: "#22c55e",
+            transition: "all 0.2s",
+            top: isIndicatorBefore ? "-6px" : "auto",
+            bottom: isIndicatorBefore ? "auto" : "-6px"
+          }} />
+        )}
+
+        {/* Clickable Area for Modal */}
+        <div 
+          onClick={() => onClick && onClick(itemData)} 
+          style={{ flex: 1, cursor: "pointer", display: "flex", flexDirection: "column" }}
+          {...attributes} 
+          {...listeners}
+        >
+          <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>{text}</span>
+          {itemData?.category && (
+             <span style={{ fontSize: "10px", color: "#6b7280", textTransform: "uppercase", marginTop: "2px" }}>
+               {itemData.category}
              </span>
           )}
         </div>
@@ -128,6 +143,7 @@ function SortableItem({
               fontSize: "16px",
               marginLeft: "8px"
             }}
+            onPointerDown={(e) => e.stopPropagation()} // Stop drag when clicking button
           >
             {actionType === "add" ? "+" : "×"}
           </button>
@@ -137,8 +153,8 @@ function SortableItem({
   );
 }
 
-// --- COLUMN COMPONENT ---
-function Column({ id, items, actionType, onActionItem, transparent, isSortable = true, onItemClick }: any) {
+/* -------------------- Column Component (YOUR ORIGINAL) -------------------- */
+function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, transparent, isSortable = true, onItemClick }: any) {
   const { setNodeRef } = useDroppable({ id });
 
   return (
@@ -152,19 +168,25 @@ function Column({ id, items, actionType, onActionItem, transparent, isSortable =
         background: transparent ? "transparent" : "rgba(255,255,255,0.5)",
         borderRadius: "16px",
         border: transparent ? "none" : "2px dashed #d1d5db",
+        transition: "background 0.2s"
       }}
     >
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }} className="custom-scrollbar">
         {isSortable ? (
-          <SortableContext items={items.map((i: any) => i.id)} strategy={verticalListSortingStrategy}>
-            {items.map((item: any) => (
+          <SortableContext items={items.map((i:any) => i.id)} strategy={verticalListSortingStrategy}>
+            {items.map((item: any, index: number) => (
               <SortableItem
                 key={item.id}
                 id={item.id}
-                item={item} // Pass full item
+                text={item.name} // Map name to text
+                itemData={item}  // Pass full data for modal
                 actionType={actionType}
                 onAction={onActionItem}
                 onClick={onItemClick}
+                isIndicatorBefore={
+                  dropIndicatorIndex === index ? true :
+                  dropIndicatorIndex === index + 1 ? false : undefined
+                }
               />
             ))}
           </SortableContext>
@@ -173,7 +195,8 @@ function Column({ id, items, actionType, onActionItem, transparent, isSortable =
             <SortableItem
               key={item.id}
               id={item.id}
-              item={item}
+              text={item.name}
+              itemData={item}
               actionType={actionType}
               onAction={onActionItem}
               onClick={onItemClick}
@@ -181,12 +204,17 @@ function Column({ id, items, actionType, onActionItem, transparent, isSortable =
             />
           ))
         )}
+        {items.length === 0 && !transparent && (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "14px", fontStyle: "italic" }}>
+            Drop items here
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// --- CHAT COLUMN COMPONENT ---
+/* -------------------- Chat Column (Updated to Render Cards) -------------------- */
 function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onItemClick, loading }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -208,18 +236,19 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
               {msg.text}
             </div>
             
-            {/* RENDER AI CARDS UNDER MESSAGE */}
+            {/* THIS IS THE NEW PART: Render Cards INSIDE Chat */}
             {msg.cards && msg.cards.length > 0 && (
-              <div style={{ marginTop: "8px", width: "80%" }}>
+              <div style={{ marginTop: "8px", width: "85%", alignSelf: "flex-start" }}>
                 {msg.cards.map((card: any) => (
                   <SortableItem 
                     key={card.id} 
                     id={card.id} 
-                    item={card} 
+                    text={card.name}
+                    itemData={card} 
                     actionType="add" 
-                    onAction={() => onAddCard(card)}
+                    onAction={() => onAddCard(card)} // Click "+" to add to collections
                     onClick={onItemClick}
-                    disabled={true} 
+                    disabled={true} // Not draggable (as requested), just clickable
                   />
                 ))}
               </div>
@@ -246,7 +275,7 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
   );
 }
 
-// --- MAIN PAGE ---
+/* -------------------- MAIN PAGE -------------------- */
 export default function PlannerPage() {
   const router = useRouter();
 
@@ -254,12 +283,17 @@ export default function PlannerPage() {
   const [tripName, setTripName] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
+  const [input, setInput] = useState("");
   
+  // Data State
   const [itinerary, setItinerary] = useState<Item[]>([]);
-  const [collections, setCollections] = useState<Item[]>([]);
-  const [searchResults, setSearchResults] = useState<Item[]>([]); // Mock search results
+  const [collections, setCollections] = useState<Item[]>([
+    { id: "c1", name: "Louvre Museum", category: "museum" },
+    { id: "c2", name: "Eiffel Tower", category: "urban" }
+  ]);
+  const [searchResults, setSearchResults] = useState<Item[]>([]);
   
-  const [chat, setChat] = useState<ChatMessage[]>([
+  const [chat, setChat] = useState<any[]>([
     { id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -279,45 +313,44 @@ export default function PlannerPage() {
     setModalOpen(true);
   };
 
-  // --- HANDLER: Send to Backend ---
+  // --- HANDLER: Add to Collections (From Chat) ---
+  const handleAddToCollections = (card: Item) => {
+    if (!collections.find(c => c.name === card.name)) {
+      setCollections(prev => [...prev, { ...card, id: `col-${Date.now()}` }]);
+    }
+  };
+
+  // --- HANDLER: Send Message (AI Logic) ---
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userMsg: ChatMessage = { id: Date.now().toString(), text: chatInput, sender: "user" };
+    const userMsg = { id: Date.now().toString(), text: chatInput, sender: "user" };
     setChat(prev => [...prev, userMsg]);
     setChatInput("");
     setLoading(true);
 
     try {
-      // 1. Call your actual backend
       const res = await fetch("http://localhost:4000/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message: userMsg.text,
-          collections: collections, 
-          itinerary: itinerary 
-        })
+        body: JSON.stringify({ message: userMsg.text, collections, itinerary })
       });
       const data = await res.json();
 
-      // 2. Process Response: Flatten Itinerary into Cards
       let aiCards: Item[] = [];
-
-      // If response has 'cards' (Direct suggestions)
-      if (data.cards && data.cards.length > 0) {
-        aiCards = [...aiCards, ...data.cards];
-      }
-
-      // If response has 'itineraryPreview' (Day by Day plan) -> Flatten items to cards
-      if (data.itineraryPreview && data.itineraryPreview.days) {
+      
+      // Parse cards from response
+      if (data.cards) aiCards = [...aiCards, ...data.cards];
+      
+      // Parse Itinerary Preview
+      if (data.itineraryPreview?.days) {
         data.itineraryPreview.days.forEach((day: any) => {
           if (day.items) {
              day.items.forEach((item: any) => {
                 aiCards.push({
-                   ...item, // name, category, visitDurationMin
-                   id: `ai-${Date.now()}-${Math.random()}`, // Frontend ID
+                   ...item, 
+                   id: `ai-${Date.now()}-${Math.random()}`, 
                    description: `Day ${day.day} - ${item.time || 'Visit'}`
                 });
              });
@@ -325,14 +358,12 @@ export default function PlannerPage() {
         });
       }
 
-      // 3. Update Chat
-      const aiMsg: ChatMessage = {
+      setChat(prev => [...prev, {
         id: Date.now().toString() + "ai",
-        text: data.message || data.reply, // Adjust based on which backend returns
+        text: data.message || data.reply,
         sender: "ai",
         cards: aiCards
-      };
-      setChat(prev => [...prev, aiMsg]);
+      }]);
 
     } catch (err) {
       console.error(err);
@@ -342,29 +373,31 @@ export default function PlannerPage() {
     }
   };
 
-  // --- HANDLER: Add Card from Chat to Collection ---
-  const handleAddToCollections = (card: Item) => {
-    if (!collections.find(c => c.name === card.name)) {
-      setCollections(prev => [...prev, { ...card, id: `col-${Date.now()}` }]);
-    }
-  };
-
-  // --- DND HANDLERS (Unchanged logic) ---
+  // --- DRAG HANDLERS (EXACTLY YOUR ORIGINAL LOGIC) ---
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const item = 
-       itinerary.find(i => i.id === active.id) || 
-       collections.find(i => i.id === active.id) ||
-       chat.flatMap(m => m.cards || []).find(c => c.id === active.id);
-    if(item) setActiveItem(item);
+    const item = collections.find((i) => i.id === active.id) || itinerary.find((i) => i.id === active.id);
+    if (item) setActiveItem(item);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
-    // ... (Your existing logic)
-    if (over.id === "itinerary" || itinerary.some(i => i.id === over.id)) {
-        setDropIndicator({ column: "itinerary", index: 0 }); // simplified
+
+    const overId = over.id;
+    const overColumnId = overId === "itinerary" || itinerary.some(i => i.id === overId) ? "itinerary" : 
+                         overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
+
+    if (!overColumnId) return;
+
+    if (overColumnId === "itinerary") {
+        const overIndex = itinerary.findIndex(i => i.id === overId);
+        const index = overIndex === -1 ? itinerary.length : overIndex;
+        setDropIndicator({ column: "itinerary", index });
+    } else if (overColumnId === "collections") {
+        const overIndex = collections.findIndex(i => i.id === overId);
+        const index = overIndex === -1 ? collections.length : overIndex;
+        setDropIndicator({ column: "collections", index });
     }
   };
 
@@ -372,11 +405,43 @@ export default function PlannerPage() {
     const { active, over } = event;
     setActiveItem(null);
     setDropIndicator(null);
+
     if (!over) return;
 
-    if (over.id === "itinerary" || itinerary.some(i => i.id === over.id)) {
-        if (!itinerary.find(i => i.id === active.id) && activeItem) {
-            setItinerary(prev => [...prev, { ...activeItem, id: `it-${Date.now()}` }]);
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeColumnId = collections.some(i => i.id === activeId) ? "collections" : "itinerary";
+    const overColumnId = overId === "itinerary" || itinerary.some(i => i.id === overId) ? "itinerary" :
+                         overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
+
+    if (!overColumnId) return;
+
+    if (activeColumnId === overColumnId) {
+        // Reordering within same column
+        if (activeColumnId === "itinerary") {
+            const oldIndex = itinerary.findIndex(i => i.id === activeId);
+            const newIndex = itinerary.findIndex(i => i.id === overId);
+            if (oldIndex !== newIndex) setItinerary(arrayMove(itinerary, oldIndex, newIndex));
+        } else {
+            const oldIndex = collections.findIndex(i => i.id === activeId);
+            const newIndex = collections.findIndex(i => i.id === overId);
+            if (oldIndex !== newIndex) setCollections(arrayMove(collections, oldIndex, newIndex));
+        }
+    } else {
+        // Moving between columns
+        if (activeColumnId === "collections" && overColumnId === "itinerary") {
+            const item = collections.find(i => i.id === activeId);
+            if (item) {
+                setItinerary(prev => [...prev, item]);
+                setCollections(prev => prev.filter(i => i.id !== activeId));
+            }
+        } else if (activeColumnId === "itinerary" && overColumnId === "collections") {
+            const item = itinerary.find(i => i.id === activeId);
+            if (item) {
+                setCollections(prev => [...prev, item]);
+                setItinerary(prev => prev.filter(i => i.id !== activeId));
+            }
         }
     }
   };
@@ -403,7 +468,6 @@ export default function PlannerPage() {
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
       </header>
 
-      {/* Main */}
       <main style={{ padding: "20px 5%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
         <DndContext 
           collisionDetection={customCollisionStrategy} 
@@ -425,7 +489,8 @@ export default function PlannerPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "row", gap: "30px", flex: 1, overflow: "hidden", minHeight: 0 }}>
-            {/* Left: Itinerary */}
+            
+            {/* LEFT: ITINERARY COLUMN */}
             <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
               <Column 
                 id="itinerary" 
@@ -433,11 +498,11 @@ export default function PlannerPage() {
                 actionType="remove" 
                 dropIndicatorIndex={dropIndicator?.column === "itinerary" ? dropIndicator.index : null} 
                 onActionItem={(id: string) => setItinerary(itinerary.filter(i => i.id !== id))} 
-                onItemClick={handleItemClick}
+                onItemClick={handleItemClick} // Click opens modal
               />
             </div>
 
-            {/* Right: Tab Content */}
+            {/* RIGHT: TABS CONTENT */}
             <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden", minHeight: 0 }}>
                 {activeTab === "chat" && (
                   <ChatColumn 
@@ -462,10 +527,14 @@ export default function PlannerPage() {
                       <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false} onItemClick={handleItemClick}>
                         <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexShrink: 0 }}>
                           <input 
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
                             placeholder="Search destinations..." 
                             style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }} 
                           />
-                          <button style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Search</button>
+                          <button style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
+                            Search
+                          </button>
                         </div>
                       </Column>
                     ) : (
@@ -490,16 +559,21 @@ export default function PlannerPage() {
           <DragOverlay dropAnimation={null}>
             {activeItem && (
               <div style={{ 
-                padding: "14px", background: "#fff", borderRadius: "12px", 
-                boxShadow: "0 10px 30px rgba(0,0,0,0.15)", width: "100%", maxWidth: "300px", 
-                fontSize: "14px", opacity: 0.9 
+                padding: "14px", 
+                background: "#fff", 
+                borderRadius: "12px", 
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                width: "100%",
+                maxWidth: "300px",
+                fontSize: "14px",
+                opacity: 0.9
               }}>
                 {activeItem.name}
               </div>
             )}
           </DragOverlay>
 
-          {/* Location Modal */}
+          {/* Modal Injection */}
           <LocationModal 
             isOpen={modalOpen} 
             onClose={() => setModalOpen(false)} 
