@@ -5,12 +5,14 @@ const cors = require('cors'); // <--- CRITICAL FOR FRONTEND CONNECTION
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth'); 
 const protectedRoutes = require("./routes/protected");
+const aiRoutes = require("./routes/ai.routes");
+
 
 const app = express();
 
 // 1. Enable CORS (Allow localhost:3000 to talk to this server)
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+  origin: ["http://localhost:3000", "http://127.0.0.1:3000","http://113.11.100.133:55680"],
   credentials: true
 }));
 
@@ -22,6 +24,9 @@ app.use(express.json());
 connectDB();
 
 // 4. Mount Routes
+app.use("/api/ai", aiRoutes);
+
+
 // This means "server/src/routes/auth.js" becomes "http://localhost:PORT/api/auth/..."
 app.use('/api/auth', authRoutes);
 app.use('/api/user', protectedRoutes);
