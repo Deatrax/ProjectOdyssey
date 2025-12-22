@@ -76,37 +76,64 @@ router.post("/chat", async (req, res) => {
     });
     }
 
-    // 3) AI: search/discovery
-    const payload = {
-    message,
-    userContext: userContext ?? null,
-    dbResults: dbResults ?? [],
-    };
+  // 3) AI: search/discovery
+const payload = {
+  message,
+  userContext: userContext ?? null,
+  dbResults: dbResults ?? [],
+};
 
-    // Option A: do NOT pass schema to Gemini
-    const searchJson = await callGemini({
+async function getValidSearchJson(payload) {
+  // 1st attempt
+  const first = await callGemini({
     system: searchSystemPrompt,
     user: payload,
-    });
+  });
 
-    // Validate AI output server-side
-    const v = validateSearch(searchJson);
-    if (!v.ok) {
-    console.error("Invalid search JSON from AI:", v.errors);
-    return res.status(502).json({
-        message: "AI response was invalid. Please try again.",
-        cards: [],
-        itineraryPreview: null,
-        source: "ai",
-    });
-    }
+  let v = validateSearch(first);
+  if (v.ok) return first;
 
-    return res.json({
-    message: searchJson.message ?? "Here are some suggestions.",
-    cards: searchJson.cards ?? [],
+  console.error("Invalid search JSON from AI (attempt 1):", v.errors);
+
+  // 2nd attempt (retry with strict instruction)
+  const retryPayload = {
+    ...payload,
+    __validationError:
+      "Your previous JSON failed validation. You MUST output at least 2 overviewBullets and 3 to 8 cards. Return ONLY valid JSON matching the required shape.",
+  };
+
+  const second = await callGemini({
+    system: searchSystemPrompt,
+    user: retryPayload,
+  });
+
+  v = validateSearch(second);
+  if (v.ok) return second;
+
+  console.error("Invalid search JSON from AI (attempt 2):", v.errors);
+  return null;
+}
+
+const searchJson = await getValidSearchJson(payload);
+
+if (!searchJson) {
+  return res.status(502).json({
+    message: "AI response was invalid. Please try again.",
+    bullets: [],
+    cards: [],
     itineraryPreview: null,
     source: "ai",
-    });
+  });
+}
+
+//IMPORTANT: map the new fields from your updated search.prompt.js
+return res.json({
+  message: searchJson.overviewParagraph ?? "Here are some suggestions.",
+  bullets: searchJson.overviewBullets ?? [],
+  cards: searchJson.cards ?? [],
+  itineraryPreview: null,
+  source: "ai",
+});
 
   } catch (err) {
     console.error("AI /chat error:", err);
