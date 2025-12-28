@@ -1,5 +1,5 @@
 const express = require("express");
-const { searchPlacesDynamic } = require("../services/placeService.js");
+const { searchPlacesDynamic, insertPlaceFromAI } = require("../services/placeService.js");
 
 const router = express.Router();
 
@@ -10,6 +10,15 @@ router.get("/places", async (req, res) => {
     res.json({ source: "db", places });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/places", async (req, res) => {
+  try {
+    const result = await insertPlaceFromAI(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
