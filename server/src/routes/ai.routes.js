@@ -16,8 +16,15 @@ const {
   responseSchema: searchResponseSchema,
 } = require("../services/ai/prompts/search.prompt");
 
+// multi-itinerary prompt (Stage 2)
+const {
+  systemPrompt: multiItinerarySystemPrompt,
+  responseSchema: multiItineraryResponseSchema,
+} = require("../services/ai/prompts/multiItinerary.prompt");
+
 const validateItinerary = makeValidator(itineraryResponseSchema);
 const validateSearch = makeValidator(searchResponseSchema);
+const validateMultiItinerary = makeValidator(multiItineraryResponseSchema);
 
 router.post("/chat", async (req, res) => {
   try {
@@ -138,6 +145,100 @@ return res.json({
   } catch (err) {
     console.error("AI /chat error:", err);
     return res.status(500).json({ error: err.message || "AI error" });
+  }
+});
+
+/**
+ * POST /api/ai/generateItineraries
+ * 
+ * Stage 2: Generate 3 distinct itinerary options from selected places
+ * 
+ * Request body:
+ * {
+ *   selectedPlaces: [{ name, category, ... }],
+ *   tripDuration: 3,
+ *   userContext: { budget, pace, interests }
+ * }
+ * 
+ * Response: 3 complete itineraries (Minimalist, Maximum, Balanced)
+ */
+router.post("/generateItineraries", async (req, res) => {
+  try {
+    const { selectedPlaces, tripDuration, userContext, customRequirements } = req.body;
+
+    if (!selectedPlaces || !Array.isArray(selectedPlaces) || selectedPlaces.length === 0) {
+      return res.status(400).json({ error: "selectedPlaces is required (non-empty array)" });
+    }
+
+    if (!tripDuration || tripDuration < 1) {
+      return res.status(400).json({ error: "tripDuration is required (integer >= 1)" });
+    }
+
+    // Prepare payload for AI
+    const payload = {
+      selectedPlaces,
+      tripDuration,
+      userContext: userContext ?? null,
+    };
+
+    // Add custom requirements if provided
+    if (customRequirements && customRequirements.trim()) {
+      payload.customRequirements = customRequirements;
+    }
+
+    async function getValidMultiItineraryJson(payload, attempt = 1) {
+      // Call Gemini with multi-itinerary prompt
+      const multiItineraryJson = await callGemini({
+        system: multiItinerarySystemPrompt,
+        user: payload,
+      });
+
+      // Validate AI output server-side
+      const validation = validateMultiItinerary(multiItineraryJson);
+      if (validation.ok) return multiItineraryJson;
+
+      console.error(`Invalid multi-itinerary JSON from AI (attempt ${attempt}):`, validation.errors);
+
+      // If first attempt failed, retry with strict instructions
+      if (attempt === 1) {
+        const retryPayload = {
+          ...payload,
+          __validationError:
+            "Your previous JSON failed validation. IMPORTANT: The 'time' field MUST be EXACTLY one of: 'morning', 'afternoon', or 'evening' (lowercase, no times). Return ONLY valid JSON matching the required shape with exactly 3 itineraries.",
+        };
+
+        const second = await callGemini({
+          system: multiItinerarySystemPrompt,
+          user: retryPayload,
+        });
+
+        const validationRetry = validateMultiItinerary(second);
+        if (validationRetry.ok) return second;
+
+        console.error(`Invalid multi-itinerary JSON from AI (attempt 2):`, validationRetry.errors);
+        return null;
+      }
+
+      return null;
+    }
+
+    const multiItineraryJson = await getValidMultiItineraryJson(payload);
+
+    if (!multiItineraryJson) {
+      return res.status(502).json({
+        error: "AI response was invalid after 2 attempts. Please try again.",
+      });
+    }
+
+    // Success: return 3 itinerary options
+    return res.json({
+      success: true,
+      data: multiItineraryJson,
+    });
+
+  } catch (err) {
+    console.error("AI /generateItineraries error:", err);
+    return res.status(500).json({ error: err.message || "Itinerary generation error" });
   }
 });
 
