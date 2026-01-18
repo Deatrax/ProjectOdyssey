@@ -82,8 +82,8 @@ const DashboardPage: React.FC = () => {
 
       try {
         // 2. Verification check: Ask backend if token is valid
-        // NOTE: Use port 5001 where backend is running
-        const res = await fetch("http://localhost:5001/api/user/profile", {
+        // NOTE: Use port 4000 where backend is running
+        const res = await fetch("http://localhost:4000/api/user/profile", {
           method: "GET",
           headers: { 
             "Authorization": `Bearer ${token}`,
