@@ -26,6 +26,7 @@ import LocationModal from "../components/LocationModal"; // Import the modal
 import ClusteringView from "../components/ClusteringView"; // Import clustering view
 import MultiOptionSelector from "../components/MultiOptionSelector"; // Import multi-option selector
 import ConfirmationModal from "../components/ConfirmationModal"; // Import confirmation modal
+import MapComponent from "../components/MapComponent"; // Import MapComponent
 
 // --- TYPES (Updated to include data for Modal) ---
 type Item = {
@@ -42,7 +43,7 @@ type Item = {
   source?: "db" | "ai";
 };
 
-type ActiveTab = "chat" | "destinations" | "summaries";
+type ActiveTab = "chat" | "destinations" | "summaries" | "map";
 type DestinationsView = "search" | "collections";
 
 /* -------------------- Custom Collision Logic (YOUR ORIGINAL) -------------------- */
@@ -845,7 +846,7 @@ export default function PlannerPage() {
           {optionsLoading ? "Generating..." : "✨ Generate Itineraries"}
         </button>
         <button onClick={handleSaveTrip} style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>Save</button>
-        <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Maps</button>
+        <button onClick={() => setActiveTab("map")} style={{ padding: "8px 14px", background: activeTab === "map" ? "#000" : "#fff", color: activeTab === "map" ? "#fff" : "#000", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer" }}>Maps</button>
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
       </header>
 
@@ -865,6 +866,7 @@ export default function PlannerPage() {
             <div style={{ width: "45%", display: "flex", gap: "4px", background: "#d1d5db", borderRadius: "10px", padding: "4px" }}>
               <button onClick={() => setActiveTab("chat")} style={sharedTabStyles(activeTab === "chat")}>Chat</button>
               <button onClick={() => setActiveTab("destinations")} style={sharedTabStyles(activeTab === "destinations")}>Destinations</button>
+              <button onClick={() => setActiveTab("map")} style={sharedTabStyles(activeTab === "map")}>Map</button>
               <button onClick={() => setActiveTab("summaries")} style={sharedTabStyles(activeTab === "summaries")}>Summaries</button>
             </div>
           </div>
@@ -1214,6 +1216,12 @@ export default function PlannerPage() {
                 )}
 
                 {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
+                
+                {activeTab === "map" && (
+                   <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
+                      <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
+                   </div>
+                )}
             </div>
           </div>
 

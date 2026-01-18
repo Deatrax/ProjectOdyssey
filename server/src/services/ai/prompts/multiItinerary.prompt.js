@@ -22,6 +22,7 @@ Hard rules:
 - timeRange field is for detailed times like "09:00-12:30" (separate from time field)
 - Each option MUST have: title, description, schedule (days with items), estimatedCost, paceDescription
 
+- Try to include the real Google Maps 'placeId' if you are confident. otherwise set it to null.
 CRITICAL: The 'time' field must ONLY contain: morning, afternoon, evening
 Do NOT put actual clock times in the 'time' field.
 
