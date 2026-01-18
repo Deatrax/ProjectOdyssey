@@ -342,6 +342,10 @@ export default function PlannerPage() {
   ]);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   
+  // Saved Itinerary State (NEW)
+  const [savedItinerary, setSavedItinerary] = useState<any>(null);
+  const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
+  
   const [chat, setChat] = useState<any[]>([
     { id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }
   ]);
@@ -356,6 +360,50 @@ export default function PlannerPage() {
   // Modal State (NEW)
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Item | null>(null);
+
+  // Load saved itinerary from backend on mount
+  useEffect(() => {
+    const loadSavedItinerary = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        // Fetch user's saved itineraries from backend
+        const res = await fetch("http://localhost:4000/api/trips", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data.success && data.data && data.data.length > 0) {
+          // Get the most recent itinerary
+          const latestItinerary = data.data[0];
+          
+          // Reconstruct the saved itinerary format
+          const selectedItin = latestItinerary.selected_itinerary;
+          setSavedItineraryId(latestItinerary.id);
+          setSavedItinerary({
+            id: latestItinerary.id,
+            tripName: latestItinerary.trip_name,
+            title: selectedItin?.title,
+            description: selectedItin?.description,
+            paceDescription: selectedItin?.paceDescription,
+            estimatedCost: selectedItin?.estimatedCost,
+            schedule: selectedItin?.schedule
+          });
+        }
+      } catch (err) {
+        console.error("Error loading saved itinerary:", err);
+      }
+    };
+
+    loadSavedItinerary();
+  }, []);
 
   // --- HANDLER: OPEN MODAL ---
   const handleViewDetails = (item: Item) => {
@@ -587,6 +635,8 @@ export default function PlannerPage() {
         return;
       }
 
+      console.log("Token from localStorage:", token ? "✓ Found" : "✗ Not found");
+
       const tripData = {
         tripName: finalTripName || tripName || "My Trip",
         selectedPlaces: itinerary.map(item => ({
@@ -614,29 +664,47 @@ export default function PlannerPage() {
       });
 
       const data = await res.json();
+      console.log("Save response status:", res.status);
+      console.log("Save response data:", data);
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to save trip");
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || "Failed to save trip");
       }
+
+      // Store the saved itinerary ID and details
+      const itineraryId = data.data.id;
+      const savedItineraryData = {
+        id: itineraryId,
+        tripName: finalTripName || tripName || "My Trip",
+        title: tripData.selectedItinerary.title,
+        description: tripData.selectedItinerary.description,
+        paceDescription: tripData.selectedItinerary.paceDescription,
+        estimatedCost: tripData.selectedItinerary.estimatedCost,
+        schedule: tripData.selectedItinerary.schedule
+      };
+      
+      setSavedItineraryId(itineraryId);
+      setSavedItinerary(savedItineraryData);
 
       // Add success message
       setChat(prev => [...prev, {
         id: Date.now().toString() + "saved",
-        text: `✅ Trip saved successfully! You can view it in your dashboard.`,
+        text: `✅ Trip saved successfully! Trip ID: ${itineraryId}. You can view it in your dashboard.`,
         sender: "ai",
         cards: []
       }]);
 
-      // Reset state
+      // Close confirmation modal
       setConfirmationOpen(false);
       setStage("chat");
-      setItinerary([]);
       setSelectedItinerary(null);
       setItineraryOptions([]);
+      // Keep itinerary displayed in left box - don't clear it!
 
     } catch (err) {
-      console.error(err);
-      alert("Error saving trip: " + (err as any).message);
+      console.error("Error saving trip:", err);
+      const errorMsg = (err as any).message || "Unknown error";
+      alert(`Error saving trip: ${errorMsg}`);
     }
   };
 
@@ -803,6 +871,151 @@ export default function PlannerPage() {
 
           <div style={{ display: "flex", flexDirection: "row", gap: "30px", flex: 1, overflow: "hidden", minHeight: 0 }}>
             <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+              {/* Show Saved Itinerary Info */}
+              {savedItinerary && (
+                <div style={{
+                  padding: "16px",
+                  background: "#ffffff",
+                  borderRadius: "12px",
+                  border: "2px solid #22c55e",
+                  marginBottom: "16px",
+                  flexShrink: 0,
+                  maxHeight: "60vh",
+                  overflowY: "auto"
+                }}>
+                  {/* Header with Title and Clear Button */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", paddingBottom: "12px", borderBottom: "2px solid #22c55e" }}>
+                    <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#15803d" }}>
+                      ✅ {savedItinerary.tripName}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setSavedItinerary(null);
+                        setSavedItineraryId(null);
+                      }}
+                      style={{
+                        background: "#22c55e",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Duration</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                        {savedItinerary.schedule?.length || 0} days
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Cost</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                        ${savedItinerary.estimatedCost?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Pace</p>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#15803d" }}>
+                        {savedItinerary.paceDescription?.split(",")[0] || "Moderate"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Full Schedule */}
+                  <div>
+                    <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 700, color: "#15803d", paddingTop: "12px", borderTop: "2px solid #22c55e" }}>
+                      📅 Full Schedule
+                    </h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {savedItinerary.schedule?.map((day: any) => (
+                        <div
+                          key={day.day}
+                          style={{
+                            padding: "12px",
+                            background: "#f9fafb",
+                            border: "1px solid #22c55e",
+                            borderRadius: "8px"
+                          }}
+                        >
+                          <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
+                            Day {day.day} • {day.date}
+                          </p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            {day.items?.map((item: any, idx: number) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#166534",
+                                  padding: "8px",
+                                  background: "#fff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #22c55e",
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  justifyContent: "space-between",
+                                  gap: "8px"
+                                }}
+                              >
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                                    <span style={{ fontWeight: 600, color: "#15803d" }}>
+                                      {item.name}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "10px",
+                                        background: "#fef3c7",
+                                        color: "#92400e",
+                                        padding: "2px 6px",
+                                        borderRadius: "3px",
+                                        textTransform: "capitalize"
+                                      }}
+                                    >
+                                      {item.time}
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: "0", fontSize: "10px", color: "#166534" }}>
+                                    ⏱️ {item.visitDurationMin}m • {item.timeRange} • {item.notes}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleViewDetails(item)}
+                                  style={{
+                                    background: "#22c55e",
+                                    color: "#fff",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "4px 8px",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                    flexShrink: 0
+                                  }}
+                                  title="View details"
+                                >
+                                  ℹ️
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Column 
                 id="itinerary" 
                 items={itinerary} 
