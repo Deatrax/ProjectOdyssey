@@ -346,6 +346,10 @@ export default function PlannerPage() {
   const [savedItinerary, setSavedItinerary] = useState<any>(null);
   const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
   
+  // Day tracking state
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [dayCheckboxes, setDayCheckboxes] = useState<{ [key: string]: boolean }>({});
+  
   const [chat, setChat] = useState<any[]>([
     { id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }
   ]);
@@ -930,89 +934,235 @@ export default function PlannerPage() {
                     </div>
                   </div>
 
-                  {/* Full Schedule */}
-                  <div>
-                    <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 700, color: "#15803d", paddingTop: "12px", borderTop: "2px solid #22c55e" }}>
-                      📅 Full Schedule
-                    </h4>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      {savedItinerary.schedule?.map((day: any) => (
-                        <div
-                          key={day.day}
+                  {/* Day View or Full Schedule */}
+                  {selectedDay !== null ? (
+                    // DAY VIEW - Selected Day with Checkboxes
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <button
+                          onClick={() => setSelectedDay(null)}
                           style={{
-                            padding: "12px",
-                            background: "#f9fafb",
-                            border: "1px solid #22c55e",
-                            borderRadius: "8px"
+                            background: "#22c55e",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer"
                           }}
                         >
-                          <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
-                            Day {day.day} • {day.date}
-                          </p>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                            {day.items?.map((item: any, idx: number) => (
-                              <div
-                                key={idx}
+                          ← Back to Full Plan
+                        </button>
+                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                          📅 Day {savedItinerary.schedule?.[selectedDay]?.day} • {savedItinerary.schedule?.[selectedDay]?.date}
+                        </h4>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {savedItinerary.schedule?.[selectedDay]?.items?.map((item: any, idx: number) => {
+                          const checkboxKey = `${selectedDay}-${idx}`;
+                          const isChecked = dayCheckboxes[checkboxKey] || false;
+                          
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: "12px",
+                                background: isChecked ? "#e8f5e9" : "#fff",
+                                border: "2px solid #22c55e",
+                                borderRadius: "8px",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "12px"
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setDayCheckboxes(prev => ({
+                                    ...prev,
+                                    [checkboxKey]: e.target.checked
+                                  }));
+                                }}
                                 style={{
-                                  fontSize: "11px",
-                                  color: "#166534",
-                                  padding: "8px",
-                                  background: "#fff",
+                                  width: "20px",
+                                  height: "20px",
+                                  cursor: "pointer",
+                                  marginTop: "2px",
+                                  accentColor: "#22c55e"
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                                  <span
+                                    style={{
+                                      fontWeight: 700,
+                                      fontSize: "13px",
+                                      color: "#15803d",
+                                      textDecoration: isChecked ? "line-through" : "none",
+                                      opacity: isChecked ? 0.6 : 1
+                                    }}
+                                  >
+                                    {item.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      background: "#fef3c7",
+                                      color: "#92400e",
+                                      padding: "2px 8px",
+                                      borderRadius: "3px",
+                                      textTransform: "capitalize"
+                                    }}
+                                  >
+                                    {item.time}
+                                  </span>
+                                </div>
+                                <p
+                                  style={{
+                                    margin: "0 0 8px 0",
+                                    fontSize: "12px",
+                                    color: "#166534",
+                                    opacity: isChecked ? 0.6 : 1
+                                  }}
+                                >
+                                  ⏱️ {item.visitDurationMin}m • {item.timeRange}
+                                </p>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: "11px",
+                                    color: "#999",
+                                    fontStyle: "italic"
+                                  }}
+                                >
+                                  {item.notes}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleViewDetails(item)}
+                                style={{
+                                  background: "#22c55e",
+                                  color: "#fff",
+                                  border: "none",
                                   borderRadius: "6px",
-                                  border: "1px solid #22c55e",
-                                  display: "flex",
-                                  alignItems: "flex-start",
-                                  justifyContent: "space-between",
-                                  gap: "8px"
+                                  padding: "6px 12px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
                                 }}
                               >
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                                    <span style={{ fontWeight: 600, color: "#15803d" }}>
-                                      {item.name}
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: "10px",
-                                        background: "#fef3c7",
-                                        color: "#92400e",
-                                        padding: "2px 6px",
-                                        borderRadius: "3px",
-                                        textTransform: "capitalize"
-                                      }}
-                                    >
-                                      {item.time}
-                                    </span>
-                                  </div>
-                                  <p style={{ margin: "0", fontSize: "10px", color: "#166534" }}>
-                                    ⏱️ {item.visitDurationMin}m • {item.timeRange} • {item.notes}
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => handleViewDetails(item)}
-                                  style={{
-                                    background: "#22c55e",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: "4px",
-                                    padding: "4px 8px",
-                                    fontSize: "10px",
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    whiteSpace: "nowrap",
-                                    flexShrink: 0
-                                  }}
-                                  title="View details"
-                                >
-                                  ℹ️
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                                ℹ️ Info
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // FULL SCHEDULE VIEW
+                    <div>
+                      <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 700, color: "#15803d", paddingTop: "12px", borderTop: "2px solid #22c55e" }}>
+                        📅 Full Schedule
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {savedItinerary.schedule?.map((day: any) => (
+                          <div
+                            key={day.day}
+                            onClick={() => setSelectedDay(day.day - 1)}
+                            style={{
+                              padding: "12px",
+                              background: "#f9fafb",
+                              border: "2px solid #22c55e",
+                              borderRadius: "8px",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#e8f5e9";
+                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(34, 197, 94, 0.2)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#f9fafb";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          >
+                            <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
+                              Day {day.day} • {day.date}
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {day.items?.map((item: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#166534",
+                                    padding: "8px",
+                                    background: "#fff",
+                                    borderRadius: "6px",
+                                    border: "1px solid #22c55e",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    justifyContent: "space-between",
+                                    gap: "8px"
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                                      <span style={{ fontWeight: 600, color: "#15803d" }}>
+                                        {item.name}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: "10px",
+                                          background: "#fef3c7",
+                                          color: "#92400e",
+                                          padding: "2px 6px",
+                                          borderRadius: "3px",
+                                          textTransform: "capitalize"
+                                        }}
+                                      >
+                                        {item.time}
+                                      </span>
+                                    </div>
+                                    <p style={{ margin: "0", fontSize: "10px", color: "#166534" }}>
+                                      ⏱️ {item.visitDurationMin}m • {item.timeRange} • {item.notes}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewDetails(item);
+                                    }}
+                                    style={{
+                                      background: "#22c55e",
+                                      color: "#fff",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      padding: "4px 8px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      whiteSpace: "nowrap",
+                                      flexShrink: 0
+                                    }}
+                                    title="View details"
+                                  >
+                                    ℹ️
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
