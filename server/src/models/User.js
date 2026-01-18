@@ -43,6 +43,40 @@ const userSchema = new mongoose.Schema({
     default: function() {
       return this.auth_method === "google";  // Auto-verify Google users
     }
+  },
+  // User Preferences
+  preferences: {
+    currency: {
+      type: String,
+      default: "USD"
+    },
+    budgetRange: {
+      type: String,
+      default: "$50 - $100 (Moderate)"
+    },
+    accommodation: {
+      type: String,
+      default: "Mid-range Hotels"
+    },
+    travelStyles: {
+      type: [String],
+      default: []
+    }
+  },
+  // Notification Settings
+  notifications: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    tripReminders: {
+      type: Boolean,
+      default: true
+    },
+    friendActivity: {
+      type: Boolean,
+      default: true
+    }
   }
 }, { timestamps: true });
 
