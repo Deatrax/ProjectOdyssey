@@ -7,6 +7,7 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
   const [loading, setLoading] = useState(false);
 
   // 2. NEW: Check if user is already logged in
@@ -24,8 +25,6 @@ const LoginPage: React.FC = () => {
     setError("");
     setLoading(true);
 
-    
-
     try {
       const res = await fetch("http://localhost:4000/api/auth/login", {
         method: "POST",
@@ -39,10 +38,9 @@ const LoginPage: React.FC = () => {
       // Store Token
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      
+
       // Redirect
       router.push("/dashboard");
-
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -52,47 +50,49 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen flex flex-col">
-    {/* Navigation */}
-<nav className="flex items-center justify-between px-8 py-4 bg-stone-900/15 backdrop-blur-xl border border-white/20 rounded-full mx-16 my-8">
-  {/* Left Logo */}
-  <div className="flex items-center gap-2">
-    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        height="24px"
-        viewBox="0 -960 960 960"
-        width="24px"
-        fill="#F19E39"
-      >
-        <path d="m300-300 280-80 80-280-280 80-80 280Zm180-120q-25 0-42.5-17.5T420-480q0-25 17.5-42.5T480-540q25 0 42.5 17.5T540-480q0 25-17.5 42.5T480-420Zm0 340q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q133 0 226.5-93.5T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 133 93.5 226.5T480-160Zm0-320Z" />
-      </svg>
-    </div>
-    <span className="text-2xl font-medium font-odyssey tracking-wider">
-      Odyssey
-    </span>
-  </div>
+      {/* Navigation */}
+      <nav className="sticky top-4 z-50 px-8 py-4 mx-4 md:mx-16 my-6 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl shadow-lg">
+      <div className="flex items-center justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 flex items-center justify-center">
+            {/* Make sure the image path is correct relative to your public folder */}
+            <img src="/Odyssey_Logo.png" alt="Odyssey Logo" className="w-full h-full object-contain" />
+          </div>
+          <span className="text-2xl font-medium font-odyssey tracking-wider">Odyssey</span>
+        </div>
 
-  {/* Right Links */}
-  <div className="flex items-center gap-8">
-    <a
-      href="#"
-      className="text-gray-700 font-medium hover:text-gray-900 relative after:absolute after:bottom-[-6px] after:left-0 after:w-full after:h-[2px] after:bg-gray-900 after:content-['']"
-    >
-      About
-    </a>
-    <a href="#" className="text-gray-700 font-medium hover:text-gray-900">
-      Destinations
-    </a>
-    <a href="#" className="text-gray-700 font-medium hover:text-gray-900">
-      Pricing
-    </a>
+        {/* Desktop Menu */}
+        <div className="hidden md:flex items-center gap-8">
+          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">About</a>
+          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">Destinations</a>
+          <a href="#" className="text-gray-700 hover:text-gray-900 font-medium">Pricing</a>
+          <button className="px-6 py-2 border-2 border-green-500 text-green-700 rounded-full hover:bg-green-50 transition font-medium">
+            Sign-in
+          </button>
+        </div>
 
-    {/* Sign-in Button */}
-    <button className="px-6 py-2 border-2 border-green-500 text-green-700 rounded-full hover:bg-green-50 transition font-medium">
-      Sign-in
-    </button>
-  </div>
-</nav>
+        {/* Mobile Hamburger */}
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="md:hidden p-2 rounded-lg hover:bg-white/40 transition"
+        >
+          <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} md:hidden mt-6 flex-col gap-4`}>
+        <a href="#" className="text-gray-700 font-medium">About</a>
+        <a href="#" className="text-gray-700 font-medium">Destinations</a>
+        <a href="#" className="text-gray-700 font-medium">Pricing</a>
+        <button className="w-full px-6 py-2 border-2 border-green-500 text-green-700 rounded-full hover:bg-green-50 transition font-medium">
+          Sign-in
+        </button>
+      </div>
+    </nav>
 
       {/* Login Form */}
       <div className="flex-1 flex items-center justify-center px-4">
@@ -103,8 +103,10 @@ const LoginPage: React.FC = () => {
           <p className="text-gray-400 text-sm mb-6">
             Please login with your Odyssey account
           </p>
-          
-          {error && <div className="text-red-400 text-sm mb-4 text-center">{error}</div>}
+
+          {error && (
+            <div className="text-red-400 text-sm mb-4 text-center">{error}</div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -112,7 +114,9 @@ const LoginPage: React.FC = () => {
                 type="text"
                 placeholder="Username"
                 value={formData.username}
-                onChange={(e) => setFormData({...formData, username: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -123,7 +127,9 @@ const LoginPage: React.FC = () => {
                 type="password"
                 placeholder="Password"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 className="w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -131,6 +137,9 @@ const LoginPage: React.FC = () => {
             {/* Google Sign-in */}
             <button
               type="button"
+              onClick={() => {
+                window.location.href = "http://localhost:5001/api/auth/google";
+              }}
               className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-lg transition flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -154,12 +163,20 @@ const LoginPage: React.FC = () => {
               Sign in with Google
             </button>
             {/* Login Button */}
-            <button type="submit" disabled={loading} className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition"
+            >
               {loading ? "Logging in..." : "Login"}
             </button>
-            
-            <button type="button" onClick={() => router.push("/signup")} className="w-full py-3 border-2 border-green-500 text-green-500 rounded-lg">
-               Create Account
+
+            <button
+              type="button"
+              onClick={() => router.push("/signup")}
+              className="w-full py-3 border-2 border-green-500 text-green-500 rounded-lg"
+            >
+              Create Account
             </button>
             {/* Problem logging in link */}
             <div className="text-center pt-2">
