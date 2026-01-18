@@ -588,14 +588,20 @@ export default function PlannerPage() {
       }
 
       const tripData = {
-        name: finalTripName || tripName || "My Trip",
-        description: selectedItinerary.description,
-        duration: selectedItinerary.duration,
-        pace: selectedItinerary.pace,
-        estimatedCost: selectedItinerary.cost,
-        schedule: selectedItinerary.schedule,
-        places: itinerary,
-        createdAt: new Date().toISOString()
+        tripName: finalTripName || tripName || "My Trip",
+        selectedPlaces: itinerary.map(item => ({
+          name: item.name,
+          category: item.category || "place"
+        })),
+        selectedItinerary: {
+          id: selectedItinerary.id,
+          title: selectedItinerary.title,
+          description: selectedItinerary.description,
+          paceDescription: selectedItinerary.paceDescription,
+          estimatedCost: selectedItinerary.estimatedCost,
+          schedule: selectedItinerary.schedule
+        },
+        status: "draft"
       };
 
       const res = await fetch("http://localhost:4000/api/trips/save", {
