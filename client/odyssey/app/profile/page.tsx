@@ -137,6 +137,16 @@ const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Authentication checking Alfi - Logout function
+  const handleLogout = () => {
+    // Clear all user data from localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Redirect to login page
+    router.push("/login");
+  };
+
   // Render star rating
   const renderStars = (rating: number) => {
     return (
@@ -668,6 +678,23 @@ const ProfilePage: React.FC = () => {
                       <input type="checkbox" defaultChecked className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Danger Zone - Logout */}
+              <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
+                <h3 className="text-2xl font-bold text-red-600 mb-6">Danger Zone</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-2">Sign Out</p>
+                    <p className="text-sm text-gray-600 mb-4">You will be logged out from this device. You can sign back in anytime.</p>
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-600 transition shadow-lg"
+                    >
+                      Sign Out
+                    </button>
                   </div>
                 </div>
               </div>

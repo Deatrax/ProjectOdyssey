@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react"; // Import useEffect
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 // --- Types & Interfaces ---
@@ -49,13 +49,29 @@ const recommendations: RecommendationProps[] = [
 
 const DashboardPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true); // Add loading state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
 
-  // --- PROTECTION LOGIC ---
+  // --- PROTECTION LOGIC & OAUTH HANDLING ---
   useEffect(() => {
     const validateSession = async () => {
+      // Check for OAuth callback token in URL Alfi
+      const tokenFromUrl = searchParams.get("token");
+      const userFromUrl = searchParams.get("user");
+
+      if (tokenFromUrl) {
+        // OAuth callback - store token and user
+        localStorage.setItem("token", tokenFromUrl);
+        if (userFromUrl) {
+          localStorage.setItem("user", userFromUrl);
+        }
+        // Clean URL
+        router.replace("/dashboard");
+        return;
+      }
+
       const token = localStorage.getItem("token");
       
       // 1. Immediate check: No token? Go to login.
@@ -66,8 +82,8 @@ const DashboardPage: React.FC = () => {
 
       try {
         // 2. Verification check: Ask backend if token is valid
-        // NOTE: Use the same IP/URL that worked for your login (e.g., localhost:4000 or your PC IP)
-        const res = await fetch("http://localhost:4000/api/user/profile", {
+        // NOTE: Use port 5001 where backend is running
+        const res = await fetch("http://localhost:5001/api/user/profile", {
           method: "GET",
           headers: { 
             "Authorization": `Bearer ${token}`,
@@ -101,7 +117,7 @@ const DashboardPage: React.FC = () => {
     };
 
     validateSession();
-  }, [router]);
+  }, [router, searchParams]);
 
   // Prevent flash of content while checking auth
   if (!user) {
