@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import './dbnew.css';
 
-export default function Home() {
+export default function OdysseyDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -14,7 +14,7 @@ export default function Home() {
           {/* Logo + Text */}
           <div className="nav-logo">
             <div className="logo-image">
-              <img src="Odyssey_Logo.png" alt="Odyssey Logo" />
+              <img src="/Odyssey_Logo.png" alt="Odyssey Logo" />
             </div>
             <span className="logo-text">Odyssey</span>
           </div>
@@ -35,7 +35,15 @@ export default function Home() {
                 <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/>
               </svg>
             </button>
-            <button className="icon-button">
+
+            <div className="profile-dropdown">
+              <a href="#" className="dropdown-link">My Trips</a>
+              <a href="#" className="dropdown-link">Saved Places</a>
+              <a href="#" className="dropdown-link">Settings</a>
+              <a href="#" className="dropdown-link">Logout</a>
+            </div>
+
+            <button className="icon-button profile-icon">
               <svg className="user-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
               </svg>
@@ -61,7 +69,7 @@ export default function Home() {
       <div className="main-content">
         {/* Hero Section with Search */}
         <div className="hero-section">
-          <img src="dashboard-bg.jpg" alt="Travel" className="hero-image" />
+          <img src="/dashboard-bg.jpg" alt="Travel" className="hero-image" />
           <div className="hero-overlay">
             <div className="search-wrapper">
               <div className="search-container">
