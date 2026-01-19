@@ -14,7 +14,7 @@ import {
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 type MapComponentProps = {
-  items: any[]; // items from itinerary
+  items: any[]; // items from left-column itinerary
   onClose?: () => void;
 };
 
@@ -31,32 +31,51 @@ function Directions({ items }: { items: any[] }) {
   }, [routesLibrary, map]);
 
   useEffect(() => {
-    if (!directionsService || !directionsRenderer || items.length < 2) return;
+    if (!directionsService || !directionsRenderer || items.length < 2) {
+      console.log("Directions: Not enough valid items or services not ready", { 
+        itemsCount: items.length, 
+        hasDirectionsService: !!directionsService,
+        hasDirectionsRenderer: !!directionsRenderer
+      });
+      return;
+    }
 
     // Filter valid locations
-    const validItems = items.filter(item => item.placeId || item.name); // Prefer placeId, fallback to name query
-    if (validItems.length < 2) return;
-
-    const origin = validItems[0].placeId ? { placeId: validItems[0].placeId } : { query: validItems[0].name };
-    const destination = validItems[validItems.length - 1].placeId 
-      ? { placeId: validItems[validItems.length - 1].placeId } 
-      : { query: validItems[validItems.length - 1].name };
+    const validItems = items.filter(item => item.placeId || item.name);
+    console.log("Directions: Valid items for routing", validItems);
     
-    const waypoints = validItems.slice(1, -1).map(item => ({
-      location: item.placeId ? { placeId: item.placeId } : { query: item.name },
-      stopover: true
-    }));
+    if (validItems.length < 2) {
+      console.log("Directions: Not enough valid items after filtering");
+      return;
+    }
 
-    directionsService.route({
-      origin,
-      destination,
-      waypoints,
-      travelMode: google.maps.TravelMode.DRIVING
-    }).then(response => {
-      directionsRenderer.setDirections(response);
-    }).catch(err => {
-      console.error("Directions request failed", err);
-    });
+    try {
+      const origin = validItems[0].placeId ? { placeId: validItems[0].placeId } : { query: validItems[0].name };
+      const destination = validItems[validItems.length - 1].placeId 
+        ? { placeId: validItems[validItems.length - 1].placeId } 
+        : { query: validItems[validItems.length - 1].name };
+      
+      const waypoints = validItems.slice(1, -1).map(item => ({
+        location: item.placeId ? { placeId: item.placeId } : { query: item.name },
+        stopover: true
+      }));
+
+      console.log("Directions: Making route request", { origin, destination, waypointsCount: waypoints.length });
+
+      directionsService.route({
+        origin,
+        destination,
+        waypoints,
+        travelMode: google.maps.TravelMode.DRIVING
+      }).then(response => {
+        console.log("Directions: Route received successfully", response);
+        directionsRenderer.setDirections(response);
+      }).catch(err => {
+        console.error("Directions request failed", err);
+      });
+    } catch (err) {
+      console.error("Directions: Error during route setup", err);
+    }
 
     return () => {
       directionsRenderer.setMap(null); // Cleanup
@@ -74,6 +93,40 @@ export default function MapComponent({ items, onClose }: MapComponentProps) {
   
   // Calculate center (fallback if no items)
   const defaultCenter = { lat: 48.8566, lng: 2.3522 }; // Paris
+
+  console.log("MapComponent Debug:", {
+    itemsCount: items.length,
+    validItemsCount: validItems.length,
+    validItems: validItems
+  });
+
+  if (!items || items.length === 0) {
+    return (
+      <div className="w-full h-full relative flex flex-col items-center justify-center bg-gray-50">
+        <div className="text-center p-8">
+          <div className="text-6xl mb-4">🗺️</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Add Places to See Route</h2>
+          <p className="text-gray-600">
+            Add places to your itinerary on the left to see the route on the map
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (validItems.length === 0) {
+    return (
+      <div className="w-full h-full relative flex flex-col items-center justify-center bg-gray-50">
+        <div className="text-center p-8">
+          <div className="text-5xl mb-4">⏳</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Your Route...</h2>
+          <p className="text-gray-600">
+            Processing your places...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!GOOGLE_MAPS_API_KEY) {
      return <div className="p-4 text-red-500">Error: Google Maps API Key is missing.</div>;
