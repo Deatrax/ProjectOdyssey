@@ -10,7 +10,7 @@ explain why these places work well together.
 Hard rules:
 - Return ONLY valid JSON (no markdown, no extra text).
 - Categories allowed: nature, history, museum, urban, beach, adventure.
-- Each place must have: name, category, reasoning (why include this place).
+- Each place must have: name, placeId (if known, else null), category, reasoning (why include this place).
 - Group places by SPECIFIC CITY/REGION names (e.g., "Sylhet City", "Sreemangal", "Cox's Bazar", "Dhaka")
 - Use REAL location names that users would recognize (NOT generic names like "Northern Region")
 - Provide 2-5 location groups, with 2-4 places per location.
@@ -28,6 +28,7 @@ OUTPUT JSON SHAPE (example):
       "places": [
         {
           "name": "string",
+          "placeId": "string (Google Place ID if known) or null",
           "category": "nature|history|museum|urban|beach|adventure",
           "reasoning": "string (why include this place for your trip)",
           "estimatedVisitHours": integer (hours to spend),
@@ -65,6 +66,7 @@ const responseSchema = {
               additionalProperties: false,
               properties: {
                 name: { type: "string" },
+                placeId: { type: ["string", "null"] },
                 category: {
                   type: "string",
                   enum: ["nature", "history", "museum", "urban", "beach", "adventure"],
@@ -73,7 +75,7 @@ const responseSchema = {
                 estimatedVisitHours: { type: "integer", minimum: 1, maximum: 48 },
                 estimatedCost: { type: "number", minimum: 0 },
               },
-              required: ["name", "category", "reasoning", "estimatedVisitHours", "estimatedCost"],
+              required: ["name", "placeId", "category", "reasoning", "estimatedVisitHours", "estimatedCost"],
             },
           },
         },

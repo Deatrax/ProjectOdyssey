@@ -19,3 +19,4 @@ Thumbs.db
 .next/
 dist/
 build/
+server/old.env
