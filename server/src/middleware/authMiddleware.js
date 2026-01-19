@@ -8,11 +8,14 @@ const protect = (req, res, next) => {
   if (token.startsWith("Bearer ")) token = token.slice(7, token.length);
 
   try {
+    console.log("Verifying token with JWT_SECRET:", process.env.JWT_SECRET ? "✓ Set" : "✗ Not set");
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token verified successfully for user:", decoded.username);
     req.user = decoded; 
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Token is not valid" });
+    console.error("Token verification error:", err.message);
+    return res.status(401).json({ message: "Token is not valid", error: err.message });
   }
 };
 

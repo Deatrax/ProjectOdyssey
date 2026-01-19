@@ -1,7 +1,7 @@
 // MOCK DB SEARCH — will be replaced by Postgres later
 
 async function searchPlaces(query, filters = {}) {
-  // simulate "DB-first" behavior
+  //simulate "DB-first" behavior
   if (query.toLowerCase().includes("sea")) {
     return [
       {

@@ -23,6 +23,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import LocationModal from "../components/LocationModal"; // Import the modal
+import ClusteringView from "../components/ClusteringView"; // Import clustering view
+import MultiOptionSelector from "../components/MultiOptionSelector"; // Import multi-option selector
+import ConfirmationModal from "../components/ConfirmationModal"; // Import confirmation modal
+import MapComponent from "../components/MapComponent"; // Import MapComponent
 
 // --- TYPES (Updated to include data for Modal) ---
 type Item = {
@@ -39,7 +43,7 @@ type Item = {
   source?: "db" | "ai";
 };
 
-type ActiveTab = "chat" | "destinations" | "summaries";
+type ActiveTab = "chat" | "destinations" | "summaries" | "map";
 type DestinationsView = "search" | "collections";
 
 /* -------------------- Custom Collision Logic (YOUR ORIGINAL) -------------------- */
@@ -318,12 +322,34 @@ export default function PlannerPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
   
+  // Clustering State (NEW - Stage 1)
+  const [stage, setStage] = useState<"chat" | "clustering" | "options" | "confirmation">("chat");
+  const [clusteringData, setClusteringData] = useState<any>(null);
+  const [clusteringLoading, setClusteringLoading] = useState(false);
+  const [selectedPlacesFromClustering, setSelectedPlacesFromClustering] = useState<any[]>([]);
+  
+  // Itinerary Generation State (NEW - Stage 2)
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [itineraryOptions, setItineraryOptions] = useState<any[]>([]);
+  const [selectedItinerary, setSelectedItinerary] = useState<any>(null);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [customRequirements, setCustomRequirements] = useState<string[]>([]);
+  const [requirementInput, setRequirementInput] = useState("");
+  
   const [itinerary, setItinerary] = useState<Item[]>([]);
   const [collections, setCollections] = useState<Item[]>([
     { id: "c1", name: "Louvre Museum", category: "museum" },
     { id: "c2", name: "Eiffel Tower", category: "urban" }
   ]);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
+  
+  // Saved Itinerary State (NEW)
+  const [savedItinerary, setSavedItinerary] = useState<any>(null);
+  const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
+  
+  // Day tracking state
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [dayCheckboxes, setDayCheckboxes] = useState<{ [key: string]: boolean }>({});
   
   const [chat, setChat] = useState<any[]>([
     { id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }
@@ -339,6 +365,50 @@ export default function PlannerPage() {
   // Modal State (NEW)
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Item | null>(null);
+
+  // Load saved itinerary from backend on mount
+  useEffect(() => {
+    const loadSavedItinerary = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        // Fetch user's saved itineraries from backend
+        const res = await fetch("http://localhost:4000/api/trips", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data.success && data.data && data.data.length > 0) {
+          // Get the most recent itinerary
+          const latestItinerary = data.data[0];
+          
+          // Reconstruct the saved itinerary format
+          const selectedItin = latestItinerary.selected_itinerary;
+          setSavedItineraryId(latestItinerary.id);
+          setSavedItinerary({
+            id: latestItinerary.id,
+            tripName: latestItinerary.trip_name,
+            title: selectedItin?.title,
+            description: selectedItin?.description,
+            paceDescription: selectedItin?.paceDescription,
+            estimatedCost: selectedItin?.estimatedCost,
+            schedule: selectedItin?.schedule
+          });
+        }
+      } catch (err) {
+        console.error("Error loading saved itinerary:", err);
+      }
+    };
+
+    loadSavedItinerary();
+  }, []);
 
   // --- HANDLER: OPEN MODAL ---
   const handleViewDetails = (item: Item) => {
@@ -390,6 +460,43 @@ export default function PlannerPage() {
     setLoading(true);
 
     try {
+      // Check if this is a clustering request (trip planning keywords)
+      const isClusteringRequest = chatInput.toLowerCase().includes("trip") || 
+                                  chatInput.toLowerCase().includes("plan") || 
+                                  chatInput.toLowerCase().includes("day") ||
+                                  chatInput.toLowerCase().includes("itinerary");
+
+      if (isClusteringRequest) {
+        // Call clustering endpoint
+        setClusteringLoading(true);
+        const clusterRes = await fetch("http://localhost:4000/api/clustering/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            message: userMsg.text,
+            userContext: { budget: "medium", pace: "moderate" }
+          })
+        });
+
+        if (clusterRes.ok) {
+          const clusterData = await clusterRes.json();
+          setClusteringData(clusterData.data);
+          setStage("clustering");
+          
+          // Add AI response to chat
+          setChat(prev => [...prev, {
+            id: Date.now().toString() + "ai",
+            text: "I've analyzed your request and found these place clusters. Select the ones you'd like to visit!",
+            sender: "ai",
+            cards: []
+          }]);
+          setClusteringLoading(false);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Regular chat flow (existing)
       const res = await fetch("http://localhost:4000/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -431,7 +538,209 @@ export default function PlannerPage() {
       setChat(prev => [...prev, { id: "err", text: "Error connecting to AI.", sender: "ai" }]);
     } finally {
       setLoading(false);
+      setClusteringLoading(false);
     }
+  };
+
+  // --- HANDLER: Clustering Continue (Stage 1 → Stage 2) ---
+  const handleClusteringContinue = (selectedPlaces: any[]) => {
+    setSelectedPlacesFromClustering(selectedPlaces);
+    // Add selected places to collections for drag-drop
+    const newPlaces = selectedPlaces.map((place: any) => ({
+      id: `cluster-${Date.now()}-${Math.random()}`,
+      name: place.name,
+      category: place.category,
+      source: "ai" as const
+    }));
+    setCollections(prev => [...prev, ...newPlaces]);
+    
+    // Show next step message in chat
+    setChat(prev => [...prev, {
+      id: Date.now().toString() + "ai",
+      text: `Great! I've added ${selectedPlaces.length} place(s) to your collection. Drag and drop them into your itinerary, then click "Generate Itineraries" to see multiple options!`,
+      sender: "ai",
+      cards: []
+    }]);
+    
+    // Reset clustering
+    setStage("chat");
+    setClusteringData(null);
+  };
+
+  // --- HANDLER: Generate Itineraries (Stage 2) ---
+  const handleGenerateItineraries = async () => {
+    if (itinerary.length === 0) {
+      alert("Please add places to your itinerary first!");
+      return;
+    }
+
+    setOptionsLoading(true);
+    setStage("options");
+
+    try {
+      // Add AI thinking message
+      setChat(prev => [...prev, {
+        id: Date.now().toString() + "thinking",
+        text: "Odyssey is generating 3 different itinerary options for you...",
+        sender: "ai",
+        cards: []
+      }]);
+
+      const res = await fetch("http://localhost:4000/api/ai/generateItineraries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedPlaces: itinerary.map(item => ({
+            name: item.name,
+            category: item.category || "place",
+          })),
+          tripDuration: Math.ceil(itinerary.length / 2), // Rough estimate
+          userContext: { budget: "medium", pace: "moderate" },
+          customRequirements: customRequirements.length > 0 ? customRequirements.join(" | ") : undefined
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to generate itineraries");
+      }
+
+      setItineraryOptions(data.data.itineraries);
+
+      // Add success message
+      setChat(prev => [...prev, {
+        id: Date.now().toString() + "options",
+        text: `Perfect! I've created 3 itinerary options for you. Review them below and select your preferred option!`,
+        sender: "ai",
+        cards: []
+      }]);
+
+    } catch (err) {
+      console.error(err);
+      alert("Error generating itineraries: " + (err as any).message);
+      setStage("chat");
+    } finally {
+      setOptionsLoading(false);
+    }
+  };
+
+  // Handler for confirming and saving itinerary
+  const handleConfirmItinerary = async (finalTripName: string) => {
+    if (!selectedItinerary) {
+      alert("No itinerary selected");
+      return;
+    }
+
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Not authenticated. Please login first.");
+        return;
+      }
+
+      console.log("Token from localStorage:", token ? "✓ Found" : "✗ Not found");
+
+      const tripData = {
+        tripName: finalTripName || tripName || "My Trip",
+        selectedPlaces: itinerary.map(item => ({
+          name: item.name,
+          category: item.category || "place"
+        })),
+        selectedItinerary: {
+          id: selectedItinerary.id,
+          title: selectedItinerary.title,
+          description: selectedItinerary.description,
+          paceDescription: selectedItinerary.paceDescription,
+          estimatedCost: selectedItinerary.estimatedCost,
+          schedule: selectedItinerary.schedule
+        },
+        status: "draft"
+      };
+
+      const res = await fetch("http://localhost:4000/api/trips/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(tripData)
+      });
+
+      const data = await res.json();
+      console.log("Save response status:", res.status);
+      console.log("Save response data:", data);
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || "Failed to save trip");
+      }
+
+      // Store the saved itinerary ID and details
+      const itineraryId = data.data.id;
+      const savedItineraryData = {
+        id: itineraryId,
+        tripName: finalTripName || tripName || "My Trip",
+        title: tripData.selectedItinerary.title,
+        description: tripData.selectedItinerary.description,
+        paceDescription: tripData.selectedItinerary.paceDescription,
+        estimatedCost: tripData.selectedItinerary.estimatedCost,
+        schedule: tripData.selectedItinerary.schedule
+      };
+      
+      setSavedItineraryId(itineraryId);
+      setSavedItinerary(savedItineraryData);
+
+      // Add success message
+      setChat(prev => [...prev, {
+        id: Date.now().toString() + "saved",
+        text: `✅ Trip saved successfully! Trip ID: ${itineraryId}. You can view it in your dashboard.`,
+        sender: "ai",
+        cards: []
+      }]);
+
+      // Close confirmation modal
+      setConfirmationOpen(false);
+      setStage("chat");
+      setSelectedItinerary(null);
+      setItineraryOptions([]);
+      // Keep itinerary displayed in left box - don't clear it!
+
+    } catch (err) {
+      console.error("Error saving trip:", err);
+      const errorMsg = (err as any).message || "Unknown error";
+      alert(`Error saving trip: ${errorMsg}`);
+    }
+  };
+
+  // Handler for Edit & Regenerate
+  const handleEditAndRegenerate = () => {
+    setConfirmationOpen(false);
+    setStage("chat");
+    setItineraryOptions([]);
+    setSelectedItinerary(null);
+    setCustomRequirements([]); // Clear requirements for fresh edit
+    
+    // Show instruction message
+    setChat(prev => [...prev, {
+      id: Date.now().toString() + "edit",
+      text: "Great! You can now:\n1. Add or remove places from your itinerary (drag them in/out)\n2. Add custom requirements in the box below (e.g., 'visit museum first', 'sunset at beach')\n\nWhen ready, click 'Generate Itineraries' again!",
+      sender: "ai",
+      cards: []
+    }]);
+  };
+
+  // Add custom requirement
+  const handleAddRequirement = () => {
+    if (requirementInput.trim()) {
+      setCustomRequirements(prev => [...prev, requirementInput.trim()]);
+      setRequirementInput("");
+    }
+  };
+
+  // Remove custom requirement
+  const handleRemoveRequirement = (index: number) => {
+    setCustomRequirements(prev => prev.filter((_, i) => i !== index));
   };
 
   // --- DRAG HANDLERS (EXACT ORIGINAL LOGIC) ---
@@ -523,8 +832,25 @@ export default function PlannerPage() {
           placeholder="Trip name" 
           style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }} 
         />
+        <button 
+          onClick={handleGenerateItineraries}
+          disabled={itinerary.length === 0 || optionsLoading}
+          style={{ 
+            padding: "8px 14px", 
+            background: itinerary.length === 0 ? "#d1d5db" : "#7c3aed", 
+            color: "#fff", 
+            border: "none", 
+            borderRadius: "8px", 
+            fontWeight: 600, 
+            cursor: itinerary.length === 0 ? "not-allowed" : "pointer",
+            opacity: optionsLoading ? 0.7 : 1
+          }}
+          title={itinerary.length === 0 ? "Add places to itinerary first" : "Generate 3 itinerary options"}
+        >
+          {optionsLoading ? "Generating..." : "✨ Generate Itineraries"}
+        </button>
         <button onClick={handleSaveTrip} style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>Save</button>
-        <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Maps</button>
+        <button onClick={() => setActiveTab("map")} style={{ padding: "8px 14px", background: activeTab === "map" ? "#000" : "#fff", color: activeTab === "map" ? "#fff" : "#000", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer" }}>Maps</button>
         <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
       </header>
 
@@ -544,12 +870,304 @@ export default function PlannerPage() {
             <div style={{ width: "45%", display: "flex", gap: "4px", background: "#d1d5db", borderRadius: "10px", padding: "4px" }}>
               <button onClick={() => setActiveTab("chat")} style={sharedTabStyles(activeTab === "chat")}>Chat</button>
               <button onClick={() => setActiveTab("destinations")} style={sharedTabStyles(activeTab === "destinations")}>Destinations</button>
+              <button onClick={() => setActiveTab("map")} style={sharedTabStyles(activeTab === "map")}>Map</button>
               <button onClick={() => setActiveTab("summaries")} style={sharedTabStyles(activeTab === "summaries")}>Summaries</button>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "row", gap: "30px", flex: 1, overflow: "hidden", minHeight: 0 }}>
             <div style={{ width: "55%", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+              {/* Show Saved Itinerary Info */}
+              {savedItinerary && (
+                <div style={{
+                  padding: "16px",
+                  background: "#ffffff",
+                  borderRadius: "12px",
+                  border: "2px solid #22c55e",
+                  marginBottom: "16px",
+                  flexShrink: 0,
+                  maxHeight: "60vh",
+                  overflowY: "auto"
+                }}>
+                  {/* Header with Title and Clear Button */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", paddingBottom: "12px", borderBottom: "2px solid #22c55e" }}>
+                    <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#15803d" }}>
+                      ✅ {savedItinerary.tripName}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setSavedItinerary(null);
+                        setSavedItineraryId(null);
+                      }}
+                      style={{
+                        background: "#22c55e",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Duration</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                        {savedItinerary.schedule?.length || 0} days
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Cost</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                        ${savedItinerary.estimatedCost?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#22c55e", fontWeight: 600 }}>Pace</p>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#15803d" }}>
+                        {savedItinerary.paceDescription?.split(",")[0] || "Moderate"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Day View or Full Schedule */}
+                  {selectedDay !== null ? (
+                    // DAY VIEW - Selected Day with Checkboxes
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <button
+                          onClick={() => setSelectedDay(null)}
+                          style={{
+                            background: "#22c55e",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer"
+                          }}
+                        >
+                          ← Back to Full Plan
+                        </button>
+                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#15803d" }}>
+                          📅 Day {savedItinerary.schedule?.[selectedDay]?.day} • {savedItinerary.schedule?.[selectedDay]?.date}
+                        </h4>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {savedItinerary.schedule?.[selectedDay]?.items?.map((item: any, idx: number) => {
+                          const checkboxKey = `${selectedDay}-${idx}`;
+                          const isChecked = dayCheckboxes[checkboxKey] || false;
+                          
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: "12px",
+                                background: isChecked ? "#e8f5e9" : "#fff",
+                                border: "2px solid #22c55e",
+                                borderRadius: "8px",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "12px"
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setDayCheckboxes(prev => ({
+                                    ...prev,
+                                    [checkboxKey]: e.target.checked
+                                  }));
+                                }}
+                                style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  cursor: "pointer",
+                                  marginTop: "2px",
+                                  accentColor: "#22c55e"
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                                  <span
+                                    style={{
+                                      fontWeight: 700,
+                                      fontSize: "13px",
+                                      color: "#15803d",
+                                      textDecoration: isChecked ? "line-through" : "none",
+                                      opacity: isChecked ? 0.6 : 1
+                                    }}
+                                  >
+                                    {item.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      background: "#fef3c7",
+                                      color: "#92400e",
+                                      padding: "2px 8px",
+                                      borderRadius: "3px",
+                                      textTransform: "capitalize"
+                                    }}
+                                  >
+                                    {item.time}
+                                  </span>
+                                </div>
+                                <p
+                                  style={{
+                                    margin: "0 0 8px 0",
+                                    fontSize: "12px",
+                                    color: "#166534",
+                                    opacity: isChecked ? 0.6 : 1
+                                  }}
+                                >
+                                  ⏱️ {item.visitDurationMin}m • {item.timeRange}
+                                </p>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: "11px",
+                                    color: "#999",
+                                    fontStyle: "italic"
+                                  }}
+                                >
+                                  {item.notes}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleViewDetails(item)}
+                                style={{
+                                  background: "#22c55e",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  padding: "6px 12px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                  flexShrink: 0
+                                }}
+                              >
+                                ℹ️ Info
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    // FULL SCHEDULE VIEW
+                    <div>
+                      <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 700, color: "#15803d", paddingTop: "12px", borderTop: "2px solid #22c55e" }}>
+                        📅 Full Schedule
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {savedItinerary.schedule?.map((day: any) => (
+                          <div
+                            key={day.day}
+                            onClick={() => setSelectedDay(day.day - 1)}
+                            style={{
+                              padding: "12px",
+                              background: "#f9fafb",
+                              border: "2px solid #22c55e",
+                              borderRadius: "8px",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#e8f5e9";
+                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(34, 197, 94, 0.2)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#f9fafb";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          >
+                            <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
+                              Day {day.day} • {day.date}
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {day.items?.map((item: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#166534",
+                                    padding: "8px",
+                                    background: "#fff",
+                                    borderRadius: "6px",
+                                    border: "1px solid #22c55e",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    justifyContent: "space-between",
+                                    gap: "8px"
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                                      <span style={{ fontWeight: 600, color: "#15803d" }}>
+                                        {item.name}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: "10px",
+                                          background: "#fef3c7",
+                                          color: "#92400e",
+                                          padding: "2px 6px",
+                                          borderRadius: "3px",
+                                          textTransform: "capitalize"
+                                        }}
+                                      >
+                                        {item.time}
+                                      </span>
+                                    </div>
+                                    <p style={{ margin: "0", fontSize: "10px", color: "#166534" }}>
+                                      ⏱️ {item.visitDurationMin}m • {item.timeRange} • {item.notes}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewDetails(item);
+                                    }}
+                                    style={{
+                                      background: "#22c55e",
+                                      color: "#fff",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      padding: "4px 8px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      whiteSpace: "nowrap",
+                                      flexShrink: 0
+                                    }}
+                                    title="View details"
+                                  >
+                                    ℹ️
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <Column 
                 id="itinerary" 
                 items={itinerary} 
@@ -562,15 +1180,152 @@ export default function PlannerPage() {
 
             <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden", minHeight: 0 }}>
                 {activeTab === "chat" && (
-                  <ChatColumn 
-                    messages={chat} 
-                    chatInput={chatInput} 
-                    setChatInput={setChatInput} 
-                    onSendMessage={handleSendMessage}
-                    onAddCard={handleAddToCollections} // Adds to Collections
-                    onViewDetails={handleViewDetails} // View Details
-                    loading={loading}
-                  />
+                  <>
+                    {/* Clustering Stage Display */}
+                    {stage === "clustering" && clusteringData && (
+                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
+                        <ClusteringView 
+                          data={clusteringData} 
+                          loading={clusteringLoading}
+                          onContinue={handleClusteringContinue}
+                        />
+                      </div>
+                    )}
+
+                    {/* Options Selection Stage Display */}
+                    {stage === "options" && itineraryOptions.length > 0 && (
+                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
+                        <MultiOptionSelector 
+                          itineraries={itineraryOptions}
+                          onSelect={(option) => {
+                            setSelectedItinerary(option);
+                            setConfirmationOpen(true);
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Regular Chat Display */}
+                    {stage === "chat" && (
+                      <ChatColumn 
+                        messages={chat} 
+                        chatInput={chatInput} 
+                        setChatInput={setChatInput} 
+                        onSendMessage={handleSendMessage}
+                        onAddCard={handleAddToCollections}
+                        onViewDetails={handleViewDetails}
+                        loading={loading}
+                      />
+                    )}
+
+                    {/* Custom Requirements Box - Only show when editing options */}
+                    {stage === "chat" && itineraryOptions.length > 0 && (
+                      <div style={{ 
+                        marginTop: "12px", 
+                        padding: "12px", 
+                        background: "#fef3c7", 
+                        borderRadius: "12px",
+                        border: "2px solid #fcd34d",
+                        flexShrink: 0
+                      }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e", marginBottom: "8px" }}>
+                          📋 Custom Requirements (Regeneration Only)
+                        </div>
+
+                        {/* Input for new requirement */}
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                          <input
+                            type="text"
+                            value={requirementInput}
+                            onChange={(e) => setRequirementInput(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && handleAddRequirement()}
+                            placeholder="e.g., 'visit museum first' or 'sunset at beach'"
+                            style={{
+                              flex: 1,
+                              padding: "8px 12px",
+                              border: "1px solid #fcd34d",
+                              borderRadius: "8px",
+                              fontSize: "13px",
+                              background: "#fff",
+                              outline: "none"
+                            }}
+                          />
+                          <button
+                            onClick={handleAddRequirement}
+                            disabled={!requirementInput.trim()}
+                            style={{
+                              padding: "8px 14px",
+                              background: requirementInput.trim() ? "#fcd34d" : "#e5d4a4",
+                              color: "#92400e",
+                              border: "none",
+                              borderRadius: "8px",
+                              fontWeight: 600,
+                              fontSize: "12px",
+                              cursor: requirementInput.trim() ? "pointer" : "not-allowed",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={(e) => {
+                              if (requirementInput.trim()) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "#fbbf24";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (requirementInput.trim()) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "#fcd34d";
+                              }
+                            }}
+                          >
+                            + Add
+                          </button>
+                        </div>
+
+                        {/* Requirements List */}
+                        {customRequirements.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            {customRequirements.map((req, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  background: "#fff",
+                                  padding: "8px 10px",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  color: "#92400e",
+                                  border: "1px solid #fcd34d"
+                                }}
+                              >
+                                <span>✓ {req}</span>
+                                <button
+                                  onClick={() => handleRemoveRequirement(idx)}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#ef4444",
+                                    cursor: "pointer",
+                                    padding: "0 4px",
+                                    fontSize: "16px",
+                                    fontWeight: "bold"
+                                  }}
+                                  title="Remove requirement"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {customRequirements.length === 0 && (
+                          <div style={{ fontSize: "12px", color: "#a16207", fontStyle: "italic" }}>
+                            No custom requirements added yet. Add requirements to regenerate itineraries that prioritize your preferences.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
                 
                 {activeTab === "destinations" && (
@@ -604,13 +1359,19 @@ export default function PlannerPage() {
                         onActionItem={(id: string) => setCollections(collections.filter(i => i.id !== id))} 
                         transparent 
                         isSortable={true} 
-                        onViewDetails={handleViewDetails} // Info button
+                        onViewDetails={handleViewDetails}
                       />
                     )}
                   </div>
                 )}
 
                 {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
+                
+                {activeTab === "map" && (
+                   <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
+                      <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
+                   </div>
+                )}
             </div>
           </div>
 
@@ -636,6 +1397,16 @@ export default function PlannerPage() {
             isOpen={modalOpen} 
             onClose={() => setModalOpen(false)} 
             data={selectedLocation} 
+          />
+
+          {/* Confirmation Modal */}
+          <ConfirmationModal 
+            isOpen={confirmationOpen}
+            itinerary={selectedItinerary}
+            tripName={tripName}
+            onConfirm={handleConfirmItinerary}
+            onClose={() => setConfirmationOpen(false)}
+            onEdit={handleEditAndRegenerate}
           />
 
         </DndContext>

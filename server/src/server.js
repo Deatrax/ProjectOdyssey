@@ -6,6 +6,9 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth'); 
 const protectedRoutes = require("./routes/protected");
 const aiRoutes = require("./routes/ai.routes");
+const placeRoutes = require("./routes/placeRoutes");
+const clusteringRoutes = require("./routes/clustering.routes");
+const tripRoutes = require("./routes/tripRoutes");
 
 
 const app = express();
@@ -30,6 +33,9 @@ app.use("/api/ai", aiRoutes);
 // This means "server/src/routes/auth.js" becomes "http://localhost:PORT/api/auth/..."
 app.use('/api/auth', authRoutes);
 app.use('/api/user', protectedRoutes);
+app.use('/api/ai', placeRoutes);
+app.use('/api/clustering', clusteringRoutes);
+app.use('/api/trips', tripRoutes);
 
 // 5. Start Server
 const PORT = process.env.PORT || 5001; // Defaults to 5001 if .env is missing
