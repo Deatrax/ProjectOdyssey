@@ -58,7 +58,7 @@ app.use('/api/clustering', clusteringRoutes);
 app.use('/api/trips', tripRoutes);
 
 // 7. Start Server
-const PORT = process.env.PORT || 5001; // Defaults to 5001 if .env is missing
+const PORT = process.env.PORT || 4000; // Defaults to 4000 if .env is missing
 app.listen(PORT, () => {
    console.log(`✅ Server running on http://localhost:${PORT}`);
    console.log(`👉 Login Route: http://localhost:${PORT}/api/auth/login`);

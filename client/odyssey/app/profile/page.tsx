@@ -37,6 +37,7 @@ interface CollectionProps {
 const userProfile = {
   name: "Alex Rivera",
   username: "@alexrivera",
+  email: "alex@example.com",
   bio: "Adventure seeker | Photography enthusiast | Always planning the next trip ✈️",
   joinDate: "January 2024",
   profileImage: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop",
@@ -136,6 +137,21 @@ const ProfilePage: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // Settings form state
+  const [profileData, setProfileData] = useState({
+    email: userProfile.email || "",
+    phone: "",
+    currency: "USD",
+    budgetRange: "$50 - $100 (Moderate)",
+    accommodation: "Mid-range Hotels",
+    travelStyles: userProfile.travelStyle || [],
+    emailNotifications: true,
+    tripReminders: true,
+    friendActivity: true
+  });
 
   // Authentication checking Alfi - Logout function
   const handleLogout = () => {
@@ -145,6 +161,75 @@ const ProfilePage: React.FC = () => {
     
     // Redirect to login page
     router.push("/login");
+  };
+
+  // Save all changes handler
+  const handleSaveAllChanges = async () => {
+    setLoading(true);
+    setSaveMessage("");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      const requestBody = {
+        preferences: {
+          currency: profileData.currency,
+          budgetRange: profileData.budgetRange,
+          accommodation: profileData.accommodation,
+          travelStyles: profileData.travelStyles,
+        },
+        notifications: {
+          emailNotifications: profileData.emailNotifications,
+          tripReminders: profileData.tripReminders,
+          friendActivity: profileData.friendActivity,
+        },
+      };
+
+      console.log("📤 Sending save request with body:", requestBody);
+
+      const res = await fetch("http://localhost:4000/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log("📥 Response status:", res.status);
+
+      // Read the body once as text
+      const responseText = await res.text();
+      console.log("📥 Response text:", responseText);
+
+      if (!res.ok) {
+        // Try to parse response as JSON, otherwise use raw text
+        let errorMessage = "Failed to save changes";
+        try {
+          const error = JSON.parse(responseText);
+          errorMessage = error.message || error.error || "Failed to save changes";
+        } catch {
+          // If not JSON, use the raw text
+          errorMessage = `Server error (${res.status}): ${responseText || "Unknown error"}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response as JSON
+      const data = JSON.parse(responseText);
+      console.log("✅ Response data:", data);
+      setSaveMessage("✅ All changes saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err: any) {
+      console.error("Error saving changes:", err);
+      setSaveMessage("❌ Failed to save changes: " + err.message);
+      setTimeout(() => setSaveMessage(""), 3000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Render star rating
@@ -614,7 +699,11 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Budget Range (per day)</label>
-                    <select className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]">
+                    <select 
+                      value={profileData.budgetRange}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProfileData({...profileData, currency: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                    >
                       <option>$0 - $50 (Budget)</option>
                       <option>$50 - $100 (Moderate)</option>
                       <option>$100 - $200 (Comfortable)</option>
@@ -623,7 +712,11 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Preferred Accommodation</label>
-                    <select className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]">
+                    <select 
+                      value={profileData.accommodation}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProfileData({...profileData, accommodation: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                    >
                       <option>Hostels</option>
                       <option>Budget Hotels</option>
                       <option>Mid-range Hotels</option>
@@ -655,7 +748,12 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">Receive updates via email</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.emailNotifications}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, emailNotifications: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
@@ -665,7 +763,12 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">Get reminded about upcoming trips</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.tripReminders}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, tripReminders: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
@@ -675,7 +778,12 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">See when friends plan new trips</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.friendActivity}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, friendActivity: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
@@ -700,9 +808,18 @@ const ProfilePage: React.FC = () => {
               </div>
 
               {/* Save Button */}
-              <div className="flex justify-end">
-                <button className="bg-[#4A9B7F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#3d8a6d] transition shadow-lg">
-                  Save All Changes
+              <div className="flex flex-col gap-4 justify-end">
+                {saveMessage && (
+                  <div className={`text-center py-3 px-4 rounded-lg font-semibold ${saveMessage.includes("✅") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {saveMessage}
+                  </div>
+                )}
+                <button 
+                  onClick={handleSaveAllChanges}
+                  disabled={loading}
+                  className="bg-[#4A9B7F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#3d8a6d] transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Saving..." : "Save All Changes"}
                 </button>
               </div>
             </div>

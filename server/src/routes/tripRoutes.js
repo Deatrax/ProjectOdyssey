@@ -21,6 +21,8 @@ router.post("/save", authMiddleware, async (req, res) => {
     const { tripName, selectedPlaces, selectedItinerary, status } = req.body;
     const userId = req.user.id; // From authMiddleware
 
+    console.log("POST /api/trips/save called with:", { tripName, selectedPlaces, userId });
+
     if (!tripName) {
       return res.status(400).json({ error: "tripName is required" });
     }
@@ -35,6 +37,8 @@ router.post("/save", authMiddleware, async (req, res) => {
       selectedItinerary: selectedItinerary || null,
       status: status || "draft",
     });
+
+    console.log("Itinerary saved successfully:", itinerary);
 
     return res.status(201).json({
       success: true,
