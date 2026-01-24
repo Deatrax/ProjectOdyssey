@@ -10,23 +10,19 @@ const LandingPage: React.FC = () => {
     <div>
       {/* Navbar */}
       <nav className="navbar">
-        <div className="nav-left">
-          <span className="logo-icon">🌐</span>
-          <span className="logo-text">Odyssey</span>
-        </div>
-        <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              {/* Ensure this path points to your public folder */}
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
+        <div className="nav-left flex items-center gap-2">
+          <div className="w-7 h-7 flex items-center justify-center">
+            {/* Ensure this path points to your public folder */}
+            <img 
+              src="/Odyssey_Logo.png" 
+              alt="Odyssey Logo" 
+              className="w-full h-full object-contain" 
+            />
           </div>
+          <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
+            Odyssey
+          </span>
+        </div>
 
         <div className="nav-right">
           <a className="active" href="#">
