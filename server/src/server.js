@@ -38,6 +38,7 @@ app.use('/api', placeRoutes); // Place routes
 app.use('/api/clustering', clusteringRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/test', testRoutes); // Mount Test Routes
+app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;
