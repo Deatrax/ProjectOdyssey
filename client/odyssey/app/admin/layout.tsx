@@ -14,6 +14,8 @@ export default function AdminLayout({
   const navItems = [
     { name: "Dashboard", href: "/admin" },
     { name: "Database Control", href: "/admin/db-control" },
+    { name: "Manage Cities", href: "/admin/cities" },
+    { name: "Manage POIs", href: "/admin/pois" },
     { name: "Wiki Test", href: "/admin/wiki-test" },
   ];
 

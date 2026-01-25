@@ -1,6 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabaseClient');
+const User = require('../models/User'); // Import Mongoose User Model
+
+// --- DASHBOARD STATS ---
+router.get('/stats', async (req, res) => {
+    try {
+        // 1. Mongo Users Count
+        const userCount = await User.countDocuments();
+
+        // 2. Supabase Counts (Countries, Cities, POIs)
+        // Note: count: 'exact' is needed to get the count value
+        const { count: countryCount, error: countryError } = await supabase.from('countries').select('*', { count: 'exact', head: true });
+        const { count: cityCount, error: cityError } = await supabase.from('cities').select('*', { count: 'exact', head: true });
+        const { count: poiCount, error: poiError } = await supabase.from('pois').select('*', { count: 'exact', head: true });
+
+        if (countryError) throw countryError;
+        if (cityError) throw cityError;
+        if (poiError) throw poiError;
+
+        res.json({
+            success: true,
+            data: {
+                users: userCount,
+                countries: countryCount,
+                cities: cityCount,
+                pois: poiCount
+            }
+        });
+    } catch (error) {
+        console.error("Stats Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // --- COUNTRIES ---
 router.post('/countries', async (req, res) => {
@@ -96,6 +128,29 @@ router.post('/pois', async (req, res) => {
 
     } catch (error) {
         console.error("Create POI Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/pois', async (req, res) => {
+    try {
+        const { search, limit = 50 } = req.query;
+        let query = supabase.from('pois').select('*, cities(name), countries(name)').limit(parseInt(limit));
+
+        if (search) {
+            // Case-insensitive search on name
+            query = query.ilike('name', `%${search}%`);
+        }
+
+        // Order by most recent
+        query = query.order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error("Fetch POIs Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
