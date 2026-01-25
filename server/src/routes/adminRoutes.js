@@ -56,7 +56,7 @@ router.post('/countries', async (req, res) => {
 
     } catch (error) {
         console.error("Create Country Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, code: error.code });
     }
 });
 
@@ -70,7 +70,7 @@ router.get('/countries', async (req, res) => {
 // --- CITIES (DISTRICTS) ---
 router.post('/cities', async (req, res) => {
     try {
-        const { name, slug, description, google_place_id, latitude, longitude, country_id, population } = req.body;
+        const { name, slug, description, google_place_id, latitude, longitude, country_id, population, state_province } = req.body;
 
         if (!name || !slug || !country_id) {
             return res.status(400).json({ error: "Name, Slug, and Country ID are required." });
@@ -79,7 +79,7 @@ router.post('/cities', async (req, res) => {
         const { data, error } = await supabase
             .from('cities')
             .insert({
-                name, slug, description, google_place_id, latitude, longitude, country_id, population
+                name, slug, description, google_place_id, latitude, longitude, country_id, population, state_province
             })
             .select();
 
@@ -88,22 +88,62 @@ router.post('/cities', async (req, res) => {
 
     } catch (error) {
         console.error("Create City Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, code: error.code });
     }
 });
 
 router.get('/cities', async (req, res) => {
-    // Can filter by country_id if query param provided
-    const { country_id } = req.query;
-    let query = supabase.from('cities').select('*').order('name');
+    try {
+        const { country_id, search, page = 1, limit = 50 } = req.query;
 
-    if (country_id) {
-        query = query.eq('country_id', country_id);
+        // Pagination logic
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        let query = supabase.from('cities')
+            .select('*, countries(name)', { count: 'exact' }); // Get total count
+
+        // Filters
+        if (country_id) {
+            query = query.eq('country_id', country_id);
+        }
+        if (search) {
+            query = query.ilike('name', `%${search}%`);
+        }
+
+        // Apply Pagination & Sort
+        query = query.order('name')
+            .range(from, parseInt(to));
+
+        const { data, count, error } = await query;
+
+        if (error) return res.status(500).json({ error: error.message });
+
+        res.json({
+            success: true,
+            data,
+            total: count,
+            page: parseInt(page),
+            limit: parseInt(limit)
+        });
+    } catch (error) {
+        console.error("Fetch Cities Error:", error);
+        res.status(500).json({ error: error.message });
     }
+});
 
-    const { data, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true, data });
+router.delete('/cities/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabase.from('cities').delete().eq('id', id);
+
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Delete City Error:", error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 
@@ -128,7 +168,7 @@ router.post('/pois', async (req, res) => {
 
     } catch (error) {
         console.error("Create POI Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, code: error.code });
     }
 });
 

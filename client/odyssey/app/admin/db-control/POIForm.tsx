@@ -21,6 +21,7 @@ export default function POIForm() {
   });
   
   const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Load Countries
   useEffect(() => {
@@ -59,17 +60,34 @@ export default function POIForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("SAVING");
+    // Sanitize payload
+    const payload = {
+        ...formData,
+        latitude: formData.latitude === "" ? null : formData.latitude,
+        longitude: formData.longitude === "" ? null : formData.longitude,
+    };
+
     try {
       const res = await fetch("http://localhost:4000/api/admin/pois", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error("Failed to save");
+      
+      const data = await res.json();
+
+      if (!res.ok) {
+         if (data.code === '23505') {
+             throw new Error("Duplicate POI! This POI already exists.");
+         }
+         throw new Error(data.error || "Failed to save");
+      }
       setStatus("SUCCESS");
-    } catch (err) {
+      setErrorMessage("");
+    } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
+       setErrorMessage(err.message.includes("Duplicate") ? "❌ " + err.message : "❌ Error Saving POI");
     }
   };
 
@@ -159,7 +177,7 @@ export default function POIForm() {
         </button>
 
         {status === "SUCCESS" && <p className="text-green-600 font-bold text-center mt-4">✅ POI Saved Successfully!</p>}
-        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">❌ Error Saving POI</p>}
+        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">{errorMessage}</p>}
       </form>
     </div>
   );

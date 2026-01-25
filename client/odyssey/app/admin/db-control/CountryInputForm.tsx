@@ -17,6 +17,7 @@ export default function CountryInputForm() {
     longitude: ""
   });
   const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleWikiFetch = (data: any) => {
     setFormData(prev => ({
@@ -32,18 +33,36 @@ export default function CountryInputForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("SAVING");
+    // Sanitize payload
+    const payload = {
+        ...formData,
+        population: formData.population === "" ? null : formData.population,
+        latitude: formData.latitude === "" ? null : formData.latitude,
+        longitude: formData.longitude === "" ? null : formData.longitude,
+    };
+
     try {
       const res = await fetch("http://localhost:4000/api/admin/countries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error("Failed to save");
+      
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.code === '23505') {
+             throw new Error("Duplicate Country! This country already exists.");
+        }
+        throw new Error(data.error || "Failed to save");
+      }
+      
       setStatus("SUCCESS");
-      // Optional: Clear form
-    } catch (err) {
+      setErrorMessage("");
+    } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
+      setErrorMessage(err.message.includes("Duplicate") ? "❌ " + err.message : "❌ Error Saving Country");
     }
   };
 
@@ -111,7 +130,7 @@ export default function CountryInputForm() {
         </button>
 
         {status === "SUCCESS" && <p className="text-green-600 font-bold text-center mt-4">✅ Country Saved Successfully!</p>}
-        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">❌ Error Saving Country</p>}
+        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">{errorMessage}</p>}
       </form>
     </div>
   );

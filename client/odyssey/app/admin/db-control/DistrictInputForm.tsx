@@ -10,12 +10,14 @@ export default function DistrictInputForm() {
     slug: "",
     description: "",
     country_id: "",
+    state_province: "",
     population: "",
     google_place_id: "",
     latitude: "",
     longitude: ""
   });
   const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Fetch countries for dropdown
   useEffect(() => {
@@ -41,11 +43,21 @@ export default function DistrictInputForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("SAVING");
+    
+    // Sanitize payload: convert empty strings to null for numbers/optionals
+    const payload = {
+        ...formData,
+        population: formData.population === "" ? null : formData.population,
+        latitude: formData.latitude === "" ? null : formData.latitude,
+        longitude: formData.longitude === "" ? null : formData.longitude,
+        // Ensure state_province is sent (even if empty string is okay for varchar, but let's be safe)
+    };
+
     try {
       const res = await fetch("http://localhost:4000/api/admin/cities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error("Failed to save");
       setStatus("SUCCESS");
@@ -64,7 +76,7 @@ export default function DistrictInputForm() {
       <WikiFetcher onFetch={handleWikiFetch} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">District Name</label>
             <input name="name" value={formData.name} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
@@ -84,11 +96,21 @@ export default function DistrictInputForm() {
                 ))}
              </select>
           </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">State / Province</label>
+            <input name="state_province" value={formData.state_province} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+          </div>
         </div>
 
-        <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Slug</label>
-            <input name="slug" value={formData.slug} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Slug</label>
+                <input name="slug" value={formData.slug} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
+            </div>
+             <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Population</label>
+                <input name="population" type="number" value={formData.population} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            </div>
         </div>
 
         <div>
@@ -97,6 +119,7 @@ export default function DistrictInputForm() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* ... */}
             <div>
                  <label className="block text-sm font-bold text-gray-700 mb-2">Google Place ID</label>
                  <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg" />
@@ -120,7 +143,7 @@ export default function DistrictInputForm() {
         </button>
 
         {status === "SUCCESS" && <p className="text-green-600 font-bold text-center mt-4">✅ District Saved Successfully!</p>}
-        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">❌ Error Saving District</p>}
+        {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">{errorMessage}</p>}
       </form>
     </div>
   );
