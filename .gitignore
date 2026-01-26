@@ -20,3 +20,4 @@ Thumbs.db
 dist/
 build/
 server/old.env
+server/.secrets
