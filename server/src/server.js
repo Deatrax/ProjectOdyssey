@@ -3,19 +3,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors'); // <--- CRITICAL FOR FRONTEND CONNECTION
 const connectDB = require('./config/db');
-const authRoutes = require('./routes/auth'); 
+const authRoutes = require('./routes/auth');
 const protectedRoutes = require("./routes/protected");
 const aiRoutes = require("./routes/ai.routes");
 const placeRoutes = require("./routes/placeRoutes");
 const clusteringRoutes = require("./routes/clustering.routes");
 const tripRoutes = require("./routes/tripRoutes");
+const testRoutes = require("./routes/testRoutes"); // New Test Routes
 
 
 const app = express();
 
 // 1. Enable CORS (Allow localhost:3000 to talk to this server)
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000","http://113.11.100.133:55680"],
+  origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://113.11.100.133:55680"],
   credentials: true
 }));
 
@@ -33,14 +34,16 @@ app.use("/api/ai", aiRoutes);
 // This means "server/src/routes/auth.js" becomes "http://localhost:PORT/api/auth/..."
 app.use('/api/auth', authRoutes);
 app.use('/api/user', protectedRoutes);
-app.use('/api/ai', placeRoutes);
+app.use('/api', placeRoutes); // Place routes
 app.use('/api/clustering', clusteringRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/test', testRoutes); // Mount Test Routes
+app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 
 // 5. Start Server
-const PORT = process.env.PORT || 5001; // Defaults to 5001 if .env is missing
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-   console.log(`✅ Server running on http://localhost:${PORT}`);
-   console.log(`👉 Login Route: http://localhost:${PORT}/api/auth/login`);
-   console.log(`👉 Signup Route: http://localhost:${PORT}/api/auth/signup`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`👉 Login Route: http://localhost:${PORT}/api/auth/login`);
+  console.log(`👉 Signup Route: http://localhost:${PORT}/api/auth/signup`);
 });
