@@ -253,73 +253,43 @@ const ProfilePage: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
-    <div className="dashboard-wrapper">
+    <div className="bg-[#FFF5E9] min-h-screen font-body">
       {/* Navigation */}
-      <nav className="nav">
-        <div className="nav-container">
+      <nav className="sticky top-4 z-50 px-6 py-3 bg-[#FFF5E9]/30 backdrop-blur-lg border border-white/20 rounded-2xl mx-8 my-4 shadow-lg">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo + Text */}
-          <div className="nav-logo">
-            <div className="logo-image">
-              <img src="/Odyssey_Logo.png" alt="Odyssey Logo" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img 
+                src="/Odyssey_Logo.png" 
+                alt="Odyssey Logo" 
+                className="w-full h-full object-contain" 
+              />
             </div>
-            <span className="logo-text">Odyssey</span>
+            <span className="text-2xl font-medium tracking-wider text-gray-900">
+              Odyssey
+            </span>
           </div>
 
           {/* Desktop Links */}
-          <div className="nav-links">
-            <a onClick={() => router.push("/dashboard")} className="nav-link">Home</a>
-            <a onClick={() => router.push("/planner")} className="nav-link">Planner</a>
-            <a href="#" className="nav-link">My Trips</a>
-            <a href="#" className="nav-link">Saved places</a>
-            <a href="#" className="nav-link">Co-Travellers</a>
+          <div className="flex items-center gap-8 flex-grow justify-center">
+            <a onClick={() => router.push("/dashboard")} className="text-gray-900 font-medium hover:underline transition-all text-sm cursor-pointer">Home</a>
+            <a onClick={() => router.push("/planner")} className="text-gray-900 font-medium hover:underline transition-all text-sm cursor-pointer">Planner</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">My Trips</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Saved places</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Co-Travellers</a>
           </div>
 
           {/* Buttons */}
-          <div className="nav-buttons">
-            <button className="icon-button">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
                 <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/>
               </svg>
             </button>
-            <div
-              className="profile-dropdown"
-              onMouseEnter={() => setDropdownOpen(true)}
-              onMouseLeave={() => setDropdownOpen(false)}
-              style={{ position: "relative" }}
-            >
-              <button 
-                className="icon-button profile-icon"
-                onClick={() => router.push("/profile")}
-              >
-                <svg className="user-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-              </button>
-
-              {dropdownOpen && (
-                <div className="dropdown-menu">
-                  <a onClick={() => router.push("/profile")}>My Destinations</a>
-                  <a onClick={() => router.push("/saved-places")}>Saved Places</a>
-                  <a onClick={() => router.push("/settings")}>Settings</a>
-                  <a onClick={() => { 
-                      localStorage.removeItem("token"); 
-                      localStorage.removeItem("user"); 
-                      router.push("/login"); 
-                    }}>Logout</a>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="mobile-menu-btn-wrapper">
-            <button 
-              id="mobile-menu-button" 
-              className="mobile-menu-btn"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              <svg className="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16"/>
+            <button onClick={() => router.push("/profile")} className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
+              <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </button>
           </div>

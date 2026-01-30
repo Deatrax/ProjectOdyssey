@@ -110,34 +110,33 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
       {/* --- Navigation --- */}
-      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
+      <nav className="sticky top-4 z-50 px-6 py-3 bg-[#FFF5E9]/30 backdrop-blur-lg border border-white/20 rounded-2xl mx-8 my-4 shadow-lg">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo + Text */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              {/* Ensure this path points to your public folder */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center">
               <img 
                 src="/Odyssey_Logo.png" 
                 alt="Odyssey Logo" 
                 className="w-full h-full object-contain" 
               />
             </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider text-gray-900">
+            <span className="text-2xl font-medium tracking-wider text-gray-900">
               Odyssey
             </span>
           </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a href="#" className="text-gray-900 font-semibold underline">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-gray-900 hover:font-bold transition-all">Planner</a>
-            <a href="#" className="text-gray-900 hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-gray-900 hover:font-bold transition-all">Saved places</a>
-            <a href="#" className="text-gray-900 hover:font-bold transition-all">Co-Travellers</a>
+          <div className="flex items-center gap-8 flex-grow justify-center">
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Home</a>
+            <a onClick={() => router.push("/planner")} className="text-gray-900 font-medium hover:underline transition-all text-sm cursor-pointer">Planner</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">My Trips</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Saved places</a>
+            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Co-Travellers</a>
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
                 <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
