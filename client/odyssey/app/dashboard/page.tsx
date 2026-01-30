@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react"; // Import useEffect
@@ -110,40 +111,41 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
       {/* --- Navigation --- */}
-      <nav className="sticky top-4 z-50 px-6 py-3 bg-[#FFF5E9]/30 backdrop-blur-lg border border-white/20 rounded-2xl mx-8 my-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
+        <div className="flex items-center justify-between">
           {/* Logo + Text */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 flex items-center justify-center">
+              {/* Ensure this path points to your public folder */}
               <img 
                 src="/Odyssey_Logo.png" 
                 alt="Odyssey Logo" 
                 className="w-full h-full object-contain" 
               />
             </div>
-            <span className="text-2xl font-medium tracking-wider text-gray-900">
+            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
               Odyssey
             </span>
           </div>
 
           {/* Desktop Links */}
-          <div className="flex items-center gap-8 flex-grow justify-center">
-            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-gray-900 font-medium hover:underline transition-all text-sm cursor-pointer">Planner</a>
-            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">My Trips</a>
-            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Saved places</a>
-            <a href="#" className="text-gray-900 font-medium hover:underline transition-all text-sm">Co-Travellers</a>
+          <div className="hidden md:flex items-center gap-4 lg:gap-6">
+            <a href="#" className="text-gray-900 font-semibold underline">Home</a>
+            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all">Planner</a>
+            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
+            <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
+            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
                 <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
               </svg>
             </button>
             <button onClick={() => router.push("/profile")} className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
-              <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </button>
@@ -165,11 +167,11 @@ const DashboardPage: React.FC = () => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
-            <a href="#" className="text-gray-900 font-medium hover:pl-2 transition-all">Home</a>
-            <a href="#" className="text-gray-900 font-medium hover:pl-2 transition-all">Planner</a>
-            <a href="#" className="text-gray-900 font-medium hover:pl-2 transition-all">My Trips</a>
-            <a href="#" className="text-gray-900 font-medium hover:pl-2 transition-all">Saved places</a>
-            <a href="#" className="text-gray-900 font-medium hover:pl-2 transition-all">Co-Travellers</a>
+            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Home</a>
+            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Planner</a>
+            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
+            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
+            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
           </div>
         )}
       </nav>
@@ -191,8 +193,7 @@ const DashboardPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search your next destination..."
-                  className="flex-1 px-4 sm:px-6 py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none"
-                  style={{ color: "#1f2937" }}
+                  className="flex-1 px-4 sm:px-6 py-3 bg-transparent text-white placeholder-gray-300 focus:outline-none"
                 />
                 <button className="mt-2 mx-4 sm:mt-0 sm:ml-2 bg-white text-gray-800 px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-100 transition flex items-center gap-1 mb-2 sm:mb-0">
                   <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#F19E39">
@@ -270,15 +271,6 @@ const DashboardPage: React.FC = () => {
           ©Odyssey. Made with <span className="text-red-500">❤️</span> by Route6
         </p>
       </footer>
-
-      <style>{`
-        input::placeholder {
-          color: #9ca3af !important;
-        }
-        input {
-          color: #1f2937 !important;
-        }
-      `}</style>
     </div>
   );
 };
