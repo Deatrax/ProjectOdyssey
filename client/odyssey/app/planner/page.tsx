@@ -302,12 +302,17 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             placeholder="Ask Odyssey..."
-            style={{ width: "100%", padding: "12px 40px 12px 16px", borderRadius: "99px", background: "#f3f4f6", border: "none", outline: "none", fontSize: "14px" }}
+            style={{ width: "100%", padding: "12px 40px 12px 16px", borderRadius: "99px", background: "#f3f4f6", border: "none", outline: "none", fontSize: "14px", color: "#1f2937" }}
           />
           <button type="submit" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", width: "28px", height: "28px", borderRadius: "50%", background: "#000", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             ↑
           </button>
         </div>
+        <style>{`
+          input::placeholder {
+            color: #9ca3af !important;
+          }
+        `}</style>
       </form>
     </div>
   );
@@ -822,15 +827,15 @@ export default function PlannerPage() {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Inter, sans-serif", background: "#ffffff", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Inter, sans-serif", background: "#ffffff", overflow: "hidden", color: "#1f2937" }}>
       
       {/* Header */}
-      <header style={{ padding: "12px 5%", height: "64px", flexShrink: 0, display: "flex", alignItems: "center", background: "#fff6eb", gap: "12px", borderBottom: "1px solid #e5e7eb" }}>
+      <header style={{ padding: "12px 5%", height: "64px", flexShrink: 0, display: "flex", alignItems: "center", background: "#fff6eb", gap: "12px", borderBottom: "1px solid #e5e7eb", color: "#1f2937" }}>
         <input 
           value={tripName} 
           onChange={(e) => setTripName(e.target.value)} 
           placeholder="Trip name" 
-          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }} 
+          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff", color: "#1f2937" }} 
         />
         <button 
           onClick={handleGenerateItineraries}
@@ -850,8 +855,8 @@ export default function PlannerPage() {
           {optionsLoading ? "Generating..." : "✨ Generate Itineraries"}
         </button>
         <button onClick={handleSaveTrip} style={{ padding: "8px 14px", background: "#1db954", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>Save</button>
-        <button onClick={() => setActiveTab("map")} style={{ padding: "8px 14px", background: activeTab === "map" ? "#000" : "#fff", color: activeTab === "map" ? "#fff" : "#000", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer" }}>Maps</button>
-        <button style={{ padding: "8px 14px", background: "#fff", color: "#000", border: "1px solid #d9d9d9", borderRadius: "8px" }}>Summaries</button>
+        <button onClick={() => setActiveTab("map")} style={{ padding: "8px 14px", background: activeTab === "map" ? "#000" : "#fff", color: activeTab === "map" ? "#fff" : "#1f2937", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer", fontWeight: 500 }}>Maps</button>
+        <button style={{ padding: "8px 14px", background: "#fff", color: "#1f2937", border: "1px solid #d9d9d9", borderRadius: "8px", fontWeight: 500 }}>Summaries</button>
       </header>
 
       <main style={{ padding: "20px 5%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
@@ -1415,6 +1420,14 @@ export default function PlannerPage() {
       <footer style={{ height: "48px", flexShrink: 0, padding: "0 5%", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1px solid #d9d9d9", background: "#f5f5f5", fontSize: "14px", color: "#666" }}>
         ©Odyssey. Made with ❤️ by Route6
       </footer>
+      <style>{`
+        input::placeholder {
+          color: #9ca3af !important;
+        }
+        input {
+          color: #1f2937 !important;
+        }
+      `}</style>
     </div>
   );
 }

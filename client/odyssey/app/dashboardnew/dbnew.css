@@ -76,6 +76,7 @@ img {
     font-family: 'Playfair Display', serif;
     font-size: 24px;
     letter-spacing: 1px;
+    color: #141414;
 }
 
 /* Links */
@@ -204,7 +205,7 @@ img {
     flex: 1;
     border: none;
     background: transparent;
-    color: #fff;
+    color: #141414;
     padding: 12px 20px;
     font-size: 16px;
     outline: none;
