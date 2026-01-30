@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import './profile.css';
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -249,75 +250,84 @@ const ProfilePage: React.FC = () => {
     );
   };
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   return (
-    <div className="bg-[#FFF5E9] min-h-screen font-body">
-      {/* --- Navigation (Same as Dashboard) --- */}
-      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
+    <div className="dashboard-wrapper">
+      {/* Navigation */}
+      <nav className="nav">
+        <div className="nav-container">
           {/* Logo + Text */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
+          <div className="nav-logo">
+            <div className="logo-image">
+              <img src="/Odyssey_Logo.png" alt="Odyssey Logo" />
             </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
+            <span className="logo-text">Odyssey</span>
           </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a onClick={() => router.push("/dashboard")} className="text-black hover:font-bold transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
+          <div className="nav-links">
+            <a onClick={() => router.push("/dashboard")} className="nav-link">Home</a>
+            <a onClick={() => router.push("/planner")} className="nav-link">Planner</a>
+            <a href="#" className="nav-link">My Trips</a>
+            <a href="#" className="nav-link">Saved places</a>
+            <a href="#" className="nav-link">Co-Travellers</a>
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
+          <div className="nav-buttons">
+            <button className="icon-button">
               <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
-                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
+                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/>
               </svg>
             </button>
-            <button className="p-2 bg-white bg-opacity-50 rounded-full transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
+            <div
+              className="profile-dropdown"
+              onMouseEnter={() => setDropdownOpen(true)}
+              onMouseLeave={() => setDropdownOpen(false)}
+              style={{ position: "relative" }}
+            >
+              <button 
+                className="icon-button profile-icon"
+                onClick={() => router.push("/profile")}
+              >
+                <svg className="user-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <div className="dropdown-menu">
+                  <a onClick={() => router.push("/profile")}>My Destinations</a>
+                  <a onClick={() => router.push("/saved-places")}>Saved Places</a>
+                  <a onClick={() => router.push("/settings")}>Settings</a>
+                  <a onClick={() => { 
+                      localStorage.removeItem("token"); 
+                      localStorage.removeItem("user"); 
+                      router.push("/login"); 
+                    }}>Logout</a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="mobile-menu-btn-wrapper">
             <button 
+              id="mobile-menu-button" 
+              className="mobile-menu-btn"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
+              <svg className="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16"/>
               </svg>
             </button>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
-            <a onClick={() => router.push("/dashboard")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
-          </div>
-        )}
       </nav>
 
-      {/* --- Main Profile Content --- */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-16">
+      {/* Main Content */}
+      <div className="main-content" style={{ paddingTop: '32px' }}>
         
         {/* Cover Image + Profile Header */}
         <div className="relative mb-8">
