@@ -302,7 +302,7 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             placeholder="Ask Odyssey..."
-            style={{ width: "100%", padding: "12px 40px 12px 16px", borderRadius: "99px", background: "#f3f4f6", border: "none", outline: "none", fontSize: "14px" }}
+            style={{ width: "100%", padding: "12px 40px 12px 16px", borderRadius: "99px", background: "#f3f4f6", border: "none", outline: "none", fontSize: "14px", color: "#000000" }}
           />
           <button type="submit" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", width: "28px", height: "28px", borderRadius: "50%", background: "#000", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             ↑
@@ -830,7 +830,7 @@ export default function PlannerPage() {
           value={tripName} 
           onChange={(e) => setTripName(e.target.value)} 
           placeholder="Trip name" 
-          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }} 
+          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff", color: "#000000" }} 
         />
         <button 
           onClick={handleGenerateItineraries}
@@ -1247,7 +1247,8 @@ export default function PlannerPage() {
                               borderRadius: "8px",
                               fontSize: "13px",
                               background: "#fff",
-                              outline: "none"
+                              outline: "none",
+                              color: "#000000"
                             }}
                           />
                           <button
@@ -1343,7 +1344,7 @@ export default function PlannerPage() {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSendMessage(e)}
                             placeholder="Search destinations..." 
-                            style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }} 
+                            style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff", color: "#000000" }} 
                           />
                           <button onClick={handleSendMessage} style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
                             Search

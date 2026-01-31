@@ -90,7 +90,7 @@
 }
 
 .nav-link.active {
-    text-decoration: underline;
+    /* Active state styling removed - no underline */
 }
 
 /* Buttons */

@@ -1,0 +1,220 @@
+/* =====================
+   PROFILE PAGE STYLES
+===================== */
+
+.profile-wrapper {
+    background: #FFF5E9;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* =====================
+   NAVIGATION
+===================== */
+.nav {
+    position: sticky;
+    top: 16px;
+    z-index: 50;
+
+    /* LOCK HEIGHT (same visual height as dashboard) */
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    /* Horizontal spacing only */
+    padding: 0 24px;
+    margin: 16px auto;
+    max-width: 1400px;
+
+    /* Glassmorphism - Enhanced Blur & Opacity */
+    background: rgba(255, 245, 233, 0.35);
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+    font-family: 'Manrope', sans-serif;
+}
+
+.nav * {
+    box-sizing: border-box;
+}
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    width: 100%;
+}
+
+/* Logo */
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-image img {
+    width: 28px;
+    height: 28px;
+}
+
+.logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    letter-spacing: 1px;
+    color: #141414 !important;
+    font-weight: 600;
+}
+
+/* Links */
+.nav-links {
+    display: flex;
+    gap: 24px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #141414;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    font-weight: 700;
+}
+
+.nav-link.active {
+    text-decoration: underline;
+}
+
+/* Buttons */
+.nav-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.icon-button {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: #141414;
+}
+
+.icon-button:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.user-icon {
+    width: 20px;
+    height: 20px;
+    color: #141414;
+    stroke: #141414;
+}
+
+.profile-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Add invisible hover area to prevent menu from disappearing */
+.profile-dropdown::after {
+    content: '';
+    position: absolute;
+    top: 30px;
+    right: 0;
+    width: 100%;
+    height: 15px;
+    pointer-events: auto;
+}
+
+/* Glassmorphic Dropdown Menu */
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 45px;
+    background: rgba(255, 245, 233, 0.10);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    z-index: 100;
+    min-width: 180px;
+    transition: all 0.3s ease-in-out;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #141414;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-menu a:hover {
+    background: rgba(230, 194, 194, 0.25);
+    backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Show menu on hover - keep open when hovering over dropdown or menu */
+.profile-dropdown:hover .dropdown-menu,
+.dropdown-menu:hover {
+    display: block;
+}
+
+/* Mobile menu */
+.mobile-menu-btn-wrapper {
+    display: none;
+}
+
+.mobile-menu-btn {
+    background: #e5e5e5;
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.menu-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* =====================
+   RESPONSIVE
+===================== */
+@media (max-width: 768px) {
+    .nav-links {
+        display: none;
+    }
+
+    .mobile-menu-btn-wrapper {
+        display: block;
+    }
+
+    .nav {
+        padding: 0 16px;
+        margin: 12px auto;
+    }
+
+    .nav-container {
+        padding: 12px 16px;
+    }
+
+    .logo-text {
+        font-size: 18px;
+    }
+}
