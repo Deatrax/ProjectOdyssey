@@ -56,6 +56,8 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid username or password" });
 
     const token = generateToken(user);
+    console.log("✅ Login successful for user:", username);
+    console.log("🔐 Generated token (first 20 chars):", token.substring(0, 20) + "...");
 
     res.json({
       message: "Login successful!",
@@ -63,6 +65,7 @@ router.post("/login", async (req, res) => {
       user: { id: user._id, username: user.username },
     });
   } catch (err) {
+    console.error("❌ Login error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

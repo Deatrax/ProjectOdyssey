@@ -1,9 +1,10 @@
 // app/profile/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import "./profile.css";
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -37,6 +38,7 @@ interface CollectionProps {
 const userProfile = {
   name: "Alex Rivera",
   username: "@alexrivera",
+  email: "alex@example.com",
   bio: "Adventure seeker | Photography enthusiast | Always planning the next trip ✈️",
   joinDate: "January 2024",
   profileImage: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop",
@@ -136,6 +138,101 @@ const ProfilePage: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // Settings form state
+  const [profileData, setProfileData] = useState({
+    email: userProfile.email || "",
+    phone: "",
+    currency: "USD",
+    budgetRange: "$50 - $100 (Moderate)",
+    accommodation: "Mid-range Hotels",
+    travelStyles: userProfile.travelStyle || [],
+    emailNotifications: true,
+    tripReminders: true,
+    friendActivity: true
+  });
+
+  // Authentication checking Alfi - Logout function
+  const handleLogout = () => {
+    // Clear all user data from localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Redirect to login page
+    router.push("/login");
+  };
+
+  // Save all changes handler
+  const handleSaveAllChanges = async () => {
+    setLoading(true);
+    setSaveMessage("");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      const requestBody = {
+        preferences: {
+          currency: profileData.currency,
+          budgetRange: profileData.budgetRange,
+          accommodation: profileData.accommodation,
+          travelStyles: profileData.travelStyles,
+        },
+        notifications: {
+          emailNotifications: profileData.emailNotifications,
+          tripReminders: profileData.tripReminders,
+          friendActivity: profileData.friendActivity,
+        },
+      };
+
+      console.log("📤 Sending save request with body:", requestBody);
+
+      const res = await fetch("http://localhost:4000/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log("📥 Response status:", res.status);
+
+      // Read the body once as text
+      const responseText = await res.text();
+      console.log("📥 Response text:", responseText);
+
+      if (!res.ok) {
+        // Try to parse response as JSON, otherwise use raw text
+        let errorMessage = "Failed to save changes";
+        try {
+          const error = JSON.parse(responseText);
+          errorMessage = error.message || error.error || "Failed to save changes";
+        } catch {
+          // If not JSON, use the raw text
+          errorMessage = `Server error (${res.status}): ${responseText || "Unknown error"}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response as JSON
+      const data = JSON.parse(responseText);
+      console.log("✅ Response data:", data);
+      setSaveMessage("✅ All changes saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err: any) {
+      console.error("Error saving changes:", err);
+      setSaveMessage("❌ Failed to save changes: " + err.message);
+      setTimeout(() => setSaveMessage(""), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Render star rating
   const renderStars = (rating: number) => {
@@ -155,70 +252,76 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#FFF5E9] min-h-screen font-body">
-      {/* --- Navigation (Same as Dashboard) --- */}
-      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
+    <div className="profile-wrapper">
+      {/* Navigation */}
+      <nav className="nav">
+        <div className="nav-container">
           {/* Logo + Text */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
+          <div className="nav-logo">
+            <div className="logo-image">
+              <img src="/Odyssey_Logo.png" alt="Odyssey Logo" />
             </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
+            <span className="logo-text">Odyssey</span>
           </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a onClick={() => router.push("/dashboard")} className="text-black hover:font-bold transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
+          <div className="nav-links">
+            <a onClick={() => router.push("/dashboard")} className="nav-link">Home</a>
+            <a onClick={() => router.push("/planner")} className="nav-link">Planner</a>
+            <a href="#" className="nav-link">My Trips</a>
+            <a href="#" className="nav-link">Saved places</a>
+            <a href="#" className="nav-link">Co-Travellers</a>
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
+          <div className="nav-buttons">
+            <button className="icon-button">
               <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
-                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
+                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/>
               </svg>
             </button>
-            <button className="p-2 bg-white bg-opacity-50 rounded-full transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
+            <div
+              className="profile-dropdown"
+              onMouseEnter={() => setDropdownOpen(true)}
+              onMouseLeave={() => setDropdownOpen(false)}
+              style={{ position: "relative" }}
+            >
+              <button 
+                className="icon-button profile-icon"
+                onClick={() => router.push("/profile")}
+              >
+                <svg className="user-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <div className="dropdown-menu">
+                  <a onClick={() => router.push("/profile")}>My Destinations</a>
+                  <a onClick={() => router.push("/saved-places")}>Saved Places</a>
+                  <a onClick={() => router.push("/settings")}>Settings</a>
+                  <a onClick={() => { 
+                      localStorage.removeItem("token"); 
+                      localStorage.removeItem("user"); 
+                      router.push("/login"); 
+                    }}>Logout</a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="mobile-menu-btn-wrapper">
             <button 
+              className="mobile-menu-btn"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
+              <svg className="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16"/>
               </svg>
             </button>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
-            <a onClick={() => router.push("/dashboard")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
-          </div>
-        )}
       </nav>
 
       {/* --- Main Profile Content --- */}
@@ -604,7 +707,11 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Budget Range (per day)</label>
-                    <select className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]">
+                    <select 
+                      value={profileData.budgetRange}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProfileData({...profileData, currency: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                    >
                       <option>$0 - $50 (Budget)</option>
                       <option>$50 - $100 (Moderate)</option>
                       <option>$100 - $200 (Comfortable)</option>
@@ -613,7 +720,11 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Preferred Accommodation</label>
-                    <select className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]">
+                    <select 
+                      value={profileData.accommodation}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProfileData({...profileData, accommodation: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                    >
                       <option>Hostels</option>
                       <option>Budget Hotels</option>
                       <option>Mid-range Hotels</option>
@@ -645,7 +756,12 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">Receive updates via email</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.emailNotifications}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, emailNotifications: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
@@ -655,7 +771,12 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">Get reminded about upcoming trips</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.tripReminders}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, tripReminders: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
@@ -665,17 +786,48 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">See when friends plan new trips</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input 
+                        type="checkbox" 
+                        checked={profileData.friendActivity}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, friendActivity: e.target.checked})}
+                        className="sr-only peer" 
+                      />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A9B7F]"></div>
                     </label>
                   </div>
                 </div>
               </div>
 
+              {/* Danger Zone - Logout */}
+              <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
+                <h3 className="text-2xl font-bold text-red-600 mb-6">Danger Zone</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-2">Sign Out</p>
+                    <p className="text-sm text-gray-600 mb-4">You will be logged out from this device. You can sign back in anytime.</p>
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-600 transition shadow-lg"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Save Button */}
-              <div className="flex justify-end">
-                <button className="bg-[#4A9B7F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#3d8a6d] transition shadow-lg">
-                  Save All Changes
+              <div className="flex flex-col gap-4 justify-end">
+                {saveMessage && (
+                  <div className={`text-center py-3 px-4 rounded-lg font-semibold ${saveMessage.includes("✅") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {saveMessage}
+                  </div>
+                )}
+                <button 
+                  onClick={handleSaveAllChanges}
+                  disabled={loading}
+                  className="bg-[#4A9B7F] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#3d8a6d] transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Saving..." : "Save All Changes"}
                 </button>
               </div>
             </div>
