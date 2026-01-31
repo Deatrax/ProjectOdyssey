@@ -450,10 +450,7 @@ export default function PlannerPage() {
   const [requirementInput, setRequirementInput] = useState("");
   
   const [itinerary, setItinerary] = useState<Item[]>([]);
-  const [collections, setCollections] = useState<Item[]>([
-    { id: "c1", name: "Louvre Museum", category: "museum" },
-    { id: "c2", name: "Eiffel Tower", category: "urban" }
-  ]);
+  const [collections, setCollections] = useState<Item[]>([]);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   
   // Saved Itinerary State (NEW)
@@ -468,6 +465,14 @@ export default function PlannerPage() {
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
+  
+  // Load collections from localStorage on mount
+  useEffect(() => {
+    const savedCollections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
+    if (savedCollections.length > 0) {
+      setCollections(savedCollections);
+    }
+  }, []);
   const [input, setInput] = useState("");
 
   // Drag State
@@ -653,7 +658,10 @@ export default function PlannerPage() {
   const handleAddToCollections = (card: Item) => {
     // Avoid duplicates
     if (!collections.find(c => c.name === card.name)) {
-      setCollections(prev => [...prev, { ...card, id: `col-${Date.now()}-${Math.random()}` }]);
+      const newCollections = [...collections, { ...card, id: `col-${Date.now()}-${Math.random()}` }];
+      setCollections(newCollections);
+      // Persist to localStorage
+      localStorage.setItem('odyssey_collections', JSON.stringify(newCollections));
     }
   };
 

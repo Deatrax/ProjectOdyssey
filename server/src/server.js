@@ -11,6 +11,7 @@ const clusteringRoutes = require("./routes/clustering.routes");
 const tripRoutes = require("./routes/tripRoutes");
 const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
+const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
 
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/chat', chatHistoryRoutes); // Chat history routes
 app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
+app.use('/api/map', mapRoutes); // Map Search & Manual Planning
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;

@@ -2,9 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import "./landingPage.css";
 
 const LandingPage: React.FC = () => {
+  const router = useRouter();
+
   return (
     <div>
       {/* Navbar */}
@@ -25,7 +28,12 @@ const LandingPage: React.FC = () => {
 
         <div className="nav-right">
           <a className="active" href="#">About</a>
-          <a href="#">Destinations</a>
+          <button 
+            onClick={() => router.push('/destinations')}
+            className="text-white hover:text-gray-200 transition-colors"
+          >
+            Destinations
+          </button>
           <a href="#">Pricing</a>
           {/* Sign-in navigates to /login */}
           <Link href="/login">

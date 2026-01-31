@@ -189,13 +189,17 @@ const DashboardPage: React.FC = () => {
           />
           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
             <div className="w-full max-w-xl px-4">
-              <div className="flex items-center bg-gray-900 bg-opacity-70 rounded-full overflow-hidden">
+              <div 
+                onClick={() => router.push('/destinations')}
+                className="flex items-center bg-gray-900 bg-opacity-70 rounded-full overflow-hidden cursor-pointer hover:bg-opacity-80 transition"
+              >
                 <input
                   type="text"
                   placeholder="Search your next destination..."
-                  className="flex-1 px-4 sm:px-6 py-3 bg-transparent text-white placeholder-gray-300 focus:outline-none"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-transparent text-white placeholder-gray-300 focus:outline-none pointer-events-none"
+                  readOnly
                 />
-                <button className="mt-2 mx-4 sm:mt-0 sm:ml-2 bg-white text-gray-800 px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-100 transition flex items-center gap-1 mb-2 sm:mb-0">
+                <button className="mt-2 mx-4 sm:mt-0 sm:ml-2 bg-white text-gray-800 px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-100 transition flex items-center gap-1 mb-2 sm:mb-0 pointer-events-none">
                   <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#F19E39">
                     <path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
                   </svg>
