@@ -247,9 +247,18 @@ const ProfilePage: React.FC = () => {
           </div>
 
           {/* Edit Profile Button */}
-          <div className="absolute bottom-4 right-4">
+          <div className="absolute bottom-4 right-4 flex gap-2">
             <button className="bg-white hover:bg-gray-100 text-gray-800 px-6 py-2 rounded-full font-semibold shadow-lg transition">
               Edit Profile
+            </button>
+            <button 
+              onClick={() => {
+                localStorage.removeItem("token");
+                router.push("/");
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-semibold shadow-lg transition"
+            >
+              Logout
             </button>
           </div>
         </div>

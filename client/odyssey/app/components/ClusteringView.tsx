@@ -25,12 +25,14 @@ type ClusteringViewProps = {
   data: ClusteringData;
   loading?: boolean;
   onContinue: (selectedPlaces: any[]) => void;
+  onCancel?: () => void;
 };
 
 export default function ClusteringView({
   data,
   loading = false,
   onContinue,
+  onCancel,
 }: ClusteringViewProps) {
   const [selectedPlaces, setSelectedPlaces] = useState<Set<string>>(new Set());
 
@@ -187,6 +189,32 @@ export default function ClusteringView({
 
       {/* Continue Button */}
       <div style={{ marginTop: "20px", display: "flex", gap: "12px" }}>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "12px 16px",
+              background: "#fff",
+              color: "#6b7280",
+              border: "2px solid #e5e7eb",
+              borderRadius: "8px",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontSize: "14px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#f3f4f6";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#d1d5db";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#e5e7eb";
+            }}
+          >
+            ← Back to Chat
+          </button>
+        )}
         <button
           onClick={handleContinue}
           disabled={selectedPlaces.size === 0}

@@ -3,6 +3,8 @@ const { detectIntent } = require("../services/ai/intent");
 const { searchPlaces } = require("../repositories/places.repo");
 const { callGemini } = require("../services/ai/geminiClient");
 const { makeValidator } = require("../services/ai/validate");
+const authMiddleware = require("../middleware/authMiddleware");
+const ChatHistory = require("../models/ChatHistory");
 
 // itinerary prompt
 const {
@@ -28,9 +30,38 @@ const validateMultiItinerary = makeValidator(multiItineraryResponseSchema);
 
 router.post("/chat", async (req, res) => {
   try {
-    const { message, userContext, selectedPlaces } = req.body;
+    const { message, userContext, selectedPlaces, conversationHistory: clientHistory } = req.body;
+    
+    // Try to get userId from auth, but make it optional
+    let userId = null;
+    let conversationHistory = [];
+    
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(" ")[1];
+        const jwt = require("jsonwebtoken");
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+        
+        // Get conversation context from database if authenticated
+        conversationHistory = await ChatHistory.getConversationContext(userId, 10);
+      } catch (err) {
+        console.log("Auth optional - continuing without user context");
+      }
+    }
+    
+    // If no database history but client sent session history (logged-out users), use that
+    if (conversationHistory.length === 0 && clientHistory && Array.isArray(clientHistory)) {
+      conversationHistory = clientHistory;
+    }
+
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "message is required (string)" });
+    }
+
+    // Save user message to history (only if authenticated)
+    if (userId) {
+      await ChatHistory.saveMessage(userId, message, "user", null, {});
     }
 
     const intent = detectIntent(message);
@@ -40,8 +71,15 @@ router.post("/chat", async (req, res) => {
 
     // If DB found matches for search intent, return them
     if (intent === "search_places" && dbResults.length > 0) {
+      const aiResponse = "Here are some places from our database.";
+      
+      // Save AI response to history (only if authenticated)
+      if (userId) {
+        await ChatHistory.saveMessage(userId, aiResponse, "ai", null, { cards: dbResults });
+      }
+
       return res.json({
-        message: "Here are some places from our database.",
+        message: aiResponse,
         cards: dbResults,
         itineraryPreview: null,
         source: "db",
@@ -55,6 +93,7 @@ router.post("/chat", async (req, res) => {
         userContext: userContext ?? null,
         selectedPlaces: selectedPlaces ?? [],
         dbResults: dbResults ?? [],
+        conversationHistory, // Add conversation context
     };
 
     // ✅ Option A: do NOT pass schema to Gemini
@@ -75,8 +114,18 @@ router.post("/chat", async (req, res) => {
         });
     }
 
+    const aiMessage = itineraryJson.reply ?? "Here is an itinerary preview.";
+    
+    // Save AI response to history (only if authenticated)
+    if (userId) {
+      await ChatHistory.saveMessage(userId, aiMessage, "ai", null, {
+        itineraryPreview: itineraryJson.itineraryPreview,
+        cards: itineraryJson.cards
+      });
+    }
+
     return res.json({
-        message: itineraryJson.reply ?? "Here is an itinerary preview.",
+        message: aiMessage,
         itineraryPreview: itineraryJson.itineraryPreview ?? null,
         cards: itineraryJson.cards ?? [],
         source: "ai",
@@ -88,6 +137,7 @@ const payload = {
   message,
   userContext: userContext ?? null,
   dbResults: dbResults ?? [],
+  conversationHistory, // Add conversation context
 };
 
 async function getValidSearchJson(payload) {
@@ -133,9 +183,19 @@ if (!searchJson) {
   });
 }
 
+const aiMessage = searchJson.overviewParagraph ?? "Here are some suggestions.";
+
+// Save AI response to history (only if authenticated)
+if (userId) {
+  await ChatHistory.saveMessage(userId, aiMessage, "ai", null, {
+    bullets: searchJson.overviewBullets,
+    cards: searchJson.cards
+  });
+}
+
 //IMPORTANT: map the new fields from your updated search.prompt.js
 return res.json({
-  message: searchJson.overviewParagraph ?? "Here are some suggestions.",
+  message: aiMessage,
   bullets: searchJson.overviewBullets ?? [],
   cards: searchJson.cards ?? [],
   itineraryPreview: null,

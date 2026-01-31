@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
   const [loading, setLoading] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState("");
 
   // 2. NEW: Check if user is already logged in
   useEffect(() => {
@@ -17,8 +19,15 @@ const LoginPage: React.FC = () => {
     if (token) {
       // If yes, redirect immediately to dashboard
       router.push("/dashboard");
+      return;
     }
-  }, [router]);
+
+    // Check if redirected from planner (trying to save without login)
+    const fromPlanner = searchParams.get("from");
+    if (fromPlanner === "planner") {
+      setRedirectMessage("Please login or register to save your itinerary and access all features.");
+    }
+  }, [router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +112,12 @@ const LoginPage: React.FC = () => {
           <p className="text-gray-400 text-sm mb-6">
             Please login with your Odyssey account
           </p>
+
+          {redirectMessage && (
+            <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-200 text-sm p-3 rounded-lg mb-4 text-center">
+              {redirectMessage}
+            </div>
+          )}
 
           {error && (
             <div className="text-red-400 text-sm mb-4 text-center">{error}</div>

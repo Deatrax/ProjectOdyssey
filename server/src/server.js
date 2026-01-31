@@ -9,6 +9,7 @@ const aiRoutes = require("./routes/ai.routes");
 const placeRoutes = require("./routes/placeRoutes");
 const clusteringRoutes = require("./routes/clustering.routes");
 const tripRoutes = require("./routes/tripRoutes");
+const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 
 
@@ -37,6 +38,7 @@ app.use('/api/user', protectedRoutes);
 app.use('/api', placeRoutes); // Place routes
 app.use('/api/clustering', clusteringRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/chat', chatHistoryRoutes); // Chat history routes
 app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 

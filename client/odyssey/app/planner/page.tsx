@@ -74,31 +74,44 @@ function SortableItem({
     isDragging,
   } = useSortable({ id, disabled });
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? transition : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     opacity: isDragging ? 0.4 : 1,
     touchAction: "none",
+  };
+
+  const handleActionClick = (e: any) => {
+    e.stopPropagation();
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 300);
+    if (onAction) onAction(id);
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      // This class ensures your original styling works
       className={`sortable-item ${isDragging ? "z-50" : ""}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div style={{ 
         padding: "12px", 
-        background: "#fff", 
+        background: isHovered ? "#f9fafb" : "#fff", 
         borderRadius: "12px", 
         marginBottom: "10px", 
-        border: "1px solid #e5e7eb",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        border: isHovered ? "1px solid #22c55e" : "1px solid #e5e7eb",
+        boxShadow: isHovered ? "0 4px 12px rgba(34, 197, 94, 0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between",
-        position: "relative"
+        position: "relative",
+        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       }}>
         {/* Drop Indicator Logic */}
         {isIndicatorBefore !== undefined && (
@@ -139,6 +152,14 @@ function SortableItem({
               if (onViewDetails) onViewDetails(itemData);
             }}
             onPointerDown={(e) => e.stopPropagation()} // Don't start drag
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#bfdbfe";
+              e.currentTarget.style.transform = "scale(1.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#eff6ff";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
             style={{
               background: "#eff6ff",
               color: "#3b82f6",
@@ -151,7 +172,8 @@ function SortableItem({
               justifyContent: "center", 
               cursor: "pointer",
               fontSize: "12px",
-              fontWeight: "bold"
+              fontWeight: "bold",
+              transition: "all 0.2s ease"
             }}
             title="View Details"
           >
@@ -161,11 +183,20 @@ function SortableItem({
           {/* 2. ACTION BUTTON (Add/Remove) */}
           {onAction && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction(id);
-              }}
+              onClick={handleActionClick}
               onPointerDown={(e) => e.stopPropagation()} // Don't start drag
+              onMouseEnter={(e) => {
+                if (actionType === "add") {
+                  e.currentTarget.style.background = "#d1fae5";
+                } else {
+                  e.currentTarget.style.background = "#fee2e2";
+                }
+                e.currentTarget.style.transform = "scale(1.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = actionType === "add" ? "#ecfdf5" : "#fef2f2";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
               style={{
                 background: actionType === "add" ? "#ecfdf5" : "#fef2f2",
                 color: actionType === "add" ? "#059669" : "#dc2626",
@@ -177,7 +208,9 @@ function SortableItem({
                 alignItems: "center", 
                 justifyContent: "center", 
                 cursor: "pointer",
-                fontSize: "16px"
+                fontSize: "16px",
+                transform: isClicked ? "scale(0.85)" : "scale(1)",
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}
             >
               {actionType === "add" ? "+" : "×"}
@@ -253,47 +286,127 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
 }
 
 /* -------------------- Chat Column (Updated for Cards) -------------------- */
-function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading }: any) {
+function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading, chatHistoryLoading }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: "16px" }}>
-        {messages.map((msg: any) => (
-          <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: msg.sender === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{
-              maxWidth: "85%",
-              padding: "12px 16px",
-              borderRadius: "16px",
-              borderTopLeftRadius: msg.sender === "ai" ? "4px" : "16px",
-              borderTopRightRadius: msg.sender === "user" ? "4px" : "16px",
-              background: msg.sender === "user" ? "#1f2937" : "#ffffff",
-              color: msg.sender === "user" ? "#ffffff" : "#1f2937",
-              fontSize: "14px",
-              lineHeight: "1.5",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-            }}>
-              {msg.text}
-            </div>
-            
-            {/* RENDER AI CARDS */}
-            {msg.cards && msg.cards.length > 0 && (
-              <div style={{ marginTop: "10px", width: "90%" }}>
-                {msg.cards.map((card: any) => (
-                  <SortableItem 
-                    key={card.id} 
-                    id={card.id} 
-                    text={card.name} 
-                    itemData={card}
-                    actionType="add" 
-                    onAction={() => onAddCard(card)} // Add to collections
-                    onViewDetails={onViewDetails}    // View details
-                    disabled={true}                  // Chat items are fixed
-                  />
-                ))}
-              </div>
-            )}
+        {chatHistoryLoading ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#9ca3af" }}>
+            <div>Loading conversation history...</div>
           </div>
-        ))}
-        {loading && <div style={{ fontSize: "12px", color: "#9ca3af", padding: "10px" }}>Odyssey is writing...</div>}
+        ) : (
+          messages.map((msg: any, msgIndex: number) => {
+            // Check if this is a separator message
+            const isSeparator = msg.text === "--- New chat context ---";
+            
+            if (isSeparator) {
+              return (
+                <div key={msg.id || `separator-${msgIndex}`} style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+                  <div style={{
+                    padding: "8px 20px",
+                    background: "linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%)",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    borderRadius: "20px",
+                    boxShadow: "0 2px 8px rgba(251, 191, 36, 0.3)",
+                    textAlign: "center"
+                  }}>
+                    📌 New chat context
+                  </div>
+                </div>
+              );
+            }
+            
+            return (
+              <div key={msg.id || `msg-${msgIndex}`} style={{ display: "flex", flexDirection: "column", alignItems: msg.sender === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "85%",
+                  padding: "12px 16px",
+                  borderRadius: "16px",
+                  borderTopLeftRadius: msg.sender === "ai" ? "4px" : "16px",
+                  borderTopRightRadius: msg.sender === "user" ? "4px" : "16px",
+                  background: msg.sender === "user" ? "#1f2937" : "#ffffff",
+                  color: msg.sender === "user" ? "#ffffff" : "#1f2937",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}>
+                  {msg.text}
+                </div>
+              
+              {/* RENDER AI CARDS */}
+              {msg.cards && msg.cards.length > 0 && (
+                <div style={{ marginTop: "10px", width: "90%" }}>
+                  {msg.cards.map((card: any, cardIdx: number) => (
+                    <SortableItem 
+                      key={card.id || `card-${msgIndex}-${cardIdx}`} 
+                      id={card.id || `card-${msgIndex}-${cardIdx}`} 
+                      text={card.name} 
+                      itemData={card}
+                      actionType="add" 
+                      onAction={() => onAddCard(card)} // Add to collections
+                      onViewDetails={onViewDetails}    // View details
+                      disabled={true}                  // Chat items are fixed
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* RENDER BULLETS (if available) */}
+              {msg.bullets && msg.bullets.length > 0 && (
+                <div style={{ marginTop: "10px", width: "90%", padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                  <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#374151" }}>
+                    {msg.bullets.map((bullet: string, idx: number) => (
+                      <li key={idx}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* RENDER CLUSTERING BUTTON (if this message has clustering data) */}
+              {msg.hasClustering && clusteringData && stage === "chat" && (
+                <div style={{ marginTop: "10px", width: "90%" }}>
+                  <button
+                    onClick={() => setStage("clustering")}
+                    style={{
+                      width: "100%",
+                      padding: "10px 16px",
+                      background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.4)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 2px 8px rgba(59, 130, 246, 0.3)";
+                    }}
+                  >
+                    🗺️ View Places by Region
+                  </button>
+                </div>
+              )}
+              </div>
+            );
+          })
+        )}
+        
+        {loading && (
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <div style={{ padding: "12px 16px", borderRadius: "16px", background: "#f3f4f6", color: "#6b7280", fontSize: "14px" }}>
+              Thinking...
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={onSendMessage} style={{ padding: "10px", background: "#fff", borderTop: "1px solid #e5e7eb" }}>
@@ -351,11 +464,10 @@ export default function PlannerPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dayCheckboxes, setDayCheckboxes] = useState<{ [key: string]: boolean }>({});
   
-  const [chat, setChat] = useState<any[]>([
-    { id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }
-  ]);
+  const [chat, setChat] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
   const [input, setInput] = useState("");
 
   // Drag State
@@ -410,6 +522,127 @@ export default function PlannerPage() {
     loadSavedItinerary();
   }, []);
 
+  // Load chat history on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setChatHistoryLoading(false);
+          
+          // For logged-out users, try to load from localStorage
+          const savedChat = localStorage.getItem("guestChat");
+          if (savedChat) {
+            try {
+              const parsedChat = JSON.parse(savedChat);
+              setChat(parsedChat);
+            } catch (e) {
+              setChat([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
+            }
+          } else {
+            setChat([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
+          }
+          return;
+        }
+
+        // Check if there's unsaved guest chat to migrate
+        const guestChat = localStorage.getItem("guestChat");
+        if (guestChat) {
+          try {
+            const parsedGuestChat = JSON.parse(guestChat);
+            console.log(`Migrating ${parsedGuestChat.length} guest messages to database...`);
+            
+            // Save separator message first
+            await fetch("http://localhost:4000/api/chat/message", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                message: "--- New chat context ---",
+                role: "ai",
+                metadata: { type: "separator" }
+              })
+            });
+
+            // Save all guest messages to database sequentially
+            for (const msg of parsedGuestChat) {
+              if (msg.sender && msg.text) {
+                await fetch("http://localhost:4000/api/chat/message", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    message: msg.text,
+                    role: msg.sender === "user" ? "user" : "ai",
+                    metadata: {
+                      cards: msg.cards || [],
+                      bullets: msg.bullets || [],
+                      migratedFromGuest: true
+                    }
+                  })
+                });
+              }
+            }
+
+            // Small delay to ensure database writes complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Clear guest chat from localStorage
+            localStorage.removeItem("guestChat");
+            console.log("✅ Guest chat migrated successfully!");
+          } catch (e) {
+            console.error("❌ Error migrating guest chat:", e);
+            // Don't clear localStorage if migration failed
+          }
+        }
+
+        const res = await fetch("http://localhost:4000/api/chat/history?limit=50", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          setChatHistoryLoading(false);
+          setChat([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success && data.data && data.data.length > 0) {
+          // Convert chat history to chat messages format
+          const chatMessages = data.data.map((msg: any) => {
+            const metadata = msg.metadata || {};
+            return {
+              id: msg.id,
+              text: msg.message,
+              sender: msg.role === 'user' ? 'user' : 'ai',
+              cards: metadata.cards || [],
+              bullets: metadata.bullets || []
+            };
+          });
+          setChat(chatMessages);
+        } else {
+          // No history, show welcome message
+          setChat([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
+        }
+      } catch (err) {
+        console.error("Error loading chat history:", err);
+        setChat([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
+      } finally {
+        setChatHistoryLoading(false);
+      }
+    };
+
+    loadChatHistory();
+  }, []);
+
   // --- HANDLER: OPEN MODAL ---
   const handleViewDetails = (item: Item) => {
     setSelectedLocation(item);
@@ -455,23 +688,93 @@ export default function PlannerPage() {
     if (!chatInput.trim()) return;
 
     const userMsg = { id: Date.now().toString(), text: chatInput, sender: "user" };
-    setChat(prev => [...prev, userMsg]);
+    setChat(prev => {
+      const newChat = [...prev, userMsg];
+      
+      // Save to localStorage for logged-out users
+      const token = localStorage.getItem("token");
+      if (!token) {
+        localStorage.setItem("guestChat", JSON.stringify(newChat));
+      }
+      
+      return newChat;
+    });
     setChatInput("");
     setLoading(true);
 
+    // Save user message to database (only if logged in)
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        await fetch("http://localhost:4000/api/chat/message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            message: userMsg.text,
+            role: "user"
+          })
+        });
+      } catch (err) {
+        console.error("Error saving user message:", err);
+      }
+    }
+
+    // For logged-out users: create temporary conversation history from chat state
+    let tempConversationHistory: any[] = [];
+    if (!token) {
+      // Get last 10 messages from current chat
+      const recentMessages = chat.slice(-10);
+      tempConversationHistory = recentMessages.map(msg => ({
+        message: msg.text,
+        role: msg.sender === "user" ? "user" : "ai",
+        created_at: new Date().toISOString()
+      }));
+    }
+
     try {
-      // Check if this is a clustering request (trip planning keywords)
-      const isClusteringRequest = chatInput.toLowerCase().includes("trip") || 
-                                  chatInput.toLowerCase().includes("plan") || 
-                                  chatInput.toLowerCase().includes("day") ||
-                                  chatInput.toLowerCase().includes("itinerary");
+      // Check if this is a clustering request
+      const lowerInput = chatInput.toLowerCase();
+      
+      // 1. Explicit trip planning keywords
+      const hasTripKeywords = lowerInput.includes("trip") || 
+                              lowerInput.includes("itinerary");
+      
+      // 2. Multi-day planning ("3 day", "5 days", etc)
+      const hasMultiDayPlan = /\d+\s*(day|days)/.test(lowerInput);
+      
+      // 3. Multiple locations with clear travel intent
+      const hasMultipleLocations = () => {
+        // Must have "plan" or "visit" or "travel" or "explore"
+        const hasTravelVerb = lowerInput.includes('plan') || 
+                             lowerInput.includes('visit') || 
+                             lowerInput.includes('travel') || 
+                             lowerInput.includes('explore');
+        
+        if (!hasTravelVerb) return false;
+        
+        // Count location separators (comma or "and")
+        const commaCount = (chatInput.match(/,/g) || []).length;
+        const hasAndSeparator = lowerInput.match(/\s+and\s+/g);
+        const separatorCount = commaCount + (hasAndSeparator ? hasAndSeparator.length : 0);
+        
+        // Need at least 1 separator (meaning 2+ locations)
+        return separatorCount >= 1;
+      };
+      
+      const isClusteringRequest = hasTripKeywords || hasMultiDayPlan || hasMultipleLocations();
 
       if (isClusteringRequest) {
         // Call clustering endpoint
         setClusteringLoading(true);
         const clusterRes = await fetch("http://localhost:4000/api/clustering/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ""
+          },
           body: JSON.stringify({ 
             message: userMsg.text,
             userContext: { budget: "medium", pace: "moderate" }
@@ -483,13 +786,45 @@ export default function PlannerPage() {
           setClusteringData(clusterData.data);
           setStage("clustering");
           
+          const aiMessage = "I've analyzed your request and found these place clusters. Select the ones you'd like to visit!";
+          
           // Add AI response to chat
-          setChat(prev => [...prev, {
-            id: Date.now().toString() + "ai",
-            text: "I've analyzed your request and found these place clusters. Select the ones you'd like to visit!",
-            sender: "ai",
-            cards: []
-          }]);
+          setChat(prev => {
+            const newChat = [...prev, {
+              id: Date.now().toString() + "ai",
+              text: aiMessage,
+              sender: "ai",
+              cards: [],
+              hasClustering: true
+            }];
+            
+            // Save to localStorage for logged-out users
+            if (!token) {
+              localStorage.setItem("guestChat", JSON.stringify(newChat));
+            }
+            
+            return newChat;
+          });
+
+          // Save AI message to database
+          if (token) {
+            try {
+              await fetch("http://localhost:4000/api/chat/message", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  message: aiMessage,
+                  role: "ai"
+                })
+              });
+            } catch (err) {
+              console.error("Error saving AI message:", err);
+            }
+          }
+
           setClusteringLoading(false);
           setLoading(false);
           return;
@@ -499,10 +834,27 @@ export default function PlannerPage() {
       // Regular chat flow (existing)
       const res = await fetch("http://localhost:4000/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg.text, collections, itinerary })
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": token ? `Bearer ${token}` : ""
+        },
+        body: JSON.stringify({ 
+          message: userMsg.text, 
+          collections, 
+          itinerary,
+          conversationHistory: tempConversationHistory // Send session-based history for logged-out users
+        })
       });
+      
+      if (!res.ok) {
+        console.error("AI Chat API Error:", res.status, res.statusText);
+        const errorText = await res.text();
+        console.error("Error details:", errorText);
+        throw new Error(`API returned ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log("AI Response:", data);
 
       // PARSE THE AI RESPONSE
       let aiCards: Item[] = [];
@@ -526,12 +878,27 @@ export default function PlannerPage() {
         });
       }
 
-      setChat(prev => [...prev, {
-        id: Date.now().toString() + "ai",
-        text: data.message || data.reply || "Here is a plan for you.",
-        sender: "ai",
-        cards: aiCards
-      }]);
+      const aiMessage = data.message || data.reply || "Here is a plan for you.";
+
+      setChat(prev => {
+        const newChat = [...prev, {
+          id: Date.now().toString() + "ai",
+          text: aiMessage,
+          sender: "ai",
+          cards: aiCards,
+          bullets: data.bullets || []
+        }];
+        
+        // Save to localStorage for logged-out users
+        if (!token) {
+          localStorage.setItem("guestChat", JSON.stringify(newChat));
+        }
+        
+        return newChat;
+      });
+
+      // Note: AI messages from /api/ai/chat are already saved by the backend
+      // No need to save again here
 
     } catch (err) {
       console.error(err);
@@ -636,7 +1003,14 @@ export default function PlannerPage() {
       // Get token from localStorage
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Not authenticated. Please login first.");
+        // User not logged in - redirect to login with message
+        const confirmRedirect = confirm(
+          "You need to login or register to save your itinerary and access further features.\n\n" +
+          "Click OK to go to the login page, or Cancel to continue planning without saving."
+        );
+        if (confirmRedirect) {
+          router.push("/login?from=planner");
+        }
         return;
       }
 
@@ -1188,6 +1562,7 @@ export default function PlannerPage() {
                           data={clusteringData} 
                           loading={clusteringLoading}
                           onContinue={handleClusteringContinue}
+                          onCancel={() => setStage("chat")}
                         />
                       </div>
                     )}
@@ -1215,6 +1590,7 @@ export default function PlannerPage() {
                         onAddCard={handleAddToCollections}
                         onViewDetails={handleViewDetails}
                         loading={loading}
+                        chatHistoryLoading={chatHistoryLoading}
                       />
                     )}
 

@@ -45,7 +45,9 @@ const LandingPage: React.FC = () => {
               routes.
             </p>
             <br />
-            <button className="btn" id="travel">Start Planning Now</button>
+            <Link href="/planner">
+              <button className="btn" id="travel">Start Planning Now</button>
+            </Link>
             <button className="btn" id="learn">Learn more</button>
           </div>
           <div id="travelIMG">
@@ -143,7 +145,9 @@ const LandingPage: React.FC = () => {
           <div className="plan">
             <h3>Ready to Start Your Adventure?</h3>
             <p>Join thousands of travelers planning their perfect trips</p>
-            <button className="start-btn">Start Planning Now</button>
+            <Link href="/planner">
+              <button className="start-btn">Start Planning Now</button>
+            </Link>
           </div>
         </div>
       </div>
