@@ -27,6 +27,7 @@ import ClusteringView from "../components/ClusteringView"; // Import clustering 
 import MultiOptionSelector from "../components/MultiOptionSelector"; // Import multi-option selector
 import ConfirmationModal from "../components/ConfirmationModal"; // Import confirmation modal
 import MapComponent from "../components/MapComponent"; // Import MapComponent
+import { VisitTrackingPanel } from "../components/visit/VisitTrackingPanel"; // Import visit tracking
 
 // --- TYPES (Updated to include data for Modal) ---
 type Item = {
@@ -43,7 +44,7 @@ type Item = {
   source?: "db" | "ai";
 };
 
-type ActiveTab = "chat" | "destinations" | "summaries" | "map";
+type ActiveTab = "chat" | "destinations" | "summaries" | "map" | "visits";
 type DestinationsView = "search" | "collections";
 
 /* -------------------- Custom Collision Logic (YOUR ORIGINAL) -------------------- */
@@ -136,8 +137,8 @@ function SortableItem({
           
           {/* Optional: Show tiny details below name */}
           {itemData?.category && (
-             <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", marginTop: "2px" }}>
-               {itemData.category} {itemData.visitDurationMin ? `• ${itemData.visitDurationMin}m` : ""}
+             <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", marginTop: "2px", letterSpacing: "0.5px" }}>
+               {itemData.category}{itemData.visitDurationMin ? ` • ${itemData.visitDurationMin}m` : ""}
              </span>
           )}
         </div>
@@ -286,7 +287,7 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
 }
 
 /* -------------------- Chat Column (Updated for Cards) -------------------- */
-function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading, chatHistoryLoading }: any) {
+function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading, chatHistoryLoading, clusteringData, stage, setStage }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -460,6 +461,10 @@ export default function PlannerPage() {
   // Day tracking state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dayCheckboxes, setDayCheckboxes] = useState<{ [key: string]: boolean }>({});
+  
+  // Visit Tracking State
+  const [showVisitTracking, setShowVisitTracking] = useState(false);
+  const [visitCount, setVisitCount] = useState(0);
   
   const [chat, setChat] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -674,20 +679,24 @@ export default function PlannerPage() {
         return;
     }
     try {
-        const res = await fetch("http://localhost:4000/api/trips", {
+        const res = await fetch("http://localhost:4000/api/trips/save", {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json", 
                 "Authorization": `Bearer ${token}` 
             },
-            body: JSON.stringify({ name: tripName, itinerary, collections })
+            body: JSON.stringify({ tripName, selectedPlaces: itinerary, selectedItinerary: collections })
         });
         if(res.ok) {
             alert("Trip Saved Successfully!");
         } else {
-            alert("Failed to save trip.");
+            const error = await res.json();
+            alert("Failed to save trip: " + (error.error || "Unknown error"));
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e); 
+        alert("Error saving trip: " + (e as any).message);
+    }
   };
 
   // --- HANDLER: SEND MESSAGE (AI) ---
@@ -1253,6 +1262,9 @@ export default function PlannerPage() {
               <button onClick={() => setActiveTab("chat")} style={sharedTabStyles(activeTab === "chat")}>Chat</button>
               <button onClick={() => setActiveTab("destinations")} style={sharedTabStyles(activeTab === "destinations")}>Destinations</button>
               <button onClick={() => setActiveTab("map")} style={sharedTabStyles(activeTab === "map")}>Map</button>
+              <button onClick={() => setActiveTab("visits")} style={sharedTabStyles(activeTab === "visits")}>
+                Visits {visitCount > 0 && <span style={{ marginLeft: "4px", background: "#ef4444", color: "white", borderRadius: "50%", padding: "0 6px", fontSize: "12px" }}>{visitCount}</span>}
+              </button>
               <button onClick={() => setActiveTab("summaries")} style={sharedTabStyles(activeTab === "summaries")}>Summaries</button>
             </div>
           </div>
@@ -1751,6 +1763,27 @@ export default function PlannerPage() {
 
                 {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
                 
+                {activeTab === "visits" && (
+                  <div style={{ height: "100%", overflow: "auto", padding: "16px" }}>
+                    {savedItineraryId && localStorage.getItem("token") ? (
+                      <VisitTrackingPanel
+                        itineraryId={savedItineraryId}
+                        places={itinerary.map((item) => ({
+                          id: item.placeId || item.id,
+                          name: item.name || item.text || "",
+                          category: item.category,
+                          expectedDuration: item.visitDurationMin ? item.visitDurationMin * 60 : undefined,
+                        }))}
+                        token={localStorage.getItem("token") || ""}
+                        onVisitChange={setVisitCount}
+                      />
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+                        <p>Please save an itinerary to start tracking visits.</p>
+                      </div>
+                    )}
+                  </div>
+                )}                
                 {activeTab === "map" && (
                    <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
                       <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
