@@ -41,7 +41,7 @@ async function searchPlacesDynamic(filters) {
   if (countriesError) console.error("Country search error", countriesError);
 
   // Combine Results
-  const formattedPlaces = places.map(p => ({ ...p, type: 'POI' }));
+  const formattedPlaces = places.map(p => ({ ...p, id: p.place_id, type: 'POI' }));
   const formattedCities = (cities || []).map(c => ({
     ...c,
     type: 'CITY',

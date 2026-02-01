@@ -36,7 +36,7 @@ router.post("/places", async (req, res) => {
 
 // Public GET Single Place
 router.get("/places/:id", async (req, res) => {
-  const { data, error } = await supabase.from('places').select('*, cities(name), countries(name)').eq('id', req.params.id).single();
+  const { data, error } = await supabase.from('places').select('*, cities(name), countries(name)').eq('place_id', req.params.id).single();
   if (error) return res.status(404).json({ error: "Not Found" });
   res.json(data);
 });
