@@ -431,10 +431,12 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
 export default function PlannerPage() {
   const router = useRouter();
 
+  /* -------------------- State -------------------- */
   // --- STATE ---
   const [tripName, setTripName] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
+  const [visitCount, setVisitCount] = useState(0); // Added for visit tracking
 
   // Clustering State (NEW - Stage 1)
   const [stage, setStage] = useState<"chat" | "clustering" | "options" | "confirmation">("chat");
@@ -1758,6 +1760,24 @@ export default function PlannerPage() {
               {activeTab === "map" && (
                 <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
                   <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
+                </div>
+              )}
+
+              {activeTab === "visits" && savedItinerary && (
+                <div style={{ height: "100%", overflowY: "auto", padding: "16px", borderRadius: "12px", background: "#f3f4f6" }}>
+                  <VisitTrackingPanel
+                    itineraryId={savedItineraryId || ""}
+                    places={savedItinerary.schedule?.flatMap((day: any) =>
+                      day.items?.map((item: any) => ({
+                        id: item.placeId || item.id || `place-${Math.random()}`,
+                        name: item.place,
+                        category: item.activity,
+                        expectedDuration: 3600 // Default 1 hour
+                      })) || []
+                    ) || []}
+                    token={typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''}
+                    onVisitChange={(count) => setVisitCount(count)}
+                  />
                 </div>
               )}
             </div>

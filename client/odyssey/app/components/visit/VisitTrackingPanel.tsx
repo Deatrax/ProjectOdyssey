@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useVisitTracking } from '../../hooks/useVisitTracking';
+import { useGeofencing } from '../../hooks/useGeofencing';
 import {
   CheckInButton,
   CheckOutModal,
@@ -57,6 +58,46 @@ export const VisitTrackingPanel: React.FC<VisitTrackingPanelProps> = ({
     fetchSummary,
   } = useVisitTracking(itineraryId, token);
 
+  // --- Geofencing Integration ---
+  const {
+    geofenceStatus,
+    isTracking,
+    startTracking,
+    locationEnabled,
+    error: geoError
+  } = useGeofencing({
+    enabled: true,
+    itineraryId,
+    autoCheckin: true,
+    throttleInterval: 12000,
+  });
+
+  // Handle auto-actions from geofencing
+  useEffect(() => {
+    if (geofenceStatus?.action === 'auto_checked_in' && geofenceStatus.place) {
+      // Only check in if not already visiting (although backend handles this)
+      if (!currentVisit) {
+        checkIn({
+          placeId: geofenceStatus.place.placeId,
+          placeName: geofenceStatus.place.placeName,
+          location: {
+            lat: geofenceStatus.place.latitude,
+            lng: geofenceStatus.place.longitude
+          }
+        });
+      }
+    } else if (geofenceStatus?.action === 'auto_checked_out' && geofenceStatus.place) {
+      if (currentVisit && currentVisit.place_id === geofenceStatus.place.placeId) {
+        checkOut({
+          location: {
+            lat: geofenceStatus.place.latitude,
+            lng: geofenceStatus.place.longitude
+          }
+        });
+      }
+    }
+  }, [geofenceStatus, currentVisit, checkIn, checkOut]);
+
   // Notify parent of visit changes
   useEffect(() => {
     if (onVisitChange) {
@@ -95,34 +136,31 @@ export const VisitTrackingPanel: React.FC<VisitTrackingPanelProps> = ({
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <button
           onClick={() => setActiveTab('current')}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-            activeTab === 'current'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
+          className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab === 'current'
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
         >
           Current Visit
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-            activeTab === 'history'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
+          className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab === 'history'
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
         >
           History ({visitHistory.length})
         </button>
         <button
           onClick={() => setActiveTab('progress')}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-            activeTab === 'progress'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
+          className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab === 'progress'
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
         >
           Progress
         </button>
@@ -131,14 +169,19 @@ export const VisitTrackingPanel: React.FC<VisitTrackingPanelProps> = ({
             setShowStats(!showStats);
             if (!showStats) setActiveTab('summary');
           }}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-            showStats
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
+          className={`px-4 py-2 rounded-lg font-semibold transition-all ${showStats
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
         >
           Summary
         </button>
+
+        {/* Tracking Status Indicator */}
+        <div className={`ml-auto px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${isTracking ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          <span className={`w-2 h-2 rounded-full ${isTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+          {isTracking ? 'Auto-Tracking On' : 'Tracking Off'}
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -157,7 +200,7 @@ export const VisitTrackingPanel: React.FC<VisitTrackingPanelProps> = ({
             ) : (
               <div className="text-center p-6">
                 <p className="text-gray-600 mb-4">No active visit. Select a place to check in.</p>
-                
+
                 <div className="space-y-2">
                   <h4 className="font-semibold text-gray-800 mb-3">Unvisited Places</h4>
                   {unvisitedPlaces.length > 0 ? (
