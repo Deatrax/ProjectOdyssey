@@ -24,7 +24,7 @@ import MapComponent from "../components/MapComponent";
 import LocationModal from "../components/LocationModal";
 
 // Icons & UI
-import { Menu, Map as MapIcon, List, AlertCircle } from "lucide-react";
+import { Menu, Map as MapIcon, List, Sparkles } from "lucide-react";
 
 // Types
 type ItineraryItem = {
@@ -77,10 +77,12 @@ export default function PlannerPage() {
 
   // 4. Resource Panel State (Chat / Search)
   const [activeRightTab, setActiveRightTab] = useState<"chat" | "destinations" | "summaries">("chat");
+  const [destinationsView, setDestinationsView] = useState<"search" | "collections">("search");
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [searchResults, setSearchResults] = useState<ItineraryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [collections, setCollections] = useState<ItineraryItem[]>([]); // Mock collections for now, or load from DB
 
   // 5. Drag & Drop State
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -101,6 +103,12 @@ export default function PlannerPage() {
   useEffect(() => {
     loadTrips();
     loadChatHistory();
+    // Load collections logic here if real
+    // Mock Collections
+    setCollections([
+      { id: "c1", name: "Saved Museum", category: "History", visitDurationMin: 90 },
+      { id: "c2", name: "Favorite Cafe", category: "Food", visitDurationMin: 45 }
+    ]);
   }, []);
 
   const loadTrips = async () => {
@@ -130,7 +138,7 @@ export default function PlannerPage() {
             // Select the most recent active one
             const firstActive = loadedTrips.find((t: any) => t.status !== "completed");
             if (firstActive) setActiveTripId(firstActive.id);
-            else setShowSetup(true); // If all trips completed or empty, prompt new
+            else setShowSetup(true);
           } else {
             setShowSetup(true);
           }
@@ -164,17 +172,33 @@ export default function PlannerPage() {
     }
   };
 
+  // --- LOGIC ---
+
+  // Helper to recalculate times for a day based on durations
+  const recalculateDayTimes = (items: ItineraryItem[], startTime = "09:00"): ItineraryItem[] => {
+    let currentTime = new Date(`2000-01-01T${startTime}`);
+
+    return items.map(item => {
+      // Format current time as HH:MM
+      const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      // Add duration
+      const duration = item.visitDurationMin || 60;
+      currentTime.setMinutes(currentTime.getMinutes() + duration);
+
+      return { ...item, time: timeStr };
+    });
+  };
+
   // --- ACTIONS ---
 
   const handleCreateTrip = async (data: { title: string; days: number; travelers: number; startDate: string }) => {
     const token = localStorage.getItem("token");
     if (!token) {
-      // Handle guest mode or redirect
       alert("Please login to create a trip");
       return;
     }
 
-    // Prepare initial empty schedule
     const schedule: Record<number, ItineraryItem[]> = {};
     for (let i = 1; i <= data.days; i++) schedule[i] = [];
 
@@ -230,8 +254,6 @@ export default function PlannerPage() {
 
     const token = localStorage.getItem("token");
 
-    // Optimistic UI updated, now call backend
-    // Similar logic to existing page.tsx with fetch to /api/chat/message
     try {
       if (token) {
         await fetch("http://localhost:4000/api/chat/message", {
@@ -241,14 +263,6 @@ export default function PlannerPage() {
         });
       }
 
-      // This part would normally trigger the AI response stream or fetch
-      // For now, let's simulate or assuming there's a listener/polling or immediate response
-      // If the backend doesn't stream, we might need another fetch for the response?
-      // In the original file, it seemed to just update local state or didn't show the response fetch clearly 
-      // in the snippets I saw (it was doing clustering analysis).
-      // I'll add a simple simulation or clustering call if needed.
-
-      // Let's assume we call clustering/analyze if keywords present as before
       const res = await fetch("http://localhost:4000/api/clustering/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -257,8 +271,6 @@ export default function PlannerPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Just add a dummy AI response for now with cards if available
-        // In real internal logic, this might be more complex
         const aiMsg = {
           id: Date.now().toString() + "ai",
           text: "I've found some places for you. Check these out!",
@@ -279,14 +291,21 @@ export default function PlannerPage() {
   };
 
   const handleSearch = async () => {
-    // Implement search logic or mock
-    // This would typically call Google Places API or internal DB
     // Mocking for now as per "retain features" - existing file likely used external API or was mocked
     const mockResults: ItineraryItem[] = [
       { id: "p1", name: `Result for ${searchQuery} 1`, category: "Museum", visitDurationMin: 120 },
       { id: "p2", name: `Result for ${searchQuery} 2`, category: "Park", visitDurationMin: 60 },
     ];
     setSearchResults(mockResults);
+  };
+
+  const handleGenerateItinerary = async () => {
+    // Simulate Generative AI call
+    const name = window.prompt("Enter a focus for generation (e.g. 'Art & Food')");
+    if (!name) return;
+
+    // Here we would call an implementation that auto-fills the schedule
+    alert("AI Generation triggered! (This would populate your itinerary based on preferences)");
   };
 
   // --- DRAG AND DROP HANDLERS ---
@@ -315,14 +334,15 @@ export default function PlannerPage() {
     if (activeData?.type === "timeline-item") {
       const activeId = active.id;
       // Logic for reordering
-      // Simplified: just array move if in same day
       const daySchedule = activeTrip.schedule[currentDay] || [];
       const oldIndex = daySchedule.findIndex(i => i.id === activeId);
       const newIndex = daySchedule.findIndex(i => i.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(daySchedule, oldIndex, newIndex);
+        // Recalculate times after reorder
         const newSchedule = { ...activeTrip.schedule };
-        newSchedule[currentDay] = arrayMove(daySchedule, oldIndex, newIndex);
+        newSchedule[currentDay] = recalculateDayTimes(newOrder);
         updateTripSchedule(newSchedule);
       }
     }
@@ -330,16 +350,22 @@ export default function PlannerPage() {
 
   const addItemToSchedule = (item: ItineraryItem, day: number) => {
     if (!activeTrip) return;
-    const newSchedule = { ...activeTrip.schedule };
-    if (!newSchedule[day]) newSchedule[day] = [];
+
+    const currentList = activeTrip.schedule[day] || [];
 
     const newItem = {
       ...item,
       id: `${item.id}-${Date.now()}`, // unique instance id
-      time: "09:00", // Default or calculate next available slot
+      visitDurationMin: item.visitDurationMin || 60, // ensure default duration
+      source: "db" as const
     };
 
-    newSchedule[day] = [...newSchedule[day], newItem];
+    const newList = [...currentList, newItem];
+    const recalculatedList = recalculateDayTimes(newList);
+
+    const newSchedule = { ...activeTrip.schedule };
+    newSchedule[day] = recalculatedList;
+
     updateTripSchedule(newSchedule);
   };
 
@@ -347,7 +373,8 @@ export default function PlannerPage() {
     if (!activeTrip) return;
     const newSchedule = { ...activeTrip.schedule };
     if (newSchedule[day]) {
-      newSchedule[day] = newSchedule[day].filter(i => i.id !== itemId);
+      const filtered = newSchedule[day].filter(i => i.id !== itemId);
+      newSchedule[day] = recalculateDayTimes(filtered); // Recalc after remove
       updateTripSchedule(newSchedule);
     }
   };
@@ -355,7 +382,6 @@ export default function PlannerPage() {
   const updateTripSchedule = (newSchedule: Record<number, ItineraryItem[]>) => {
     const updatedTrip = { ...activeTrip!, schedule: newSchedule };
     setTrips(trips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
-    // In a real app, debounce save to backend here
     saveTrip(updatedTrip);
   };
 
@@ -456,6 +482,15 @@ export default function PlannerPage() {
                 </button>
               </div>
             </div>
+
+            {/* Add Generate Button */}
+            <button
+              onClick={handleGenerateItinerary}
+              className="flex items-center gap-2 bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all"
+            >
+              <Sparkles size={16} />
+              Generate Itinerary
+            </button>
           </div>
 
           {/* Main Body */}
@@ -504,20 +539,23 @@ export default function PlannerPage() {
                 chatInput={chatInput}
                 setChatInput={setChatInput}
                 onSendMessage={handleSendMessage}
-                onAddCard={(item) => addItemToSchedule(item, currentDay)} // Add directly to current day
+                onAddCard={(item) => addItemToSchedule(item, currentDay)}
                 searchResults={searchResults}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onSearch={handleSearch}
+                collections={collections}
                 tripInfo={activeTrip ? {
                   dates: activeTrip.startDate,
                   travelers: activeTrip.travelers,
                   days: activeTrip.days,
-                  budget: "Calculating..." // Placeholder
+                  budget: "Calculating..."
                 } : undefined}
+                onViewDetails={setSelectedLocation}
+                destinationsView={destinationsView}
+                setDestinationsView={setDestinationsView}
               />
             </div>
-
           </div>
         </div>
       </div>
