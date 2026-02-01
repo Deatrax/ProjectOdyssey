@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from "@vis.gl/react-google-maps";
-import MapSearch from "../../components/map/MapSearch";
-import PlaceDetailsModal from "../../components/map/PlaceDetailsModal";
+import MapSearch from "../../../components/map/MapSearch";
+import PlaceDetailsModal from "../../../components/map/PlaceDetailsModal";
 import Link from "next/link";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -32,7 +32,7 @@ export default function DestinationsPage() {
     setMapCenter(place.coordinates);
     setMapZoom(14);
     setShowInfoWindow(true);
-    
+
     // Add to search results if not already there
     if (!searchResults.find(p => p.placeId === place.placeId)) {
       setSearchResults(prev => [...prev, place]);
@@ -47,16 +47,16 @@ export default function DestinationsPage() {
 
   const handleAddToCollection = (place: any) => {
     console.log("Adding to collection:", place);
-    
+
     // Get existing collections from localStorage
     const existingCollections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
-    
+
     // Check if already exists
     if (existingCollections.find((p: any) => p.placeId === place.placeId)) {
       alert(`${place.name} is already in your collection!`);
       return;
     }
-    
+
     // Add new place to collections
     const newCollection = {
       id: `col-${Date.now()}-${Math.random()}`,
@@ -70,10 +70,10 @@ export default function DestinationsPage() {
       types: place.types,
       source: 'map-search'
     };
-    
+
     const updatedCollections = [...existingCollections, newCollection];
     localStorage.setItem('odyssey_collections', JSON.stringify(updatedCollections));
-    
+
     alert(`✓ ${place.name} added to your collection! Visit the Planner to organize your trip.`);
   };
 
@@ -238,9 +238,8 @@ export default function DestinationsPage() {
               {searchResults.map((place, index) => (
                 <div
                   key={place.placeId}
-                  className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    selectedPlace?.placeId === place.placeId ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                  }`}
+                  className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${selectedPlace?.placeId === place.placeId ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                    }`}
                   onClick={() => {
                     setSelectedPlace(place);
                     setMapCenter(place.coordinates);
@@ -258,7 +257,7 @@ export default function DestinationsPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 mb-1">{place.name}</h3>
                       <p className="text-sm text-gray-600 mb-2 line-clamp-2">{place.address}</p>
-                      
+
                       {/* Type Tags */}
                       <div className="flex flex-wrap gap-1 mb-3">
                         {place.types.slice(0, 2).map((type, idx) => (
