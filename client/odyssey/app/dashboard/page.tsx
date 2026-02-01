@@ -57,7 +57,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const validateSession = async () => {
       const token = localStorage.getItem("token");
-      
+
       // 1. Immediate check: No token? Go to login.
       if (!token) {
         router.push("/login");
@@ -69,7 +69,7 @@ const DashboardPage: React.FC = () => {
         // NOTE: Use the same IP/URL that worked for your login (e.g., localhost:4000 or your PC IP)
         const res = await fetch("http://localhost:4000/api/user/profile", {
           method: "GET",
-          headers: { 
+          headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
@@ -83,7 +83,7 @@ const DashboardPage: React.FC = () => {
         // 4. Token is good! Load user data
         const data = await res.json();
         setUser(data.user);
-        
+
         // Optional: Update local storage with fresh user data
         localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -93,7 +93,7 @@ const DashboardPage: React.FC = () => {
         // 5. CRITICAL: Wipe storage so Login page doesn't bounce us back
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        
+
         router.push("/login");
       } finally {
         setLoading(false);
@@ -117,10 +117,10 @@ const DashboardPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 flex items-center justify-center">
               {/* Ensure this path points to your public folder */}
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
+              <img
+                src="/Odyssey_Logo.png"
+                alt="Odyssey Logo"
+                className="w-full h-full object-contain"
               />
             </div>
             <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
@@ -131,8 +131,8 @@ const DashboardPage: React.FC = () => {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-4 lg:gap-6">
             <a href="#" className="text-gray-900 font-semibold underline">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
+            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all cursor-pointer">Planner</a>
+            <a onClick={() => router.push("/my-trips")} className="text-black hover:font-bold transition-all cursor-pointer">My Trips</a>
             <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
             <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
           </div>
@@ -153,7 +153,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors"
             >
@@ -168,8 +168,8 @@ const DashboardPage: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
             <a href="#" className="text-black font-medium hover:pl-2 transition-all">Home</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Planner</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
+            <a onClick={() => router.push("/planner")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Planner</a>
+            <a onClick={() => router.push("/my-trips")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">My Trips</a>
             <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
             <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
           </div>
@@ -178,18 +178,18 @@ const DashboardPage: React.FC = () => {
 
       {/* --- Main Content --- */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
-        
+
         {/* Hero Section with Search */}
         <div className="relative mb-12 rounded-3xl overflow-hidden h-64 sm:h-96 shadow-xl">
-            {/* Ensure this path points to your public folder */}
-          <img 
-            src="dashboard-bg.jpg" 
-            alt="Travel" 
-            className="w-full h-full object-cover" 
+          {/* Ensure this path points to your public folder */}
+          <img
+            src="dashboard-bg.jpg"
+            alt="Travel"
+            className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
             <div className="w-full max-w-xl px-4">
-              <div 
+              <div
                 onClick={() => router.push('/destinations')}
                 className="flex items-center bg-gray-900 bg-opacity-70 rounded-full overflow-hidden cursor-pointer hover:bg-opacity-80 transition"
               >
@@ -221,7 +221,7 @@ const DashboardPage: React.FC = () => {
                 <span className="absolute bottom-3 left-3 text-white text-sm font-semibold">{draft.title}</span>
               </div>
             ))}
-            
+
             {/* 'Add New' Placeholder */}
             <div className="w-1/2 sm:w-40 h-32 rounded-2xl bg-gray-300 bg-opacity-60 flex items-center justify-center cursor-pointer hover:bg-gray-400 transition shadow-lg">
               <svg className="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
