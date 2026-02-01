@@ -173,7 +173,27 @@ CREATE TABLE public.places (
   region text,
   location USER-DEFINED,
   created_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT places_pkey PRIMARY KEY (place_id)
+  google_place_id character varying UNIQUE,
+  city character varying,
+  city_id uuid,
+  country_id uuid,
+  neighborhood character varying,
+  address text,
+  opening_hours jsonb,
+  entry_fee jsonb,
+  accessibility jsonb,
+  website character varying,
+  phone_number character varying,
+  email character varying,
+  amenities ARRAY,
+  macro_category character varying CHECK (macro_category::text = ANY (ARRAY['Urban'::character varying, 'Nature'::character varying, 'History'::character varying]::text[])),
+  average_rating numeric DEFAULT 0,
+  total_reviews integer DEFAULT 0,
+  popularity_score integer DEFAULT 0,
+  secondary_category character varying,
+  CONSTRAINT places_pkey PRIMARY KEY (place_id),
+  CONSTRAINT places_city_id_fkey FOREIGN KEY (city_id) REFERENCES public.cities(id),
+  CONSTRAINT places_country_id_fkey FOREIGN KEY (country_id) REFERENCES public.countries(id)
 );
 CREATE TABLE public.pois (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

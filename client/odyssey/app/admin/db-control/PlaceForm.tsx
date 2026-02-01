@@ -1,7 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import WikiFetcher from "./WikiFetcher";
+
+// Declare global google type to avoid TS errors
+declare global {
+    interface Window {
+        google: any;
+    }
+}
 
 export default function PlaceForm({ initialData = null, onSuccess }: { initialData?: any, onSuccess?: () => void }) {
     const [countries, setCountries] = useState<any[]>([]);
@@ -27,6 +34,7 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
 
     const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
     const [errorMessage, setErrorMessage] = useState("");
+    const autocompleteRef = useRef<any>(null); // Ref for gmp-place-autocomplete
 
     // Initialize with data if provided (Edit Mode)
     useEffect(() => {
@@ -71,6 +79,74 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
         }
     }, [formData.country_id]);
 
+    // Initialize Google Maps Autocomplete
+    useEffect(() => {
+        const initAutocomplete = async () => {
+            if (!window.google || !window.google.maps) {
+                console.log("Waiting for Google Maps API...");
+                setTimeout(initAutocomplete, 500);
+                return;
+            }
+
+            try {
+                await window.google.maps.importLibrary("places");
+
+                if (autocompleteRef.current) {
+
+                    autocompleteRef.current.addEventListener('gmp-select', async ({ placePrediction }: any) => {
+                        const place = placePrediction.toPlace();
+
+                        // Fetch ONLY Basic Fields (Cheap)
+                        await place.fetchFields({
+                            fields: ['displayName', 'formattedAddress', 'location', 'id'],
+                        });
+
+                        // Update form data with fetched details
+                        setFormData(prev => ({
+                            ...prev,
+                            google_place_id: place.id,
+                            name: place.displayName,
+                            address: place.formattedAddress,
+                            latitude: place.location?.lat()?.toString() || prev.latitude,
+                            longitude: place.location?.lng()?.toString() || prev.longitude,
+                            // DO NOT fetch website/phone automatically to save costs
+                        }));
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load Google Maps Places library", e);
+            }
+        };
+        initAutocomplete();
+    }, []);
+
+    const handleFetchContactInfo = async () => {
+        if (!formData.google_place_id) {
+            alert("Please select a place first or enter a Google Place ID.");
+            return;
+        }
+
+        try {
+            const { Place } = await window.google.maps.importLibrary("places");
+            const place = new Place({ id: formData.google_place_id });
+
+            await place.fetchFields({
+                fields: ['websiteURI', 'internationalPhoneNumber']
+            });
+
+            setFormData(prev => ({
+                ...prev,
+                website: place.websiteURI || prev.website,
+                phone_number: place.internationalPhoneNumber || prev.phone_number
+            }));
+            alert("Contact info fetched successfully!");
+
+        } catch (e) {
+            console.error("Failed to fetch contact info", e);
+            alert("Failed to fetch contact info. Check console.");
+        }
+    };
+
     const handleWikiFetch = (data: any) => {
         setFormData(prev => ({
             ...prev,
@@ -94,7 +170,6 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
             visit_duration_min: parseInt(formData.visit_duration_min) || 60
         };
 
-        // Try to parse JSON fields safely
         try {
             if (formData.opening_hours) {
                 payload.opening_hours = JSON.parse(formData.opening_hours);
@@ -102,7 +177,6 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                 payload.opening_hours = null;
             }
         } catch (e) {
-            // If invalid JSON, just save as a simple object wrapper
             payload.opening_hours = { raw: formData.opening_hours };
         }
 
@@ -143,6 +217,14 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
             {!initialData && <WikiFetcher onFetch={handleWikiFetch} />}
 
             <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+
+                {/* Google Place Autocomplete */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm relative z-50">
+                    <label className="block text-sm font-bold text-blue-900 mb-2">Search Google Place (Auto-fill)</label>
+                    {/* @ts-ignore - Web component */}
+                    <gmp-place-autocomplete ref={autocompleteRef} placeholder="Search for a place on Google Maps..." class="w-full"></gmp-place-autocomplete>
+                    <p className="text-xs text-blue-600 mt-2">Selecting a place will auto-fill name, address, ID, and location. Contact info is manual.</p>
+                </div>
 
                 {/* Hierarchy Selection */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg border">
@@ -203,7 +285,7 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Google Place ID</label>
-                        <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+                        <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg bg-gray-50 from-gray-200" readOnly />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Latitude</label>
@@ -217,7 +299,17 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
 
                 {/* Extended Details */}
                 <div className="bg-gray-50 p-4 rounded-lg border space-y-4">
-                    <h3 className="font-bold text-gray-800">Extended Details</h3>
+                    <h3 className="font-bold text-gray-800 flex justify-between items-center">
+                        <span>Extended Details</span>
+                        <button
+                            type="button"
+                            onClick={handleFetchContactInfo}
+                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-semibold shadow-sm flex items-center gap-1"
+                            title="Fetches Website, Phone & more details (Billable)"
+                        >
+                            <span>⚡ Fetch Contact Data</span>
+                        </button>
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Website</label>
