@@ -119,7 +119,7 @@ class BrowserNotificationService {
                     placeName: data.placeName,
                     timestamp: new Date().toISOString()
                 }
-            });
+            } as any);
 
             // Handle notification click
             notification.onclick = () => {
@@ -171,7 +171,7 @@ class BrowserNotificationService {
                     placeId: data.placeId,
                     placeName: data.placeName
                 }
-            });
+            } as any);
 
             console.log(`📬 Interactive notification sent: ${data.title}`);
         } catch (error) {
@@ -236,6 +236,32 @@ class BrowserNotificationService {
             this.send({
                 title: `${percentage}% Complete! 🎯`,
                 body: `You've visited ${completedCount} of ${totalCount} places. Keep going!`,
+                type: 'progress',
+                itineraryId
+            }),
+
+        reminder: (itineraryId: string) =>
+            this.send({
+                title: 'Still exploring? 🗺️',
+                body: 'We haven\'t seen movement in a while. Let us know if you\'re still on your trip!',
+                type: 'progress',
+                itineraryId
+            }),
+
+        timeWarning: (placeName: string, duration: string, itineraryId: string, placeId: string) =>
+            this.send({
+                title: 'Time Check ⏱️',
+                body: `You've been at ${placeName} for ${duration}. Ready to move to the next stop?`,
+                type: 'progress',
+                itineraryId,
+                placeId,
+                placeName
+            }),
+
+        offRoute: (itineraryId: string) =>
+            this.send({
+                title: 'Off Route ⚠️',
+                body: 'You seem to be drifting away from your planned route. Need directions?',
                 type: 'progress',
                 itineraryId
             })

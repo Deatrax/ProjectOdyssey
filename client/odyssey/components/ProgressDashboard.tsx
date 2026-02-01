@@ -50,6 +50,8 @@ export default function ProgressDashboard({
         }
     };
 
+    const prevCompletionRef = React.useRef<number>(0);
+
     useEffect(() => {
         fetchProgress();
 
@@ -58,6 +60,19 @@ export default function ProgressDashboard({
 
         return () => clearInterval(interval);
     }, [itineraryId]);
+
+    // Monitor for completion trigger
+    useEffect(() => {
+        if (!progress) return;
+
+        // Check if we just hit 100% (previous was < 100)
+        if (progress.completion_percentage === 100 && prevCompletionRef.current < 100) {
+            notificationService.templates.completion(progress.completed_places, itineraryId);
+        }
+
+        // Update ref for next render
+        prevCompletionRef.current = progress.completion_percentage;
+    }, [progress, itineraryId]);
 
     const handleShare = () => {
         if (navigator.share && summary) {
