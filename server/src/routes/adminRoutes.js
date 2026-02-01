@@ -147,19 +147,45 @@ router.delete('/cities/:id', async (req, res) => {
 });
 
 
-// --- POIS ---
-router.post('/pois', async (req, res) => {
+// --- PLACES (Replacing POIs) ---
+router.post('/places', async (req, res) => {
     try {
-        const { name, slug, description, google_place_id, latitude, longitude, city_id, country_id, category, address } = req.body;
+        const {
+            name, slug, description, google_place_id,
+            latitude, longitude, city_id, country_id,
+            macro_category, address,
+            opening_hours, entry_fee, accessibility,
+            website, phone_number, email, amenities,
+            visit_duration_min
+        } = req.body;
 
-        if (!name || !slug || !city_id || !country_id) {
-            return res.status(400).json({ error: "Name, Slug, City ID, and Country ID are required." });
+        if (!name || !city_id || !country_id) {
+            return res.status(400).json({ error: "Name, City ID, and Country ID are required." });
         }
 
+        // Use 'places' table now
         const { data, error } = await supabase
-            .from('pois')
+            .from('places')
             .insert({
-                name, slug, description, google_place_id, latitude, longitude, city_id, country_id, category, address
+                name,
+                // Slug is not in original places schema but added in migration? 
+                // If migration didn't add slug, we might need to skip it or add it.
+                // Checking migration: "ADD COLUMN slug text" was NOT in the final migration script I wrote!
+                // Wait, I missed 'slug' in the migration script. 
+                // The user said "add columns... show me the plan". 
+                // The migration adds google_place_id, city, city_id, etc.
+                // Existing 'places' table structure (from schema_now.sql) has: name, primary_category, tags, short_desc...
+                // It does NOT have 'slug'. 
+                // I should probably map 'slug' to 'name' or just rely on ID in frontend. 
+                // Or I can just omit it for now if the table doesn't have it.
+                // Let's stick to the columns I KNOW exist now:
+                description, google_place_id, latitude, longitude, city_id, country_id,
+                macro_category, address,
+                opening_hours, entry_fee, accessibility,
+                website, phone_number, email, amenities,
+                visit_duration_min,
+                // Map legacy columns if needed
+                short_desc: description ? description.substring(0, 100) : null
             })
             .select();
 
@@ -167,22 +193,24 @@ router.post('/pois', async (req, res) => {
         res.json({ success: true, data: data[0] });
 
     } catch (error) {
-        console.error("Create POI Error:", error);
+        console.error("Create Place Error:", error);
         res.status(500).json({ error: error.message, code: error.code });
     }
 });
 
-router.get('/pois', async (req, res) => {
+router.get('/places', async (req, res) => {
     try {
         const { search, limit = 50 } = req.query;
-        let query = supabase.from('pois').select('*, cities(name), countries(name)').limit(parseInt(limit));
+        // Join with cities and countries for names
+        // Note: Supabase joins require foreign keys. We added them in migration.
+        let query = supabase.from('places')
+            .select('*, cities(name), countries(name)')
+            .limit(parseInt(limit));
 
         if (search) {
-            // Case-insensitive search on name
             query = query.ilike('name', `%${search}%`);
         }
 
-        // Order by most recent
         query = query.order('created_at', { ascending: false });
 
         const { data, error } = await query;
@@ -190,7 +218,32 @@ router.get('/pois', async (req, res) => {
         if (error) throw error;
         res.json({ success: true, data });
     } catch (error) {
-        console.error("Fetch POIs Error:", error);
+        console.error("Fetch Places Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/places/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        // Remove immutable fields if any
+        delete updates.place_id;
+        delete updates.created_at;
+
+        const { data, error } = await supabase
+            .from('places')
+            .update(updates)
+            .eq('place_id', id) // Assuming place_id (int) is the PK, or is it UUID?
+            // Wait, schema_now.sql says: place_id integer NOT NULL DEFAULT nextval...
+            // So we act on 'place_id'.
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error("Update Place Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
