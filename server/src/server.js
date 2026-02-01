@@ -12,7 +12,7 @@ const tripRoutes = require("./routes/tripRoutes");
 const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
-const geofenceRoutes = require("./routes/visitRoutes"); // Geofence Routes
+const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
 
 
 const app = express();
@@ -30,7 +30,26 @@ app.use(express.json());
 // 3. Connect Database
 connectDB();
 
-// 4. Mount Routes
+// 4. Root Route
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "🚀 Project Odyssey API Server",
+    version: "1.0.0",
+    status: "online",
+    endpoints: {
+      auth: "/api/auth/login, /api/auth/signup",
+      visits: "/api/visits/check-in, /api/visits/check-out, /api/visits/logs/:itineraryId",
+      trips: "/api/trips",
+      places: "/api/places",
+      ai: "/api/ai",
+      chat: "/api/chat",
+      map: "/api/map",
+      clustering: "/api/clustering"
+    }
+  });
+});
+
+// 5. Mount Routes
 app.use("/api/ai", aiRoutes);
 
 
@@ -44,7 +63,7 @@ app.use('/api/chat', chatHistoryRoutes); // Chat history routes
 app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 app.use('/api/map', mapRoutes); // Map Search & Manual Planning
-app.use('/api/visits', geofenceRoutes); // Geofence Routes
+app.use('/api/visits', visitRoutes); // Visit Tracking Routes
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;
