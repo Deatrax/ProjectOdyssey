@@ -154,4 +154,45 @@ async function insertPlaceFromAI(place) {
 
 }
 
-module.exports = { searchPlacesDynamic, insertPlaceFromAI, getTrendingPlaces };
+async function getTopCities(countryId) {
+  // Assuming popularity_score or population determines "top"
+  const { data, error } = await supabase
+    .from('cities')
+    .select('*')
+    .eq('country_id', countryId)
+    .order('popularity_score', { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
+  return data;
+}
+
+async function getTopPOIs(countryId) {
+  const { data, error } = await supabase
+    .from('pois')
+    .select('*, cities(name)')
+    .eq('country_id', countryId)
+    .order('popularity_score', { ascending: false })
+    .limit(10);
+  if (error) throw error;
+  return data;
+}
+
+async function getCityPOIs(cityId) {
+  const { data, error } = await supabase
+    .from('pois')
+    .select('*')
+    .eq('city_id', cityId)
+    .order('popularity_score', { ascending: false }); // Return all? Or limit?
+  if (error) throw error;
+  return data;
+}
+
+module.exports = {
+  searchPlacesDynamic,
+  insertPlaceFromAI,
+  getTrendingPlaces,
+  getTopCities,
+  getTopPOIs,
+  getCityPOIs
+};

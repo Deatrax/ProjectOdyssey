@@ -19,22 +19,27 @@ interface PlaceDetailsModalProps {
     onAddToCollection?: (place: Place) => void;
 }
 
-const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, onClose, onAddToCollection }) => {
+const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, onClose }) => {
     const [activeTab, setActiveTab] = useState<"overview" | "photos" | "related">("overview");
     const [relatedPlaces, setRelatedPlaces] = useState<Place[]>([]);
     const [loadingRelated, setLoadingRelated] = useState(false);
+    const [itemsInCollection, setItemsInCollection] = useState<string[]>([]);
+
+    // Check collection status on mount/open
+    useEffect(() => {
+        if (isOpen) {
+            const collections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
+            setItemsInCollection(collections.map((c: any) => c.name));
+        }
+    }, [isOpen]);
 
     // Fetch related cities if this is a country
     useEffect(() => {
         if (isOpen && place.type === "COUNTRY") {
             setLoadingRelated(true);
-            fetch(`http://localhost:4000/api/places?country=${place.name}`)
+            fetch(`http://localhost:4000/api/countries/${place.id}/top-cities`)
                 .then((res) => res.json())
-                .then((data) => {
-                    // Filter out the country itself if returned, and just keep cities
-                    const cities = data.places.filter((p: any) => p.name !== place.name);
-                    setRelatedPlaces(cities);
-                })
+                .then((data) => setRelatedPlaces(data))
                 .catch((err) => console.error("Failed to fetch cities", err))
                 .finally(() => setLoadingRelated(false));
         }
@@ -42,11 +47,36 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
 
     if (!isOpen) return null;
 
-    // Placeholder images based on keywords
     const bgImage = place.img_url || `https://source.unsplash.com/800x600/?${place.name},travel`;
+    const isInCollection = itemsInCollection.includes(place.name);
+
+    const handleAddToCollection = () => {
+        if (isInCollection) return;
+        const collections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
+
+        const newItem = {
+            id: `col-${Date.now()}`,
+            placeId: place.id,
+            name: place.name,
+            text: place.name,
+            description: place.short_desc,
+            category: place.type,
+            coordinates: { lat: 0, lng: 0 }, // Would need actual coords if available
+            source: 'modal'
+        };
+
+        const newCollections = [...collections, newItem];
+        localStorage.setItem('odyssey_collections', JSON.stringify(newCollections));
+        setItemsInCollection([...itemsInCollection, place.name]);
+    };
+
+    const handlePopOut = () => {
+        const type = place.type === 'POI' ? 'poi' : place.type === 'CITY' ? 'city' : 'country';
+        window.open(`/destinations/view/${type}/${place.id}`, '_blank');
+    };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 font-body">
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
@@ -54,21 +84,31 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
 
             <div className="relative bg-[#FFF5E9] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slideUp">
 
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                {/* Top Actions */}
+                <div className="absolute top-4 right-4 z-20 flex gap-2">
+                    <button
+                        onClick={handlePopOut}
+                        className="p-2 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-white transition-colors"
+                        title="Open in new tab"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="p-2 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white transition-colors"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
                 {/* Hero Image */}
                 <div className="h-64 sm:h-80 relative flex-shrink-0">
                     <img
-                        src={`https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&h=600&fit=crop&q=80`} // Fallback static for stability, dynamically finding images is hard without API key
-                        // Ideally: src={place.img_url || `/api/proxy-image?q=${place.name}`}
+                        src={bgImage}
                         alt={place.name}
                         className="w-full h-full object-cover"
                     />
@@ -87,7 +127,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
                     {/* Tabs */}
-                    <div className="flex border-b border-gray-200 px-6 sticky top-0 bg-[#FFF5E9] z-10">
+                    <div className="flex border-b border-gray-200 px-6 sticky top-0 bg-[#FFF5E9] z-10 shadow-sm">
                         <button
                             className={`py-4 px-4 font-semibold text-sm ${activeTab === 'overview' ? 'text-[#4A9B7F] border-b-2 border-[#4A9B7F]' : 'text-gray-500 hover:text-gray-800'}`}
                             onClick={() => setActiveTab('overview')}
@@ -105,7 +145,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                                 className={`py-4 px-4 font-semibold text-sm ${activeTab === 'related' ? 'text-[#4A9B7F] border-b-2 border-[#4A9B7F]' : 'text-gray-500 hover:text-gray-800'}`}
                                 onClick={() => setActiveTab('related')}
                             >
-                                Prominent Cities
+                                Top Cities
                             </button>
                         )}
                     </div>
@@ -115,33 +155,32 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                             <div className="space-y-6">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-3">About {place.name}</h3>
-                                    <p className="text-gray-600 leading-relaxed text-lg">
+                                    <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
                                         {place.short_desc || "A mesmerizing destination waiting to be explored. Discover the local culture, scenic beauty, and historical landmarks that make this place unique."}
                                     </p>
                                 </div>
 
-                                {/* Key Highlights (Mocked if not in DB) */}
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-3">Key Highlights</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {["Local Cuisine", "Historic Sites", "Nature Trails", "Art Galleries"].map((tag, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-gray-700 bg-white p-3 rounded-xl shadow-sm">
-                                                <span className="text-[#4A9B7F]">✓</span> {tag}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
                                 {/* Action */}
-                                <div className="pt-4">
+                                <div className="pt-4 flex gap-4">
+                                    {place.type !== 'COUNTRY' && (
+                                        <button
+                                            onClick={handleAddToCollection}
+                                            disabled={isInCollection}
+                                            className={`flex-1 px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2
+                                                ${isInCollection ? 'bg-green-100 text-green-700 cursor-default' : 'bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white'}`}
+                                        >
+                                            {isInCollection ? (
+                                                <><span>✓</span> Saved to Trip</>
+                                            ) : (
+                                                <><span>+</span> Add to Collection</>
+                                            )}
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => onAddToCollection && onAddToCollection(place)}
-                                        className="w-full sm:w-auto bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                                        onClick={handlePopOut}
+                                        className="px-8 py-4 bg-white text-gray-800 hover:bg-gray-100 rounded-xl font-bold text-lg shadow-lg transition-all"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                        </svg>
-                                        Add to Collection
+                                        View Full Details
                                     </button>
                                 </div>
                             </div>
@@ -156,7 +195,11 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {relatedPlaces.map((city) => (
-                                            <div key={city.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
+                                            <div
+                                                key={city.id}
+                                                className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+                                                onClick={() => window.open(`/destinations/view/city/${city.id}`, '_blank')}
+                                            >
                                                 <div className="w-16 h-16 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
                                                     <img src={`https://source.unsplash.com/100x100/?${city.name}`} alt={city.name} className="w-full h-full object-cover" />
                                                 </div>
@@ -176,7 +219,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                                 {[1, 2, 3, 4].map(i => (
                                     <img
                                         key={i}
-                                        src={`https://images.unsplash.com/photo-${i === 1 ? '1500835556811-9184226824a6' : '1506905925346-21bda4d32df4'}?w=400&h=300&fit=crop`}
+                                        src={`https://source.unsplash.com/400x300/?${place.name},landmark,${i}`}
                                         className="w-full h-40 object-cover rounded-xl"
                                         alt="Gallery"
                                     />

@@ -55,4 +55,29 @@ router.get("/countries/:id", async (req, res) => {
   res.json(data);
 });
 
+// Relationships
+router.get("/countries/:id/top-cities", async (req, res) => {
+  try {
+    const { getTopCities } = require("../services/placeService.js");
+    const data = await getTopCities(req.params.id);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/countries/:id/top-pois", async (req, res) => {
+  try {
+    const { getTopPOIs } = require("../services/placeService.js");
+    const data = await getTopPOIs(req.params.id);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get("/cities/:id/pois", async (req, res) => {
+  try {
+    const { getCityPOIs } = require("../services/placeService.js");
+    const data = await getCityPOIs(req.params.id);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
