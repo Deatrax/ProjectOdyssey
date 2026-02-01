@@ -27,6 +27,7 @@ import ClusteringView from "../components/ClusteringView"; // Import clustering 
 import MultiOptionSelector from "../components/MultiOptionSelector"; // Import multi-option selector
 import ConfirmationModal from "../components/ConfirmationModal"; // Import confirmation modal
 import MapComponent from "../components/MapComponent"; // Import MapComponent
+import { VisitTrackingPanel } from "../components/visit/VisitTrackingPanel"; // Import visit tracking
 
 // --- TYPES (Updated to include data for Modal) ---
 type Item = {
@@ -43,7 +44,7 @@ type Item = {
   source?: "db" | "ai";
 };
 
-type ActiveTab = "chat" | "destinations" | "summaries" | "map";
+type ActiveTab = "chat" | "destinations" | "summaries" | "map" | "visits";
 type DestinationsView = "search" | "collections";
 
 /* -------------------- Custom Collision Logic (YOUR ORIGINAL) -------------------- */
@@ -286,7 +287,7 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
 }
 
 /* -------------------- Chat Column (Updated for Cards) -------------------- */
-function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading, chatHistoryLoading }: any) {
+function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCard, onViewDetails, loading, chatHistoryLoading, clusteringData, stage, setStage }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -1253,6 +1254,9 @@ export default function PlannerPage() {
               <button onClick={() => setActiveTab("chat")} style={sharedTabStyles(activeTab === "chat")}>Chat</button>
               <button onClick={() => setActiveTab("destinations")} style={sharedTabStyles(activeTab === "destinations")}>Destinations</button>
               <button onClick={() => setActiveTab("map")} style={sharedTabStyles(activeTab === "map")}>Map</button>
+              <button onClick={() => setActiveTab("visits")} style={sharedTabStyles(activeTab === "visits")}>
+                Visits {visitCount > 0 && <span style={{ marginLeft: "4px", background: "#ef4444", color: "white", borderRadius: "50%", padding: "0 6px", fontSize: "12px" }}>{visitCount}</span>}
+              </button>
               <button onClick={() => setActiveTab("summaries")} style={sharedTabStyles(activeTab === "summaries")}>Summaries</button>
             </div>
           </div>
