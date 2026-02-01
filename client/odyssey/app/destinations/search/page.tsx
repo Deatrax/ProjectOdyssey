@@ -67,33 +67,7 @@ function SearchResultsContent() {
                 />
             )}
 
-            {/* Navbar (Simplified for sub-page) */}
-            <nav className="sticky top-0 z-40 px-6 py-4 bg-[#FFF5E9]/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/dashboard")}>
-                        <span className="text-2xl font-bold font-odyssey text-gray-900">Odyssey</span>
-                    </div>
 
-                    <div className="flex-1 max-w-2xl mx-8">
-                        <form onSubmit={handleSearchSubmit} className="relative">
-                            <input
-                                type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                className="w-full pl-5 pr-12 py-3 rounded-full border border-gray-300 focus:border-[#4A9B7F] focus:ring-2 focus:ring-[#4A9B7F]/20 outline-none transition-all"
-                                placeholder="Search places..."
-                            />
-                            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-[#4A9B7F] text-white rounded-full hover:bg-[#3d8a6d]">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.push("/destinations")} className="text-gray-600 hover:text-gray-900 font-medium">Back to Browse</button>
-                    </div>
-                </div>
-            </nav>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">

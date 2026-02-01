@@ -134,31 +134,6 @@ const DestinationsPage: React.FC = () => {
         />
       )}
 
-      {/* --- Navigation --- */}
-      <nav className="sticky top-4 z-40 px-4 sm:px-8 py-4 bg-[#FFF5E9]/80 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/dashboard")}>
-            <div className="w-7 h-7 flex items-center justify-center">
-              <img src="/Odyssey_Logo.png" alt="Odyssey Logo" className="w-full h-full object-contain" />
-            </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">Odyssey</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a onClick={() => router.push("/dashboard")} className="text-black hover:font-bold transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-gray-900 font-semibold underline">Destinations</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
-            </div>
-          </div>
-        </div>
-      </nav>
 
       {/* --- Main Content --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">

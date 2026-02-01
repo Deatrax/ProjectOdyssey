@@ -57,7 +57,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const validateSession = async () => {
       const token = localStorage.getItem("token");
-      
+
       // 1. Immediate check: No token? Go to login.
       if (!token) {
         router.push("/login");
@@ -69,7 +69,7 @@ const DashboardPage: React.FC = () => {
         // NOTE: Use the same IP/URL that worked for your login (e.g., localhost:4000 or your PC IP)
         const res = await fetch("http://localhost:4000/api/user/profile", {
           method: "GET",
-          headers: { 
+          headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
@@ -83,7 +83,7 @@ const DashboardPage: React.FC = () => {
         // 4. Token is good! Load user data
         const data = await res.json();
         setUser(data.user);
-        
+
         // Optional: Update local storage with fresh user data
         localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -93,7 +93,7 @@ const DashboardPage: React.FC = () => {
         // 5. CRITICAL: Wipe storage so Login page doesn't bounce us back
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        
+
         router.push("/login");
       } finally {
         setLoading(false);
@@ -110,82 +110,18 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
-      {/* --- Navigation --- */}
-      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
-          {/* Logo + Text */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              {/* Ensure this path points to your public folder */}
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
-          </div>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a href="#" className="text-gray-900 font-semibold underline">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
-                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
-              </svg>
-            </button>
-            <button onClick={() => router.push("/profile")} className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Home</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Planner</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
-          </div>
-        )}
-      </nav>
 
       {/* --- Main Content --- */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
-        
+
         {/* Hero Section with Search */}
         <div className="relative mb-12 rounded-3xl overflow-hidden h-64 sm:h-96 shadow-xl">
-            {/* Ensure this path points to your public folder */}
-          <img 
-            src="dashboard-bg.jpg" 
-            alt="Travel" 
-            className="w-full h-full object-cover" 
+          {/* Ensure this path points to your public folder */}
+          <img
+            src="dashboard-bg.jpg"
+            alt="Travel"
+            className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
             <div className="w-full max-w-xl px-4">
@@ -217,7 +153,7 @@ const DashboardPage: React.FC = () => {
                 <span className="absolute bottom-3 left-3 text-white text-sm font-semibold">{draft.title}</span>
               </div>
             ))}
-            
+
             {/* 'Add New' Placeholder */}
             <div className="w-1/2 sm:w-40 h-32 rounded-2xl bg-gray-300 bg-opacity-60 flex items-center justify-center cursor-pointer hover:bg-gray-400 transition shadow-lg">
               <svg className="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
