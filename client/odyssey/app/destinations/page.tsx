@@ -113,6 +113,14 @@ const DestinationsPage: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  // Handle Enter Key / Form Submit
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim().length > 0) {
+      router.push(`/destinations/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body pb-20">
 
@@ -157,7 +165,7 @@ const DestinationsPage: React.FC = () => {
 
         {/* Hero Search Section */}
         <div className="mb-12 relative z-30">
-          <div className="relative max-w-4xl mx-auto">
+          <form onSubmit={handleSearch} className="relative max-w-4xl mx-auto">
             <div className="flex items-center bg-gray-900 rounded-full overflow-hidden shadow-2xl transition-all focus-within:ring-4 ring-[#4A9B7F]/30">
               <input
                 type="text"
@@ -167,6 +175,7 @@ const DestinationsPage: React.FC = () => {
                 className="flex-1 px-6 sm:px-8 py-4 sm:py-5 bg-transparent text-white placeholder-gray-400 focus:outline-none text-lg"
               />
               <button
+                type="submit"
                 className="mr-3 p-3 bg-white hover:bg-gray-200 rounded-full transition-colors"
                 disabled={isSearching}
               >
@@ -174,7 +183,7 @@ const DestinationsPage: React.FC = () => {
                   <div className="w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7-7 7m7-7H3" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 )}
               </button>
@@ -211,7 +220,8 @@ const DestinationsPage: React.FC = () => {
                 No places found matching "{searchQuery}". Try "Japan" or "Paris".
               </div>
             )}
-          </div>
+
+          </form>
 
           <div className="flex justify-center mt-6">
             <button
