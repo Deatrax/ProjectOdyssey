@@ -16,20 +16,29 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
 
     const [formData, setFormData] = useState({
         name: "",
-        description: "",
+        short_desc: "",
         country_id: "",
         city_id: "",
         google_place_id: "",
         latitude: "",
         longitude: "",
         macro_category: "Urban", // Default
+        primary_category: "",
+        secondary_category: "",
         address: "",
+        neighborhood: "",
         website: "",
         phone_number: "",
         email: "",
         amenities: "", // Comma separated
+        tags: "", // Comma separated
         opening_hours: "", // JSON string or simple text
-        visit_duration_min: "60"
+        entry_fee: "", // JSON string
+        accessibility: "", // JSON string
+        visit_duration_min: "60",
+        est_cost_per_day: "",
+        source: "Manual",
+        verified: false
     });
 
     const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
@@ -41,20 +50,29 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
         if (initialData) {
             setFormData({
                 name: initialData.name || "",
-                description: initialData.description || "",
+                short_desc: initialData.short_desc || "",
                 country_id: initialData.country_id || "",
                 city_id: initialData.city_id || "",
                 google_place_id: initialData.google_place_id || "",
                 latitude: initialData.latitude || "",
                 longitude: initialData.longitude || "",
                 macro_category: initialData.macro_category || "Urban",
+                primary_category: initialData.primary_category || "",
+                secondary_category: initialData.secondary_category || "",
                 address: initialData.address || "",
+                neighborhood: initialData.neighborhood || "",
                 website: initialData.website || "",
                 phone_number: initialData.phone_number || "",
                 email: initialData.email || "",
                 amenities: initialData.amenities ? initialData.amenities.join(", ") : "",
+                tags: initialData.tags ? initialData.tags.join(", ") : "",
                 opening_hours: initialData.opening_hours ? JSON.stringify(initialData.opening_hours, null, 2) : "",
-                visit_duration_min: initialData.visit_duration_min || "60"
+                entry_fee: initialData.entry_fee ? JSON.stringify(initialData.entry_fee, null, 2) : "",
+                accessibility: initialData.accessibility ? JSON.stringify(initialData.accessibility, null, 2) : "",
+                visit_duration_min: initialData.visit_duration_min || "60",
+                est_cost_per_day: initialData.est_cost_per_day || "",
+                source: initialData.source || "Manual",
+                verified: initialData.verified || false
             });
         }
     }, [initialData]);
@@ -83,7 +101,6 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
     useEffect(() => {
         const initAutocomplete = async () => {
             if (!window.google || !window.google.maps) {
-                console.log("Waiting for Google Maps API...");
                 setTimeout(initAutocomplete, 500);
                 return;
             }
@@ -151,7 +168,8 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
         setFormData(prev => ({
             ...prev,
             name: data.title,
-            description: data.extract,
+            // description: data.extract, // Removed
+            short_desc: data.extract ? data.extract.substring(0, 300) + "..." : "", // Truncate for short_desc
             latitude: data.coordinates?.lat || prev.latitude,
             longitude: data.coordinates?.lon || prev.longitude
         }));
@@ -167,18 +185,23 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
             latitude: formData.latitude === "" ? null : formData.latitude,
             longitude: formData.longitude === "" ? null : formData.longitude,
             amenities: formData.amenities.split(",").map(s => s.trim()).filter(Boolean),
-            visit_duration_min: parseInt(formData.visit_duration_min) || 60
+            tags: formData.tags.split(",").map(s => s.trim()).filter(Boolean),
+            visit_duration_min: parseInt(formData.visit_duration_min) || 60,
+            est_cost_per_day: parseFloat(formData.est_cost_per_day) || null
         };
 
-        try {
-            if (formData.opening_hours) {
-                payload.opening_hours = JSON.parse(formData.opening_hours);
-            } else {
-                payload.opening_hours = null;
+        // Helper to parse JSON
+        const parseJsonField = (field: string) => {
+            try {
+                return field ? JSON.parse(field) : null;
+            } catch (e) {
+                return { raw: field };
             }
-        } catch (e) {
-            payload.opening_hours = { raw: formData.opening_hours };
-        }
+        };
+
+        payload.opening_hours = parseJsonField(formData.opening_hours);
+        payload.entry_fee = parseJsonField(formData.entry_fee);
+        payload.accessibility = parseJsonField(formData.accessibility);
 
         try {
             const url = initialData
@@ -209,7 +232,8 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const value = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
+        setFormData({ ...formData, [e.target.name]: value });
     };
 
     return (
@@ -223,7 +247,7 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                     <label className="block text-sm font-bold text-blue-900 mb-2">Search Google Place (Auto-fill)</label>
                     {/* @ts-ignore - Web component */}
                     <gmp-place-autocomplete ref={autocompleteRef} placeholder="Search for a place on Google Maps..." class="w-full"></gmp-place-autocomplete>
-                    <p className="text-xs text-blue-600 mt-2">Selecting a place will auto-fill name, address, ID, and location. Contact info is manual.</p>
+                    <p className="text-xs text-blue-600 mt-2">Selecting a place will auto-fill name, address, ID, location.</p>
                 </div>
 
                 {/* Hierarchy Selection */}
@@ -257,8 +281,9 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-1">
                         <label className="block text-sm font-bold text-gray-700 mb-2">Place Name</label>
                         <input name="name" value={formData.name} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
                     </div>
@@ -270,11 +295,27 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                             <option value="History">History</option>
                         </select>
                     </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Neighborhood</label>
+                        <input name="neighborhood" value={formData.neighborhood} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+                    </div>
+                </div>
+
+                {/* Detailed Categories */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Primary Category</label>
+                        <input name="primary_category" value={formData.primary_category} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="e.g. Museum" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Secondary Category</label>
+                        <input name="secondary_category" value={formData.secondary_category} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="e.g. Art Gallery" />
+                    </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
-                    <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-3 border rounded-lg h-32" />
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Short Description (Summary)</label>
+                    <textarea name="short_desc" value={formData.short_desc} onChange={handleChange} className="w-full p-3 border rounded-lg h-24" />
                 </div>
 
                 {/* Location Details */}
@@ -285,7 +326,7 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Google Place ID</label>
-                        <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg bg-gray-50 from-gray-200" readOnly />
+                        <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg bg-white" placeholder="Paste ID or search above..." />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Latitude</label>
@@ -325,20 +366,50 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Amenities (comma separated)</label>
-                        <input name="amenities" value={formData.amenities} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="Wifi, Parking, Pool..." />
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Opening Hours (JSON or Text)</label>
-                            <textarea name="opening_hours" value={formData.opening_hours} onChange={handleChange} className="w-full p-3 border rounded-lg h-24 font-mono text-sm" placeholder='{"Mon": "9-5"}' />
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Amenities (comma separated)</label>
+                            <input name="amenities" value={formData.amenities} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="Wifi, Parking, Pool..." />
                         </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Tags (comma separated)</label>
+                            <input name="tags" value={formData.tags} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="Family, Romantic, Outdoor..." />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Visit Duration (min)</label>
                             <input type="number" name="visit_duration_min" value={formData.visit_duration_min} onChange={handleChange} className="w-full p-3 border rounded-lg" />
                         </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Est. Cost / Day</label>
+                            <input type="number" name="est_cost_per_day" value={formData.est_cost_per_day} onChange={handleChange} className="w-full p-3 border rounded-lg" placeholder="$$" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-8">
+                            <input type="checkbox" name="verified" checked={formData.verified} onChange={handleChange} className="w-6 h-6" />
+                            <label className="text-sm font-bold text-gray-700">Verified Place</label>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Opening Hours (JSON)</label>
+                            <textarea name="opening_hours" value={formData.opening_hours} onChange={handleChange} className="w-full p-3 border rounded-lg h-24 font-mono text-sm" placeholder='{"Mon": "9-5"}' />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Entry Fee (JSON)</label>
+                            <textarea name="entry_fee" value={formData.entry_fee} onChange={handleChange} className="w-full p-3 border rounded-lg h-24 font-mono text-sm" placeholder='{"adult": 10}' />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Accessibility (JSON)</label>
+                            <textarea name="accessibility" value={formData.accessibility} onChange={handleChange} className="w-full p-3 border rounded-lg h-24 font-mono text-sm" placeholder='{"wheelchair": true}' />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Source / Attribution</label>
+                        <input name="source" value={formData.source} onChange={handleChange} className="w-full p-3 border rounded-lg" />
                     </div>
                 </div>
 

@@ -87,7 +87,10 @@ function SearchResultsContent() {
                             <div
                                 key={place.id}
                                 className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer"
-                                onClick={() => { setSelectedPlace(place); setIsModalOpen(true); }}
+                                onClick={() => {
+                                    const type = place.type === 'POI' ? 'poi' : place.type === 'CITY' ? 'city' : 'country';
+                                    window.open(`/destinations/view/${type}/${place.id}`, '_blank');
+                                }}
                             >
                                 <div className="h-48 overflow-hidden relative">
                                     <img

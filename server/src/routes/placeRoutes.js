@@ -1,4 +1,5 @@
 const express = require("express");
+const supabase = require("../config/supabaseClient");
 const { searchPlacesDynamic, insertPlaceFromAI, getTrendingPlaces } = require("../services/placeService.js");
 
 const router = express.Router();
@@ -31,6 +32,27 @@ router.post("/places", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// Public GET Single Place
+router.get("/places/:id", async (req, res) => {
+  const { data, error } = await supabase.from('places').select('*, cities(name), countries(name)').eq('id', req.params.id).single();
+  if (error) return res.status(404).json({ error: "Not Found" });
+  res.json(data);
+});
+
+// Public GET Single City
+router.get("/cities/:id", async (req, res) => {
+  const { data, error } = await supabase.from('cities').select('*, countries(name)').eq('id', req.params.id).single();
+  if (error) return res.status(404).json({ error: "Not Found" });
+  res.json(data);
+});
+
+// Public GET Single Country
+router.get("/countries/:id", async (req, res) => {
+  const { data, error } = await supabase.from('countries').select('*').eq('id', req.params.id).single();
+  if (error) return res.status(404).json({ error: "Not Found" });
+  res.json(data);
 });
 
 module.exports = router;

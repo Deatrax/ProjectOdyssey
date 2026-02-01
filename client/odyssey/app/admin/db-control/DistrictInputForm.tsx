@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import WikiFetcher from "./WikiFetcher";
 
-export default function DistrictInputForm() {
+// Declare global google type
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
+export default function DistrictInputForm({ initialData = null, onSuccess }: { initialData?: any, onSuccess?: () => void }) {
   const [countries, setCountries] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -18,15 +25,81 @@ export default function DistrictInputForm() {
   });
   const [status, setStatus] = useState<"IDLE" | "SAVING" | "SUCCESS" | "ERROR">("IDLE");
   const [errorMessage, setErrorMessage] = useState("");
+  const autocompleteRef = useRef<any>(null);
+
+  // Initialize with data if provided (Edit Mode)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || "",
+        slug: initialData.slug || "",
+        description: initialData.description || "",
+        country_id: initialData.country_id || "",
+        state_province: initialData.state_province || "",
+        population: initialData.population || "",
+        google_place_id: initialData.google_place_id || "",
+        latitude: initialData.latitude || "",
+        longitude: initialData.longitude || ""
+      });
+    }
+  }, [initialData]);
 
   // Fetch countries for dropdown
   useEffect(() => {
     fetch("http://localhost:4000/api/admin/countries")
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) setCountries(data.data);
-        })
-        .catch(err => console.error("Failed to load countries", err));
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setCountries(data.data);
+      })
+      .catch(err => console.error("Failed to load countries", err));
+  }, []);
+
+  // Initialize Google Maps Autocomplete
+  useEffect(() => {
+    const initAutocomplete = async () => {
+      if (!window.google || !window.google.maps) {
+        setTimeout(initAutocomplete, 500);
+        return;
+      }
+
+      try {
+        await window.google.maps.importLibrary("places");
+
+        if (autocompleteRef.current) {
+          // Relaxing type constraint to ensure cities are found easily
+          // autocompleteRef.current.types = ['(cities)'];
+
+          autocompleteRef.current.addEventListener('gmp-select', async ({ placePrediction }: any) => {
+            const place = placePrediction.toPlace();
+
+            // Fetch Basic Fields + Address for State
+            await place.fetchFields({
+              fields: ['displayName', 'formattedAddress', 'location', 'id', 'addressComponents'],
+            });
+
+            // Parse State/Province (administrative_area_level_1)
+            let state = "";
+            if (place.addressComponents) {
+              const stateComp = place.addressComponents.find((c: any) => c.types.includes('administrative_area_level_1'));
+              if (stateComp) state = stateComp.shortText; // e.g. "CA" or "NY"
+            }
+
+            setFormData(prev => ({
+              ...prev,
+              name: place.displayName,
+              slug: place.displayName.toLowerCase().replace(/ /g, "-"),
+              google_place_id: place.id,
+              latitude: place.location?.lat()?.toString() || prev.latitude,
+              longitude: place.location?.lng()?.toString() || prev.longitude,
+              state_province: state || prev.state_province
+            }));
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load Google Maps Places library", e);
+      }
+    };
+    initAutocomplete();
   }, []);
 
   const handleWikiFetch = (data: any) => {
@@ -43,27 +116,37 @@ export default function DistrictInputForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("SAVING");
-    
+
     // Sanitize payload: convert empty strings to null for numbers/optionals
     const payload = {
-        ...formData,
-        population: formData.population === "" ? null : formData.population,
-        latitude: formData.latitude === "" ? null : formData.latitude,
-        longitude: formData.longitude === "" ? null : formData.longitude,
-        // Ensure state_province is sent (even if empty string is okay for varchar, but let's be safe)
+      ...formData,
+      population: formData.population === "" ? null : formData.population,
+      latitude: formData.latitude === "" ? null : formData.latitude,
+      longitude: formData.longitude === "" ? null : formData.longitude,
     };
 
     try {
-      const res = await fetch("http://localhost:4000/api/admin/cities", {
-        method: "POST",
+      const url = initialData
+        ? `http://localhost:4000/api/admin/cities/${initialData.id}`
+        : "http://localhost:4000/api/admin/cities";
+      const method = initialData ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error("Failed to save");
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+
       setStatus("SUCCESS");
-    } catch (err) {
+      setErrorMessage("");
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
       console.error(err);
       setStatus("ERROR");
+      setErrorMessage(err.message || "Error saving district");
     }
   };
 
@@ -75,26 +158,35 @@ export default function DistrictInputForm() {
     <div>
       <WikiFetcher onFetch={handleWikiFetch} />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+
+        {/* Google Autocomplete for District/City */}
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm relative z-50">
+          <label className="block text-sm font-bold text-blue-900 mb-2">Search Google (Auto-fill District/City)</label>
+          {/* @ts-ignore */}
+          <gmp-place-autocomplete ref={autocompleteRef} placeholder="Search for a city..." class="w-full"></gmp-place-autocomplete>
+          <p className="text-xs text-blue-600 mt-2">Selecting a city accepts Name, Location, ID, and State/Province.</p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">District Name</label>
             <input name="name" value={formData.name} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
           </div>
           <div>
-             <label className="block text-sm font-bold text-gray-700 mb-2">Parent Country</label>
-             <select 
-                name="country_id" 
-                value={formData.country_id} 
-                onChange={handleChange} 
-                className="w-full p-3 border rounded-lg bg-white"
-                required
-             >
-                <option value="">Select a Country...</option>
-                {countries.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-             </select>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Parent Country</label>
+            <select
+              name="country_id"
+              value={formData.country_id}
+              onChange={handleChange}
+              className="w-full p-3 border rounded-lg bg-white"
+              required
+            >
+              <option value="">Select a Country...</option>
+              {countries.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">State / Province</label>
@@ -103,44 +195,54 @@ export default function DistrictInputForm() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Slug</label>
-                <input name="slug" value={formData.slug} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-            </div>
-             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Population</label>
-                <input name="population" type="number" value={formData.population} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Slug</label>
+            <input name="slug" value={formData.slug} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Population</label>
+            <input name="population" type="number" value={formData.population} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+          </div>
         </div>
 
         <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-3 border rounded-lg h-32" />
+          <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+          <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-3 border rounded-lg h-32" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* ... */}
-            <div>
-                 <label className="block text-sm font-bold text-gray-700 mb-2">Google Place ID</label>
-                 <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            </div>
-             <div>
-                 <label className="block text-sm font-bold text-gray-700 mb-2">Latitude</label>
-                 <input name="latitude" value={formData.latitude} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            </div>
-             <div>
-                 <label className="block text-sm font-bold text-gray-700 mb-2">Longitude</label>
-                 <input name="longitude" value={formData.longitude} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Google Place ID</label>
+            <input name="google_place_id" value={formData.google_place_id} onChange={handleChange} className="w-full p-3 border rounded-lg bg-white" placeholder="Paste ID or search..." />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Latitude</label>
+            <input name="latitude" value={formData.latitude} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Longitude</label>
+            <input name="longitude" value={formData.longitude} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+          </div>
         </div>
 
-        <button 
-          type="submit" 
-          disabled={status === "SAVING"}
-          className="w-full bg-gray-900 text-white p-4 rounded-xl font-bold text-lg hover:bg-black transition shadow-lg"
-        >
-          {status === "SAVING" ? "Saving District..." : "Save District"}
-        </button>
+        <div className="flex gap-4">
+          <button
+            type="submit"
+            disabled={status === "SAVING"}
+            className="flex-1 bg-gray-900 text-white p-4 rounded-xl font-bold text-lg hover:bg-black transition shadow-lg"
+          >
+            {status === "SAVING" ? "Saving..." : (initialData ? "Update District" : "Create District")}
+          </button>
+          {onSuccess && (
+            <button
+              type="button"
+              onClick={onSuccess}
+              className="px-6 py-4 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300 transition"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
 
         {status === "SUCCESS" && <p className="text-green-600 font-bold text-center mt-4">✅ District Saved Successfully!</p>}
         {status === "ERROR" && <p className="text-red-600 font-bold text-center mt-4">{errorMessage}</p>}
