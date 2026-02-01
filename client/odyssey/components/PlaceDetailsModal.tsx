@@ -1,0 +1,195 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+
+interface Place {
+    id: string;
+    name: string;
+    country: string;
+    primary_category?: string;
+    short_desc?: string;
+    img_url?: string; // Optional if we fetch it
+    type: string; // 'COUNTRY' | 'CITY' | 'POI'
+}
+
+interface PlaceDetailsModalProps {
+    place: Place;
+    isOpen: boolean;
+    onClose: () => void;
+    onAddToCollection?: (place: Place) => void;
+}
+
+const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, onClose, onAddToCollection }) => {
+    const [activeTab, setActiveTab] = useState<"overview" | "photos" | "related">("overview");
+    const [relatedPlaces, setRelatedPlaces] = useState<Place[]>([]);
+    const [loadingRelated, setLoadingRelated] = useState(false);
+
+    // Fetch related cities if this is a country
+    useEffect(() => {
+        if (isOpen && place.type === "COUNTRY") {
+            setLoadingRelated(true);
+            fetch(`http://localhost:4000/api/places?country=${place.name}`)
+                .then((res) => res.json())
+                .then((data) => {
+                    // Filter out the country itself if returned, and just keep cities
+                    const cities = data.places.filter((p: any) => p.name !== place.name);
+                    setRelatedPlaces(cities);
+                })
+                .catch((err) => console.error("Failed to fetch cities", err))
+                .finally(() => setLoadingRelated(false));
+        }
+    }, [isOpen, place]);
+
+    if (!isOpen) return null;
+
+    // Placeholder images based on keywords
+    const bgImage = place.img_url || `https://source.unsplash.com/800x600/?${place.name},travel`;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={onClose}
+            ></div>
+
+            <div className="relative bg-[#FFF5E9] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slideUp">
+
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                {/* Hero Image */}
+                <div className="h-64 sm:h-80 relative flex-shrink-0">
+                    <img
+                        src={`https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&h=600&fit=crop&q=80`} // Fallback static for stability, dynamically finding images is hard without API key
+                        // Ideally: src={place.img_url || `/api/proxy-image?q=${place.name}`}
+                        alt={place.name}
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                    <div className="absolute bottom-6 left-6 text-white">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="bg-[#4A9B7F] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                {place.type || "DESTINATION"}
+                            </span>
+                            {place.country && <span className="text-gray-300 text-sm">• {place.country}</span>}
+                        </div>
+                        <h2 className="text-4xl sm:text-5xl font-bold font-odyssey">{place.name}</h2>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto">
+                    {/* Tabs */}
+                    <div className="flex border-b border-gray-200 px-6 sticky top-0 bg-[#FFF5E9] z-10">
+                        <button
+                            className={`py-4 px-4 font-semibold text-sm ${activeTab === 'overview' ? 'text-[#4A9B7F] border-b-2 border-[#4A9B7F]' : 'text-gray-500 hover:text-gray-800'}`}
+                            onClick={() => setActiveTab('overview')}
+                        >
+                            Overview
+                        </button>
+                        <button
+                            className={`py-4 px-4 font-semibold text-sm ${activeTab === 'photos' ? 'text-[#4A9B7F] border-b-2 border-[#4A9B7F]' : 'text-gray-500 hover:text-gray-800'}`}
+                            onClick={() => setActiveTab('photos')}
+                        >
+                            Photos
+                        </button>
+                        {place.type === 'COUNTRY' && (
+                            <button
+                                className={`py-4 px-4 font-semibold text-sm ${activeTab === 'related' ? 'text-[#4A9B7F] border-b-2 border-[#4A9B7F]' : 'text-gray-500 hover:text-gray-800'}`}
+                                onClick={() => setActiveTab('related')}
+                            >
+                                Prominent Cities
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="p-6 sm:p-8">
+                        {activeTab === 'overview' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-3">About {place.name}</h3>
+                                    <p className="text-gray-600 leading-relaxed text-lg">
+                                        {place.short_desc || "A mesmerizing destination waiting to be explored. Discover the local culture, scenic beauty, and historical landmarks that make this place unique."}
+                                    </p>
+                                </div>
+
+                                {/* Key Highlights (Mocked if not in DB) */}
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-3">Key Highlights</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {["Local Cuisine", "Historic Sites", "Nature Trails", "Art Galleries"].map((tag, i) => (
+                                            <div key={i} className="flex items-center gap-2 text-gray-700 bg-white p-3 rounded-xl shadow-sm">
+                                                <span className="text-[#4A9B7F]">✓</span> {tag}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Action */}
+                                <div className="pt-4">
+                                    <button
+                                        onClick={() => onAddToCollection && onAddToCollection(place)}
+                                        className="w-full sm:w-auto bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        Add to Collection
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'related' && (
+                            <div>
+                                {loadingRelated ? (
+                                    <div className="text-center py-10 text-gray-500">Finding cities...</div>
+                                ) : relatedPlaces.length === 0 ? (
+                                    <div className="text-center py-10 text-gray-500">No prominent cities found in our database.</div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {relatedPlaces.map((city) => (
+                                            <div key={city.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
+                                                <div className="w-16 h-16 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
+                                                    <img src={`https://source.unsplash.com/100x100/?${city.name}`} alt={city.name} className="w-full h-full object-cover" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900">{city.name}</h4>
+                                                    <p className="text-xs text-gray-500">{city.primary_category || "City"}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'photos' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                {[1, 2, 3, 4].map(i => (
+                                    <img
+                                        key={i}
+                                        src={`https://images.unsplash.com/photo-${i === 1 ? '1500835556811-9184226824a6' : '1506905925346-21bda4d32df4'}?w=400&h=300&fit=crop`}
+                                        className="w-full h-40 object-cover rounded-xl"
+                                        alt="Gallery"
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+export default PlaceDetailsModal;

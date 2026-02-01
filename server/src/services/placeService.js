@@ -6,6 +6,12 @@ async function searchPlacesDynamic(filters) {
 
   const orConditions = [];
 
+  // ->General Text Search (Name, Country, Region)
+  if (filters.search_query) {
+    // using or() directly on the query builder for text search across fields
+    query = query.or(`name.ilike.%${filters.search_query}%,country.ilike.%${filters.search_query}%,region.ilike.%${filters.search_query}%`);
+  }
+
   // ->Optional not mendatory to match but if matches it will provide the matching category from the db
   if (filters.category) {
     orConditions.push(`primary_category.ilike.%${filters.category}%`);
@@ -48,6 +54,30 @@ async function searchPlacesDynamic(filters) {
   return data;
 }
 
+async function getTrendingPlaces(userCountry) {
+  let query = supabase.from("places").select("*");
+
+  // Localized ranking: if userCountry is provided, try to fetch from there first
+  if (userCountry) {
+    const { data: localData } = await supabase
+      .from("places")
+      .select("*")
+      .ilike('country', userCountry)
+      .limit(4);
+
+    if (localData && localData.length > 0) {
+      // Fill the rest with global trending (random/top)
+      const { data: globalData } = await supabase.from("places").select("*").limit(8 - localData.length);
+      return [...localData, ...(globalData || [])];
+    }
+  }
+
+  // Default global trending (just first 8 for now, ideally sort by a popularity metric)
+  const { data, error } = await query.limit(8);
+  if (error) throw error;
+  return data;
+}
+
 async function insertPlaceFromAI(place) {
   const {
     name,
@@ -68,7 +98,7 @@ async function insertPlaceFromAI(place) {
   }
 
   //Check-1: Name + Region Duplicate Check
-   const { data: nameMatches } = await supabase
+  const { data: nameMatches } = await supabase
     .from("places")
     .select("id")
     .ilike("name", name)
@@ -120,4 +150,4 @@ async function insertPlaceFromAI(place) {
 
 }
 
-module.exports = { searchPlacesDynamic, insertPlaceFromAI };
+module.exports = { searchPlacesDynamic, insertPlaceFromAI, getTrendingPlaces };
