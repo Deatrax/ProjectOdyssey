@@ -259,7 +259,7 @@ const DestinationsPage: React.FC = () => {
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#4A9B7F] transition-colors truncate">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-[#4A9B7F] transition-colors line-clamp-2 leading-tight">
                         {destination.name}
                       </h3>
                       <p className="text-xs text-gray-500 capitalize">{destination.country}</p>
