@@ -30,8 +30,8 @@ import MapComponent from "../components/MapComponent"; // Import MapComponent
 
 // --- TYPES (Updated to include data for Modal) ---
 type Item = {
-  id: string;                 
-  placeId?: string;           
+  id: string;
+  placeId?: string;
   name: string;               // Map 'text' to 'name'
   text?: string;              // Keep 'text' for compatibility with your UI
   description?: string;
@@ -63,7 +63,7 @@ function SortableItem({
   disabled = false,
   // New props
   itemData,
-  onViewDetails 
+  onViewDetails
 }: any) {
   const {
     attributes,
@@ -99,15 +99,15 @@ function SortableItem({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div style={{ 
-        padding: "12px", 
-        background: isHovered ? "#f9fafb" : "#fff", 
-        borderRadius: "12px", 
-        marginBottom: "10px", 
+      <div style={{
+        padding: "12px",
+        background: isHovered ? "#f9fafb" : "#fff",
+        borderRadius: "12px",
+        marginBottom: "10px",
         border: isHovered ? "1px solid #22c55e" : "1px solid #e5e7eb",
         boxShadow: isHovered ? "0 4px 12px rgba(34, 197, 94, 0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
-        display: "flex", 
-        alignItems: "center", 
+        display: "flex",
+        alignItems: "center",
         justifyContent: "space-between",
         position: "relative",
         transform: isHovered ? "translateY(-2px)" : "translateY(0)",
@@ -127,24 +127,24 @@ function SortableItem({
         )}
 
         {/* --- MAIN CARD CONTENT (Draggable) --- */}
-        <div 
+        <div
           style={{ flex: 1, cursor: disabled ? "default" : "grab", display: "flex", flexDirection: "column" }}
-          {...attributes} 
+          {...attributes}
           {...listeners}
         >
           <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>{text}</span>
-          
+
           {/* Optional: Show tiny details below name */}
           {itemData?.category && (
-             <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", marginTop: "2px" }}>
-               {itemData.category} {itemData.visitDurationMin ? `• ${itemData.visitDurationMin}m` : ""}
-             </span>
+            <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", marginTop: "2px" }}>
+              {itemData.category} {itemData.visitDurationMin ? `• ${itemData.visitDurationMin}m` : ""}
+            </span>
           )}
         </div>
 
         {/* --- BUTTON GROUP --- */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          
+
           {/* 1. INFO BUTTON (New) */}
           <button
             onClick={(e) => {
@@ -165,11 +165,11 @@ function SortableItem({
               color: "#3b82f6",
               border: "1px solid #dbeafe",
               borderRadius: "50%",
-              width: "24px", 
+              width: "24px",
               height: "24px",
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               cursor: "pointer",
               fontSize: "12px",
               fontWeight: "bold",
@@ -202,11 +202,11 @@ function SortableItem({
                 color: actionType === "add" ? "#059669" : "#dc2626",
                 border: "none",
                 borderRadius: "50%",
-                width: "24px", 
+                width: "24px",
                 height: "24px",
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center", 
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
                 fontSize: "16px",
                 transform: isClicked ? "scale(0.85)" : "scale(1)",
@@ -254,7 +254,7 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
                 onViewDetails={onViewDetails} // Pass down function
                 isIndicatorBefore={
                   dropIndicatorIndex === index ? true :
-                  dropIndicatorIndex === index + 1 ? false : undefined
+                    dropIndicatorIndex === index + 1 ? false : undefined
                 }
               />
             ))}
@@ -274,7 +274,7 @@ function Column({ id, items, actionType, onActionItem, dropIndicatorIndex, trans
             />
           ))
         )}
-        
+
         {items.length === 0 && !transparent && (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "14px", fontStyle: "italic" }}>
             Drop items here
@@ -298,7 +298,7 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
           messages.map((msg: any, msgIndex: number) => {
             // Check if this is a separator message
             const isSeparator = msg.text === "--- New chat context ---";
-            
+
             if (isSeparator) {
               return (
                 <div key={msg.id || `separator-${msgIndex}`} style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
@@ -317,7 +317,7 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
                 </div>
               );
             }
-            
+
             return (
               <div key={msg.id || `msg-${msgIndex}`} style={{ display: "flex", flexDirection: "column", alignItems: msg.sender === "user" ? "flex-end" : "flex-start" }}>
                 <div style={{
@@ -334,72 +334,72 @@ function ChatColumn({ messages, chatInput, setChatInput, onSendMessage, onAddCar
                 }}>
                   {msg.text}
                 </div>
-              
-              {/* RENDER AI CARDS */}
-              {msg.cards && msg.cards.length > 0 && (
-                <div style={{ marginTop: "10px", width: "90%" }}>
-                  {msg.cards.map((card: any, cardIdx: number) => (
-                    <SortableItem 
-                      key={card.id || `card-${msgIndex}-${cardIdx}`} 
-                      id={card.id || `card-${msgIndex}-${cardIdx}`} 
-                      text={card.name} 
-                      itemData={card}
-                      actionType="add" 
-                      onAction={() => onAddCard(card)} // Add to collections
-                      onViewDetails={onViewDetails}    // View details
-                      disabled={true}                  // Chat items are fixed
-                    />
-                  ))}
-                </div>
-              )}
 
-              {/* RENDER BULLETS (if available) */}
-              {msg.bullets && msg.bullets.length > 0 && (
-                <div style={{ marginTop: "10px", width: "90%", padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                  <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#374151" }}>
-                    {msg.bullets.map((bullet: string, idx: number) => (
-                      <li key={idx}>{bullet}</li>
+                {/* RENDER AI CARDS */}
+                {msg.cards && msg.cards.length > 0 && (
+                  <div style={{ marginTop: "10px", width: "90%" }}>
+                    {msg.cards.map((card: any, cardIdx: number) => (
+                      <SortableItem
+                        key={card.id || `card-${msgIndex}-${cardIdx}`}
+                        id={card.id || `card-${msgIndex}-${cardIdx}`}
+                        text={card.name}
+                        itemData={card}
+                        actionType="add"
+                        onAction={() => onAddCard(card)} // Add to collections
+                        onViewDetails={onViewDetails}    // View details
+                        disabled={true}                  // Chat items are fixed
+                      />
                     ))}
-                  </ul>
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* RENDER CLUSTERING BUTTON (if this message has clustering data) */}
-              {msg.hasClustering && clusteringData && stage === "chat" && (
-                <div style={{ marginTop: "10px", width: "90%" }}>
-                  <button
-                    onClick={() => setStage("clustering")}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "8px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 2px 8px rgba(59, 130, 246, 0.3)";
-                    }}
-                  >
-                    🗺️ View Places by Region
-                  </button>
-                </div>
-              )}
+                {/* RENDER BULLETS (if available) */}
+                {msg.bullets && msg.bullets.length > 0 && (
+                  <div style={{ marginTop: "10px", width: "90%", padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                    <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#374151" }}>
+                      {msg.bullets.map((bullet: string, idx: number) => (
+                        <li key={idx}>{bullet}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* RENDER CLUSTERING BUTTON (if this message has clustering data) */}
+                {msg.hasClustering && clusteringData && stage === "chat" && (
+                  <div style={{ marginTop: "10px", width: "90%" }}>
+                    <button
+                      onClick={() => setStage("clustering")}
+                      style={{
+                        width: "100%",
+                        padding: "10px 16px",
+                        background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.4)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 2px 8px rgba(59, 130, 246, 0.3)";
+                      }}
+                    >
+                      🗺️ View Places by Region
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
         )}
-        
+
         {loading && (
           <div style={{ display: "flex", justifyContent: "flex-start" }}>
             <div style={{ padding: "12px 16px", borderRadius: "16px", background: "#f3f4f6", color: "#6b7280", fontSize: "14px" }}>
@@ -434,13 +434,13 @@ export default function PlannerPage() {
   const [tripName, setTripName] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [destinationsView, setDestinationsView] = useState<DestinationsView>("search");
-  
+
   // Clustering State (NEW - Stage 1)
   const [stage, setStage] = useState<"chat" | "clustering" | "options" | "confirmation">("chat");
   const [clusteringData, setClusteringData] = useState<any>(null);
   const [clusteringLoading, setClusteringLoading] = useState(false);
   const [selectedPlacesFromClustering, setSelectedPlacesFromClustering] = useState<any[]>([]);
-  
+
   // Itinerary Generation State (NEW - Stage 2)
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [itineraryOptions, setItineraryOptions] = useState<any[]>([]);
@@ -448,24 +448,24 @@ export default function PlannerPage() {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [customRequirements, setCustomRequirements] = useState<string[]>([]);
   const [requirementInput, setRequirementInput] = useState("");
-  
+
   const [itinerary, setItinerary] = useState<Item[]>([]);
   const [collections, setCollections] = useState<Item[]>([]);
   const [searchResults, setSearchResults] = useState<Item[]>([]);
-  
+
   // Saved Itinerary State (NEW)
   const [savedItinerary, setSavedItinerary] = useState<any>(null);
   const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
-  
+
   // Day tracking state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dayCheckboxes, setDayCheckboxes] = useState<{ [key: string]: boolean }>({});
-  
+
   const [chat, setChat] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
-  
+
   // Load collections from localStorage on mount
   useEffect(() => {
     const savedCollections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
@@ -505,7 +505,7 @@ export default function PlannerPage() {
         if (data.success && data.data && data.data.length > 0) {
           // Get the most recent itinerary
           const latestItinerary = data.data[0];
-          
+
           // Reconstruct the saved itinerary format
           const selectedItin = latestItinerary.selected_itinerary;
           setSavedItineraryId(latestItinerary.id);
@@ -516,7 +516,7 @@ export default function PlannerPage() {
             description: selectedItin?.description,
             paceDescription: selectedItin?.paceDescription,
             estimatedCost: selectedItin?.estimatedCost,
-            schedule: selectedItin?.schedule
+            schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : []
           });
         }
       } catch (err) {
@@ -534,7 +534,7 @@ export default function PlannerPage() {
         const token = localStorage.getItem("token");
         if (!token) {
           setChatHistoryLoading(false);
-          
+
           // For logged-out users, try to load from localStorage
           const savedChat = localStorage.getItem("guestChat");
           if (savedChat) {
@@ -556,7 +556,7 @@ export default function PlannerPage() {
           try {
             const parsedGuestChat = JSON.parse(guestChat);
             console.log(`Migrating ${parsedGuestChat.length} guest messages to database...`);
-            
+
             // Save separator message first
             await fetch("http://localhost:4000/api/chat/message", {
               method: "POST",
@@ -669,25 +669,25 @@ export default function PlannerPage() {
   const handleSaveTrip = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
-        alert("Please login to save.");
-        router.push("/login");
-        return;
+      alert("Please login to save.");
+      router.push("/login");
+      return;
     }
     try {
-        const res = await fetch("http://localhost:4000/api/trips", {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${token}` 
-            },
-            body: JSON.stringify({ name: tripName, itinerary, collections })
-        });
-        if(res.ok) {
-            alert("Trip Saved Successfully!");
-        } else {
-            alert("Failed to save trip.");
-        }
-    } catch(e) { console.error(e); }
+      const res = await fetch("http://localhost:4000/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: tripName, itinerary, collections })
+      });
+      if (res.ok) {
+        alert("Trip Saved Successfully!");
+      } else {
+        alert("Failed to save trip.");
+      }
+    } catch (e) { console.error(e); }
   };
 
   // --- HANDLER: SEND MESSAGE (AI) ---
@@ -698,13 +698,13 @@ export default function PlannerPage() {
     const userMsg = { id: Date.now().toString(), text: chatInput, sender: "user" };
     setChat(prev => {
       const newChat = [...prev, userMsg];
-      
+
       // Save to localStorage for logged-out users
       const token = localStorage.getItem("token");
       if (!token) {
         localStorage.setItem("guestChat", JSON.stringify(newChat));
       }
-      
+
       return newChat;
     });
     setChatInput("");
@@ -745,33 +745,33 @@ export default function PlannerPage() {
     try {
       // Check if this is a clustering request
       const lowerInput = chatInput.toLowerCase();
-      
+
       // 1. Explicit trip planning keywords
-      const hasTripKeywords = lowerInput.includes("trip") || 
-                              lowerInput.includes("itinerary");
-      
+      const hasTripKeywords = lowerInput.includes("trip") ||
+        lowerInput.includes("itinerary");
+
       // 2. Multi-day planning ("3 day", "5 days", etc)
       const hasMultiDayPlan = /\d+\s*(day|days)/.test(lowerInput);
-      
+
       // 3. Multiple locations with clear travel intent
       const hasMultipleLocations = () => {
         // Must have "plan" or "visit" or "travel" or "explore"
-        const hasTravelVerb = lowerInput.includes('plan') || 
-                             lowerInput.includes('visit') || 
-                             lowerInput.includes('travel') || 
-                             lowerInput.includes('explore');
-        
+        const hasTravelVerb = lowerInput.includes('plan') ||
+          lowerInput.includes('visit') ||
+          lowerInput.includes('travel') ||
+          lowerInput.includes('explore');
+
         if (!hasTravelVerb) return false;
-        
+
         // Count location separators (comma or "and")
         const commaCount = (chatInput.match(/,/g) || []).length;
         const hasAndSeparator = lowerInput.match(/\s+and\s+/g);
         const separatorCount = commaCount + (hasAndSeparator ? hasAndSeparator.length : 0);
-        
+
         // Need at least 1 separator (meaning 2+ locations)
         return separatorCount >= 1;
       };
-      
+
       const isClusteringRequest = hasTripKeywords || hasMultiDayPlan || hasMultipleLocations();
 
       if (isClusteringRequest) {
@@ -779,11 +779,11 @@ export default function PlannerPage() {
         setClusteringLoading(true);
         const clusterRes = await fetch("http://localhost:4000/api/clustering/analyze", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Authorization": token ? `Bearer ${token}` : ""
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             message: userMsg.text,
             userContext: { budget: "medium", pace: "moderate" }
           })
@@ -793,9 +793,9 @@ export default function PlannerPage() {
           const clusterData = await clusterRes.json();
           setClusteringData(clusterData.data);
           setStage("clustering");
-          
+
           const aiMessage = "I've analyzed your request and found these place clusters. Select the ones you'd like to visit!";
-          
+
           // Add AI response to chat
           setChat(prev => {
             const newChat = [...prev, {
@@ -805,12 +805,12 @@ export default function PlannerPage() {
               cards: [],
               hasClustering: true
             }];
-            
+
             // Save to localStorage for logged-out users
             if (!token) {
               localStorage.setItem("guestChat", JSON.stringify(newChat));
             }
-            
+
             return newChat;
           });
 
@@ -842,46 +842,46 @@ export default function PlannerPage() {
       // Regular chat flow (existing)
       const res = await fetch("http://localhost:4000/api/ai/chat", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": token ? `Bearer ${token}` : ""
         },
-        body: JSON.stringify({ 
-          message: userMsg.text, 
-          collections, 
+        body: JSON.stringify({
+          message: userMsg.text,
+          collections,
           itinerary,
           conversationHistory: tempConversationHistory // Send session-based history for logged-out users
         })
       });
-      
+
       if (!res.ok) {
         console.error("AI Chat API Error:", res.status, res.statusText);
         const errorText = await res.text();
         console.error("Error details:", errorText);
         throw new Error(`API returned ${res.status}`);
       }
-      
+
       const data = await res.json();
       console.log("AI Response:", data);
 
       // PARSE THE AI RESPONSE
       let aiCards: Item[] = [];
-      
+
       // 1. Direct cards
       if (data.cards) aiCards = [...aiCards, ...data.cards];
-      
+
       // 2. Itinerary Preview (Nested days)
       if (data.itineraryPreview?.days) {
         data.itineraryPreview.days.forEach((day: any) => {
           if (day.items) {
-             day.items.forEach((item: any) => {
-                aiCards.push({
-                   ...item, 
-                   id: `ai-${Date.now()}-${Math.random()}`, 
-                   description: `Day ${day.day} - ${item.time || 'Visit'}`,
-                   source: "ai"
-                });
-             });
+            day.items.forEach((item: any) => {
+              aiCards.push({
+                ...item,
+                id: `ai-${Date.now()}-${Math.random()}`,
+                description: `Day ${day.day} - ${item.time || 'Visit'}`,
+                source: "ai"
+              });
+            });
           }
         });
       }
@@ -896,12 +896,12 @@ export default function PlannerPage() {
           cards: aiCards,
           bullets: data.bullets || []
         }];
-        
+
         // Save to localStorage for logged-out users
         if (!token) {
           localStorage.setItem("guestChat", JSON.stringify(newChat));
         }
-        
+
         return newChat;
       });
 
@@ -928,7 +928,7 @@ export default function PlannerPage() {
       source: "ai" as const
     }));
     setCollections(prev => [...prev, ...newPlaces]);
-    
+
     // Show next step message in chat
     setChat(prev => [...prev, {
       id: Date.now().toString() + "ai",
@@ -936,7 +936,7 @@ export default function PlannerPage() {
       sender: "ai",
       cards: []
     }]);
-    
+
     // Reset clustering
     setStage("chat");
     setClusteringData(null);
@@ -1069,7 +1069,7 @@ export default function PlannerPage() {
         estimatedCost: tripData.selectedItinerary.estimatedCost,
         schedule: tripData.selectedItinerary.schedule
       };
-      
+
       setSavedItineraryId(itineraryId);
       setSavedItinerary(savedItineraryData);
 
@@ -1102,7 +1102,7 @@ export default function PlannerPage() {
     setItineraryOptions([]);
     setSelectedItinerary(null);
     setCustomRequirements([]); // Clear requirements for fresh edit
-    
+
     // Show instruction message
     setChat(prev => [...prev, {
       id: Date.now().toString() + "edit",
@@ -1138,19 +1138,19 @@ export default function PlannerPage() {
     if (!over) return;
 
     const overId = over.id;
-    const overColumnId = overId === "itinerary" || itinerary.some(i => i.id === overId) ? "itinerary" : 
-                         overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
+    const overColumnId = overId === "itinerary" || itinerary.some(i => i.id === overId) ? "itinerary" :
+      overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
 
     if (!overColumnId) return;
 
     if (overColumnId === "itinerary") {
-        const overIndex = itinerary.findIndex(i => i.id === overId);
-        const index = overIndex === -1 ? itinerary.length : overIndex;
-        setDropIndicator({ column: "itinerary", index });
+      const overIndex = itinerary.findIndex(i => i.id === overId);
+      const index = overIndex === -1 ? itinerary.length : overIndex;
+      setDropIndicator({ column: "itinerary", index });
     } else if (overColumnId === "collections") {
-        const overIndex = collections.findIndex(i => i.id === overId);
-        const index = overIndex === -1 ? collections.length : overIndex;
-        setDropIndicator({ column: "collections", index });
+      const overIndex = collections.findIndex(i => i.id === overId);
+      const index = overIndex === -1 ? collections.length : overIndex;
+      setDropIndicator({ column: "collections", index });
     }
   };
 
@@ -1166,34 +1166,34 @@ export default function PlannerPage() {
 
     const activeColumnId = collections.some(i => i.id === activeId) ? "collections" : "itinerary";
     const overColumnId = overId === "itinerary" || itinerary.some(i => i.id === overId) ? "itinerary" :
-                         overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
+      overId === "collections" || collections.some(i => i.id === overId) ? "collections" : null;
 
     if (!overColumnId) return;
 
     if (activeColumnId === overColumnId) {
-        if (activeColumnId === "itinerary") {
-            const oldIndex = itinerary.findIndex(i => i.id === activeId);
-            const newIndex = itinerary.findIndex(i => i.id === overId);
-            if (oldIndex !== newIndex) setItinerary(arrayMove(itinerary, oldIndex, newIndex));
-        } else {
-            const oldIndex = collections.findIndex(i => i.id === activeId);
-            const newIndex = collections.findIndex(i => i.id === overId);
-            if (oldIndex !== newIndex) setCollections(arrayMove(collections, oldIndex, newIndex));
-        }
+      if (activeColumnId === "itinerary") {
+        const oldIndex = itinerary.findIndex(i => i.id === activeId);
+        const newIndex = itinerary.findIndex(i => i.id === overId);
+        if (oldIndex !== newIndex) setItinerary(arrayMove(itinerary, oldIndex, newIndex));
+      } else {
+        const oldIndex = collections.findIndex(i => i.id === activeId);
+        const newIndex = collections.findIndex(i => i.id === overId);
+        if (oldIndex !== newIndex) setCollections(arrayMove(collections, oldIndex, newIndex));
+      }
     } else {
-        if (activeColumnId === "collections" && overColumnId === "itinerary") {
-            const item = collections.find(i => i.id === activeId);
-            if (item) {
-                setItinerary(prev => [...prev, item]);
-                setCollections(prev => prev.filter(i => i.id !== activeId));
-            }
-        } else if (activeColumnId === "itinerary" && overColumnId === "collections") {
-            const item = itinerary.find(i => i.id === activeId);
-            if (item) {
-                setCollections(prev => [...prev, item]);
-                setItinerary(prev => prev.filter(i => i.id !== activeId));
-            }
+      if (activeColumnId === "collections" && overColumnId === "itinerary") {
+        const item = collections.find(i => i.id === activeId);
+        if (item) {
+          setItinerary(prev => [...prev, item]);
+          setCollections(prev => prev.filter(i => i.id !== activeId));
         }
+      } else if (activeColumnId === "itinerary" && overColumnId === "collections") {
+        const item = itinerary.find(i => i.id === activeId);
+        if (item) {
+          setCollections(prev => [...prev, item]);
+          setItinerary(prev => prev.filter(i => i.id !== activeId));
+        }
+      }
     }
   };
 
@@ -1205,25 +1205,25 @@ export default function PlannerPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Inter, sans-serif", background: "#ffffff", overflow: "hidden" }}>
-      
+
       {/* Header */}
       <header style={{ padding: "12px 5%", height: "64px", flexShrink: 0, display: "flex", alignItems: "center", background: "#fff6eb", gap: "12px", borderBottom: "1px solid #e5e7eb" }}>
-        <input 
-          value={tripName} 
-          onChange={(e) => setTripName(e.target.value)} 
-          placeholder="Trip name" 
-          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }} 
+        <input
+          value={tripName}
+          onChange={(e) => setTripName(e.target.value)}
+          placeholder="Trip name"
+          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid #d9d9d9", background: "#fff" }}
         />
-        <button 
+        <button
           onClick={handleGenerateItineraries}
           disabled={itinerary.length === 0 || optionsLoading}
-          style={{ 
-            padding: "8px 14px", 
-            background: itinerary.length === 0 ? "#d1d5db" : "#7c3aed", 
-            color: "#fff", 
-            border: "none", 
-            borderRadius: "8px", 
-            fontWeight: 600, 
+          style={{
+            padding: "8px 14px",
+            background: itinerary.length === 0 ? "#d1d5db" : "#7c3aed",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            fontWeight: 600,
             cursor: itinerary.length === 0 ? "not-allowed" : "pointer",
             opacity: optionsLoading ? 0.7 : 1
           }}
@@ -1237,11 +1237,11 @@ export default function PlannerPage() {
       </header>
 
       <main style={{ padding: "20px 5%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
-        <DndContext 
-          collisionDetection={customCollisionStrategy} 
-          onDragStart={handleDragStart} 
-          onDragOver={handleDragOver} 
-          onDragEnd={handleDragEnd} 
+        <DndContext
+          collisionDetection={customCollisionStrategy}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
           measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         >
           <div style={{ display: "flex", gap: "30px", marginBottom: "12px", flexShrink: 0 }}>
@@ -1347,7 +1347,7 @@ export default function PlannerPage() {
                         {savedItinerary.schedule?.[selectedDay]?.items?.map((item: any, idx: number) => {
                           const checkboxKey = `${selectedDay}-${idx}`;
                           const isChecked = dayCheckboxes[checkboxKey] || false;
-                          
+
                           return (
                             <div
                               key={idx}
@@ -1549,222 +1549,222 @@ export default function PlannerPage() {
                   )}
                 </div>
               )}
-              
-              <Column 
-                id="itinerary" 
-                items={itinerary} 
-                actionType="remove" 
-                dropIndicatorIndex={dropIndicator?.column === "itinerary" ? dropIndicator.index : null} 
-                onActionItem={(id: string) => setItinerary(itinerary.filter(i => i.id !== id))} 
+
+              <Column
+                id="itinerary"
+                items={itinerary}
+                actionType="remove"
+                dropIndicatorIndex={dropIndicator?.column === "itinerary" ? dropIndicator.index : null}
+                onActionItem={(id: string) => setItinerary(itinerary.filter(i => i.id !== id))}
                 onViewDetails={handleViewDetails} // Pass Modal trigger
               />
             </div>
 
             <div style={{ width: "45%", display: "flex", flexDirection: "column", background: "#e5e7eb", borderRadius: "20px", padding: "12px", overflow: "hidden", minHeight: 0 }}>
-                {activeTab === "chat" && (
-                  <>
-                    {/* Clustering Stage Display */}
-                    {stage === "clustering" && clusteringData && (
-                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
-                        <ClusteringView 
-                          data={clusteringData} 
-                          loading={clusteringLoading}
-                          onContinue={handleClusteringContinue}
-                          onCancel={() => setStage("chat")}
-                        />
-                      </div>
-                    )}
+              {activeTab === "chat" && (
+                <>
+                  {/* Clustering Stage Display */}
+                  {stage === "clustering" && clusteringData && (
+                    <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
+                      <ClusteringView
+                        data={clusteringData}
+                        loading={clusteringLoading}
+                        onContinue={handleClusteringContinue}
+                        onCancel={() => setStage("chat")}
+                      />
+                    </div>
+                  )}
 
-                    {/* Options Selection Stage Display */}
-                    {stage === "options" && itineraryOptions.length > 0 && (
-                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
-                        <MultiOptionSelector 
-                          itineraries={itineraryOptions}
-                          onSelect={(option) => {
-                            setSelectedItinerary(option);
-                            setConfirmationOpen(true);
+                  {/* Options Selection Stage Display */}
+                  {stage === "options" && itineraryOptions.length > 0 && (
+                    <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", marginBottom: "12px", padding: "12px", background: "#fff", borderRadius: "12px" }}>
+                      <MultiOptionSelector
+                        itineraries={itineraryOptions}
+                        onSelect={(option) => {
+                          setSelectedItinerary(option);
+                          setConfirmationOpen(true);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Regular Chat Display */}
+                  {stage === "chat" && (
+                    <ChatColumn
+                      messages={chat}
+                      chatInput={chatInput}
+                      setChatInput={setChatInput}
+                      onSendMessage={handleSendMessage}
+                      onAddCard={handleAddToCollections}
+                      onViewDetails={handleViewDetails}
+                      loading={loading}
+                      chatHistoryLoading={chatHistoryLoading}
+                    />
+                  )}
+
+                  {/* Custom Requirements Box - Only show when editing options */}
+                  {stage === "chat" && itineraryOptions.length > 0 && (
+                    <div style={{
+                      marginTop: "12px",
+                      padding: "12px",
+                      background: "#fef3c7",
+                      borderRadius: "12px",
+                      border: "2px solid #fcd34d",
+                      flexShrink: 0
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e", marginBottom: "8px" }}>
+                        📋 Custom Requirements (Regeneration Only)
+                      </div>
+
+                      {/* Input for new requirement */}
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                        <input
+                          type="text"
+                          value={requirementInput}
+                          onChange={(e) => setRequirementInput(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && handleAddRequirement()}
+                          placeholder="e.g., 'visit museum first' or 'sunset at beach'"
+                          style={{
+                            flex: 1,
+                            padding: "8px 12px",
+                            border: "1px solid #fcd34d",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            background: "#fff",
+                            outline: "none"
                           }}
                         />
+                        <button
+                          onClick={handleAddRequirement}
+                          disabled={!requirementInput.trim()}
+                          style={{
+                            padding: "8px 14px",
+                            background: requirementInput.trim() ? "#fcd34d" : "#e5d4a4",
+                            color: "#92400e",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontWeight: 600,
+                            fontSize: "12px",
+                            cursor: requirementInput.trim() ? "pointer" : "not-allowed",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (requirementInput.trim()) {
+                              (e.currentTarget as HTMLButtonElement).style.background = "#fbbf24";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (requirementInput.trim()) {
+                              (e.currentTarget as HTMLButtonElement).style.background = "#fcd34d";
+                            }
+                          }}
+                        >
+                          + Add
+                        </button>
                       </div>
-                    )}
 
-                    {/* Regular Chat Display */}
-                    {stage === "chat" && (
-                      <ChatColumn 
-                        messages={chat} 
-                        chatInput={chatInput} 
-                        setChatInput={setChatInput} 
-                        onSendMessage={handleSendMessage}
-                        onAddCard={handleAddToCollections}
-                        onViewDetails={handleViewDetails}
-                        loading={loading}
-                        chatHistoryLoading={chatHistoryLoading}
-                      />
-                    )}
-
-                    {/* Custom Requirements Box - Only show when editing options */}
-                    {stage === "chat" && itineraryOptions.length > 0 && (
-                      <div style={{ 
-                        marginTop: "12px", 
-                        padding: "12px", 
-                        background: "#fef3c7", 
-                        borderRadius: "12px",
-                        border: "2px solid #fcd34d",
-                        flexShrink: 0
-                      }}>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e", marginBottom: "8px" }}>
-                          📋 Custom Requirements (Regeneration Only)
-                        </div>
-
-                        {/* Input for new requirement */}
-                        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-                          <input
-                            type="text"
-                            value={requirementInput}
-                            onChange={(e) => setRequirementInput(e.target.value)}
-                            onKeyPress={(e) => e.key === "Enter" && handleAddRequirement()}
-                            placeholder="e.g., 'visit museum first' or 'sunset at beach'"
-                            style={{
-                              flex: 1,
-                              padding: "8px 12px",
-                              border: "1px solid #fcd34d",
-                              borderRadius: "8px",
-                              fontSize: "13px",
-                              background: "#fff",
-                              outline: "none"
-                            }}
-                          />
-                          <button
-                            onClick={handleAddRequirement}
-                            disabled={!requirementInput.trim()}
-                            style={{
-                              padding: "8px 14px",
-                              background: requirementInput.trim() ? "#fcd34d" : "#e5d4a4",
-                              color: "#92400e",
-                              border: "none",
-                              borderRadius: "8px",
-                              fontWeight: 600,
-                              fontSize: "12px",
-                              cursor: requirementInput.trim() ? "pointer" : "not-allowed",
-                              transition: "all 0.2s"
-                            }}
-                            onMouseEnter={(e) => {
-                              if (requirementInput.trim()) {
-                                (e.currentTarget as HTMLButtonElement).style.background = "#fbbf24";
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (requirementInput.trim()) {
-                                (e.currentTarget as HTMLButtonElement).style.background = "#fcd34d";
-                              }
-                            }}
-                          >
-                            + Add
-                          </button>
-                        </div>
-
-                        {/* Requirements List */}
-                        {customRequirements.length > 0 && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                            {customRequirements.map((req, idx) => (
-                              <div
-                                key={idx}
+                      {/* Requirements List */}
+                      {customRequirements.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          {customRequirements.map((req, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                background: "#fff",
+                                padding: "8px 10px",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                color: "#92400e",
+                                border: "1px solid #fcd34d"
+                              }}
+                            >
+                              <span>✓ {req}</span>
+                              <button
+                                onClick={() => handleRemoveRequirement(idx)}
                                 style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  background: "#fff",
-                                  padding: "8px 10px",
-                                  borderRadius: "6px",
-                                  fontSize: "12px",
-                                  color: "#92400e",
-                                  border: "1px solid #fcd34d"
+                                  background: "transparent",
+                                  border: "none",
+                                  color: "#ef4444",
+                                  cursor: "pointer",
+                                  padding: "0 4px",
+                                  fontSize: "16px",
+                                  fontWeight: "bold"
                                 }}
+                                title="Remove requirement"
                               >
-                                <span>✓ {req}</span>
-                                <button
-                                  onClick={() => handleRemoveRequirement(idx)}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    color: "#ef4444",
-                                    cursor: "pointer",
-                                    padding: "0 4px",
-                                    fontSize: "16px",
-                                    fontWeight: "bold"
-                                  }}
-                                  title="Remove requirement"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {customRequirements.length === 0 && (
-                          <div style={{ fontSize: "12px", color: "#a16207", fontStyle: "italic" }}>
-                            No custom requirements added yet. Add requirements to regenerate itineraries that prioritize your preferences.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                {activeTab === "destinations" && (
-                  <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-                    <div style={{ display: "flex", gap: "12px", background: "#d1d5db", borderRadius: "10px", padding: "4px", marginBottom: "16px", flexShrink: 0 }}>
-                      <button onClick={() => setDestinationsView("search")} style={sharedTabStyles(destinationsView === "search")}>Search</button>
-                      <button onClick={() => setDestinationsView("collections")} style={sharedTabStyles(destinationsView === "collections")}>Collections ({collections.length})</button>
-                    </div>
-
-                    {destinationsView === "search" ? (
-                      <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false} onViewDetails={handleViewDetails}>
-                        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexShrink: 0 }}>
-                          <input 
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSendMessage(e)}
-                            placeholder="Search destinations..." 
-                            style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }} 
-                          />
-                          <button onClick={handleSendMessage} style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
-                            Search
-                          </button>
+                                ×
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      </Column>
-                    ) : (
-                      <Column 
-                        id="collections" 
-                        items={collections} 
-                        actionType="remove" 
-                        dropIndicatorIndex={dropIndicator?.column === "collections" ? dropIndicator.index : null} 
-                        onActionItem={(id: string) => setCollections(collections.filter(i => i.id !== id))} 
-                        transparent 
-                        isSortable={true} 
-                        onViewDetails={handleViewDetails}
-                      />
-                    )}
-                  </div>
-                )}
+                      )}
 
-                {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
-                
-                {activeTab === "map" && (
-                   <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
-                      <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
-                   </div>
-                )}
+                      {customRequirements.length === 0 && (
+                        <div style={{ fontSize: "12px", color: "#a16207", fontStyle: "italic" }}>
+                          No custom requirements added yet. Add requirements to regenerate itineraries that prioritize your preferences.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === "destinations" && (
+                <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+                  <div style={{ display: "flex", gap: "12px", background: "#d1d5db", borderRadius: "10px", padding: "4px", marginBottom: "16px", flexShrink: 0 }}>
+                    <button onClick={() => setDestinationsView("search")} style={sharedTabStyles(destinationsView === "search")}>Search</button>
+                    <button onClick={() => setDestinationsView("collections")} style={sharedTabStyles(destinationsView === "collections")}>Collections ({collections.length})</button>
+                  </div>
+
+                  {destinationsView === "search" ? (
+                    <Column id="search" items={searchResults} actionType="add" onActionItem={handleAddToCollections} transparent isSortable={false} onViewDetails={handleViewDetails}>
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexShrink: 0 }}>
+                        <input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleSendMessage(e)}
+                          placeholder="Search destinations..."
+                          style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ffffff" }}
+                        />
+                        <button onClick={handleSendMessage} style={{ padding: "8px 14px", background: "#000", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
+                          Search
+                        </button>
+                      </div>
+                    </Column>
+                  ) : (
+                    <Column
+                      id="collections"
+                      items={collections}
+                      actionType="remove"
+                      dropIndicatorIndex={dropIndicator?.column === "collections" ? dropIndicator.index : null}
+                      onActionItem={(id: string) => setCollections(collections.filter(i => i.id !== id))}
+                      transparent
+                      isSortable={true}
+                      onViewDetails={handleViewDetails}
+                    />
+                  )}
+                </div>
+              )}
+
+              {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
+
+              {activeTab === "map" && (
+                <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
+                  <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
+                </div>
+              )}
             </div>
           </div>
 
           <DragOverlay dropAnimation={null}>
             {activeItem && (
-              <div style={{ 
-                padding: "14px", 
-                background: "#fff", 
-                borderRadius: "12px", 
+              <div style={{
+                padding: "14px",
+                background: "#fff",
+                borderRadius: "12px",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
                 width: "100%",
                 maxWidth: "300px",
@@ -1777,14 +1777,14 @@ export default function PlannerPage() {
           </DragOverlay>
 
           {/* Modal Injection */}
-          <LocationModal 
-            isOpen={modalOpen} 
-            onClose={() => setModalOpen(false)} 
-            data={selectedLocation} 
+          <LocationModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            data={selectedLocation}
           />
 
           {/* Confirmation Modal */}
-          <ConfirmationModal 
+          <ConfirmationModal
             isOpen={confirmationOpen}
             itinerary={selectedItinerary}
             tripName={tripName}
