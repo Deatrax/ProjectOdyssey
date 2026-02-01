@@ -156,92 +156,29 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="bg-[#FFF5E9] min-h-screen font-body">
-      {/* --- Navigation (Same as Dashboard) --- */}
-      <nav className="sticky top-4 z-50 px-4 sm:px-8 py-4 bg-[#FFF5E9]/10 backdrop-blur-lg border border-white/30 rounded-2xl mx-4 sm:mx-16 my-4 sm:my-8 shadow-lg">
-        <div className="flex items-center justify-between">
-          {/* Logo + Text */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
-          </div>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <a onClick={() => router.push("/dashboard")} className="text-black hover:font-bold transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black hover:font-bold transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black hover:font-bold transition-all">My Trips</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Saved places</a>
-            <a href="#" className="text-black hover:font-bold transition-all">Co-Travellers</a>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button className="p-2 hover:bg-white hover:bg-opacity-50 rounded-full transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#141414">
-                <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
-              </svg>
-            </button>
-            <button className="p-2 bg-white bg-opacity-50 rounded-full transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="flex flex-col gap-3 mt-4 md:hidden pb-2">
-            <a onClick={() => router.push("/dashboard")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Home</a>
-            <a onClick={() => router.push("/planner")} className="text-black font-medium hover:pl-2 transition-all cursor-pointer">Planner</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">My Trips</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Saved places</a>
-            <a href="#" className="text-black font-medium hover:pl-2 transition-all">Co-Travellers</a>
-          </div>
-        )}
-      </nav>
 
       {/* --- Main Profile Content --- */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-16">
-        
+
         {/* Cover Image + Profile Header */}
         <div className="relative mb-8">
           {/* Cover Image */}
           <div className="h-48 sm:h-64 rounded-3xl overflow-hidden shadow-xl">
-            <img 
-              src={userProfile.coverImage} 
-              alt="Cover" 
-              className="w-full h-full object-cover" 
+            <img
+              src={userProfile.coverImage}
+              alt="Cover"
+              className="w-full h-full object-cover"
             />
           </div>
 
           {/* Profile Picture (overlapping cover) */}
           <div className="absolute -bottom-16 left-8">
             <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#FFF5E9] overflow-hidden shadow-xl">
-              <img 
-                src={userProfile.profileImage} 
-                alt={userProfile.name} 
-                className="w-full h-full object-cover" 
+              <img
+                src={userProfile.profileImage}
+                alt={userProfile.name}
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
@@ -251,7 +188,7 @@ const ProfilePage: React.FC = () => {
             <button className="bg-white hover:bg-gray-100 text-gray-800 px-6 py-2 rounded-full font-semibold shadow-lg transition">
               Edit Profile
             </button>
-            <button 
+            <button
               onClick={() => {
                 localStorage.removeItem("token");
                 router.push("/");
@@ -277,7 +214,7 @@ const ProfilePage: React.FC = () => {
           {/* Travel Style Badges */}
           <div className="flex flex-wrap gap-2 mt-4">
             {userProfile.travelStyle.map((style, index) => (
-              <span 
+              <span
                 key={index}
                 className="bg-[#4A9B7F] text-white px-4 py-1.5 rounded-full text-sm font-medium"
               >
@@ -315,51 +252,46 @@ const ProfilePage: React.FC = () => {
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${
-              activeTab === "overview"
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "overview"
                 ? "bg-[#4A9B7F] text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab("trips")}
-            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${
-              activeTab === "trips"
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "trips"
                 ? "bg-[#4A9B7F] text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Shared Trips
           </button>
           <button
             onClick={() => setActiveTab("reviews")}
-            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${
-              activeTab === "reviews"
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "reviews"
                 ? "bg-[#4A9B7F] text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Reviews
           </button>
           <button
             onClick={() => setActiveTab("collections")}
-            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${
-              activeTab === "collections"
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "collections"
                 ? "bg-[#4A9B7F] text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Collections
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${
-              activeTab === "settings"
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "settings"
                 ? "bg-[#4A9B7F] text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Settings
           </button>
@@ -367,7 +299,7 @@ const ProfilePage: React.FC = () => {
 
         {/* Tab Content */}
         <div className="mt-8">
-          
+
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <div className="space-y-6">
@@ -418,7 +350,7 @@ const ProfilePage: React.FC = () => {
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Trips</h3>
                 <div className="bg-[#FFF5E9] rounded-xl p-6 text-center">
                   <p className="text-gray-600">No upcoming trips planned yet</p>
-                  <button 
+                  <button
                     onClick={() => router.push("/planner")}
                     className="mt-4 bg-[#4A9B7F] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#3d8a6d] transition"
                   >
@@ -436,10 +368,10 @@ const ProfilePage: React.FC = () => {
                 {sharedTrips.map((trip) => (
                   <div key={trip.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition cursor-pointer">
                     <div className="h-48 overflow-hidden">
-                      <img 
-                        src={trip.image} 
-                        alt={trip.title} 
-                        className="w-full h-full object-cover hover:scale-105 transition duration-300" 
+                      <img
+                        src={trip.image}
+                        alt={trip.title}
+                        className="w-full h-full object-cover hover:scale-105 transition duration-300"
                       />
                     </div>
                     <div className="p-6">
@@ -470,10 +402,10 @@ const ProfilePage: React.FC = () => {
               {reviews.map((review) => (
                 <div key={review.id} className="bg-white rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row gap-6">
                   <div className="w-full sm:w-48 h-32 sm:h-40 rounded-xl overflow-hidden flex-shrink-0">
-                    <img 
-                      src={review.placeImage} 
-                      alt={review.placeName} 
-                      className="w-full h-full object-cover" 
+                    <img
+                      src={review.placeImage}
+                      alt={review.placeName}
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1">
@@ -501,10 +433,10 @@ const ProfilePage: React.FC = () => {
                 {collections.map((collection) => (
                   <div key={collection.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition cursor-pointer">
                     <div className="h-48 overflow-hidden">
-                      <img 
-                        src={collection.coverImage} 
-                        alt={collection.name} 
-                        className="w-full h-full object-cover hover:scale-105 transition duration-300" 
+                      <img
+                        src={collection.coverImage}
+                        alt={collection.name}
+                        className="w-full h-full object-cover hover:scale-105 transition duration-300"
                       />
                     </div>
                     <div className="p-6">
@@ -520,30 +452,30 @@ const ProfilePage: React.FC = () => {
           {/* SETTINGS TAB */}
           {activeTab === "settings" && (
             <div className="space-y-6">
-              
+
               {/* Account Settings */}
               <div className="bg-white rounded-2xl p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Display Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       defaultValue={userProfile.name}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
                     />
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Username</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       defaultValue={userProfile.username}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
                     />
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Bio</label>
-                    <textarea 
+                    <textarea
                       defaultValue={userProfile.bio}
                       rows={3}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
@@ -551,8 +483,8 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Email</label>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       defaultValue="alex.rivera@email.com"
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
                     />
