@@ -20,6 +20,7 @@ import {
   useSortable,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { useGeofencing } from "../hooks/useGeofencing"; // Import useGeofencing
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import LocationModal from "../components/LocationModal"; // Import the modal
@@ -468,6 +469,55 @@ export default function PlannerPage() {
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
+
+  // Simulation State
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationIndex, setSimulationIndex] = useState(-1);
+  const [mockLocation, setMockLocation] = useState<{ lat: number; lng: number } | undefined>(undefined);
+
+  // Geofencing Hook
+  const { userLocation } = useGeofencing({
+    itineraryId: savedItineraryId || undefined,
+    enabled: !!savedItineraryId,
+    autoCheckin: true,
+    mockLocation: mockLocation
+  });
+
+  // Simulation Logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isSimulating && itinerary.length > 0) {
+      interval = setInterval(() => {
+        setSimulationIndex(prev => {
+          const next = prev + 1;
+          if (next >= itinerary.length) {
+            setIsSimulating(false); // Stop when done
+            return prev;
+          }
+          const item = itinerary[next];
+          // We need coordinates for simulation.
+           if ((item as any).lat && (item as any).lng) {
+             setMockLocation({ lat: (item as any).lat, lng: (item as any).lng });
+           }
+          return next;
+        });
+      }, 3000); // Move every 3 seconds
+    }
+
+    return () => clearInterval(interval);
+  }, [isSimulating, itinerary]);
+
+  const startSimulation = () => {
+    if (itinerary.length === 0) return;
+    setIsSimulating(true);
+    setSimulationIndex(-1); // Will start at 0
+  };
+
+  const stopSimulation = () => {
+    setIsSimulating(false);
+    setMockLocation(undefined); // Reset to real location logic
+  };
 
   // Load collections from localStorage on mount
   useEffect(() => {
@@ -1030,8 +1080,12 @@ export default function PlannerPage() {
       const tripData = {
         tripName: finalTripName || tripName || "My Trip",
         selectedPlaces: itinerary.map(item => ({
+          id: item.id,
           name: item.name,
-          category: item.category || "place"
+          category: item.category || "place",
+          placeId: item.placeId,
+          // DB expects coordinates in { latitude, longitude } format for GeofenceService
+          coordinates: (item as any).coordinates || ((item as any).lat && (item as any).lng ? { latitude: (item as any).lat, longitude: (item as any).lng } : null)
         })),
         selectedItinerary: {
           id: selectedItinerary.id,
@@ -1758,8 +1812,34 @@ export default function PlannerPage() {
               {activeTab === "summaries" && <div style={{ textAlign: "center", padding: "20px" }}>No summaries.</div>}
 
               {activeTab === "map" && (
-                <div style={{ height: "100%", borderRadius: "12px", overflow: "hidden" }}>
-                  <MapComponent items={itinerary} onClose={() => setActiveTab("chat")} />
+                <div className="flex-1 relative">
+                  <MapComponent 
+                    items={itinerary} 
+                    userLocation={userLocation}
+                    geofences={itinerary.filter((i:any) => i.lat && i.lng).map((i:any) => ({ lat: i.lat, lng: i.lng, radius: 100, color: "#22c55e" }))}
+                    onClose={() => setActiveTab("chat")} 
+                  />
+                  
+                  {/* Simulation Controls Overlay */}
+                  <div className="absolute bottom-6 left-6 z-10 bg-white p-3 rounded-xl shadow-lg border border-gray-200">
+                     <div className="flex items-center gap-3">
+                       <div className={`w-3 h-3 rounded-full ${isSimulating ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                       <span className="text-sm font-medium">Simulation Mode</span>
+                       <button 
+                         onClick={isSimulating ? stopSimulation : startSimulation}
+                         className={`px-3 py-1 rounded-md text-sm font-bold text-white transition-colors ${
+                           isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                         }`}
+                       >
+                         {isSimulating ? "Stop" : "Start Travel"}
+                       </button>
+                     </div>
+                     {isSimulating && (
+                       <div className="mt-2 text-xs text-gray-500">
+                         Visiting place {simulationIndex + 1} of {itinerary.length}
+                       </div>
+                     )}
+                  </div>
                 </div>
               )}
 

@@ -16,7 +16,45 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 type MapComponentProps = {
   items: any[]; // items from left-column itinerary
   onClose?: () => void;
+  userLocation?: { lat: number; lng: number } | null;
+  geofences?: { lat: number; lng: number; radius: number; color?: string }[];
 };
+
+function UserLocationMarker({ position }: { position: { lat: number; lng: number } }) {
+  return (
+    <AdvancedMarker position={position}>
+      <div className="relative flex items-center justify-center w-6 h-6">
+        <div className="absolute w-full h-full bg-blue-500 rounded-full opacity-30 animate-ping"></div>
+        <div className="relative w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-md"></div>
+      </div>
+    </AdvancedMarker>
+  );
+}
+
+function GeofenceCircle({ center, radius, color = "#22c55e" }: { center: { lat: number; lng: number }; radius: number; color?: string }) {
+  const map = useMap();
+  const [circle, setCircle] = useState<google.maps.Circle>();
+
+  useEffect(() => {
+    if (!map) return;
+    const gCircle = new google.maps.Circle({
+      strokeColor: color,
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: color,
+      fillOpacity: 0.2,
+      map,
+      center,
+      radius,
+    });
+    setCircle(gCircle);
+    return () => {
+      gCircle.setMap(null);
+    };
+  }, [map, center, radius, color]);
+
+  return null;
+}
 
 function Directions({ items }: { items: any[] }) {
   const map = useMap();
@@ -32,35 +70,26 @@ function Directions({ items }: { items: any[] }) {
 
   useEffect(() => {
     if (!directionsService || !directionsRenderer || items.length < 2) {
-      console.log("Directions: Not enough valid items or services not ready", { 
-        itemsCount: items.length, 
-        hasDirectionsService: !!directionsService,
-        hasDirectionsRenderer: !!directionsRenderer
-      });
       return;
     }
 
     // Filter valid locations
     const validItems = items.filter(item => item.placeId || item.name);
-    console.log("Directions: Valid items for routing", validItems);
-    
+
     if (validItems.length < 2) {
-      console.log("Directions: Not enough valid items after filtering");
       return;
     }
 
     try {
       const origin = validItems[0].placeId ? { placeId: validItems[0].placeId } : { query: validItems[0].name };
-      const destination = validItems[validItems.length - 1].placeId 
-        ? { placeId: validItems[validItems.length - 1].placeId } 
+      const destination = validItems[validItems.length - 1].placeId
+        ? { placeId: validItems[validItems.length - 1].placeId }
         : { query: validItems[validItems.length - 1].name };
-      
+
       const waypoints = validItems.slice(1, -1).map(item => ({
         location: item.placeId ? { placeId: item.placeId } : { query: item.name },
         stopover: true
       }));
-
-      console.log("Directions: Making route request", { origin, destination, waypointsCount: waypoints.length });
 
       directionsService.route({
         origin,
@@ -68,7 +97,6 @@ function Directions({ items }: { items: any[] }) {
         waypoints,
         travelMode: google.maps.TravelMode.DRIVING
       }).then(response => {
-        console.log("Directions: Route received successfully", response);
         directionsRenderer.setDirections(response);
       }).catch(err => {
         console.error("Directions request failed", err);
@@ -85,58 +113,74 @@ function Directions({ items }: { items: any[] }) {
   return null;
 }
 
-export default function MapComponent({ items, onClose }: MapComponentProps) {
+// IUT, Boardbazar coordinates
+const DEFAULT_CENTER = { lat: 23.9482, lng: 90.3794 };
+
+function MapUpdater({ center }: { center: { lat: number; lng: number } | null | undefined }) {
+  const map = useMap();
+  const [hasCentered, setHasCentered] = useState(false);
+
+  useEffect(() => {
+    if (map && center && !hasCentered) {
+      map.panTo(center);
+      setHasCentered(true);
+    }
+  }, [map, center, hasCentered]);
+
+  // Allow re-centering when center changes significantly? 
+  // For now, let's just do it once on load or when userLocation becomes available first time.
+  // Actually, if userLocation updates (moving), we might NOT want to auto-pan constantly if user is exploring.
+  // Let's stick to "Pan on first availability".
+  
+  return null;
+}
+
+// Control to center map
+function CenterControl({ center, disabled }: { center: { lat: number; lng: number } | null | undefined; disabled?: boolean }) {
+  const map = useMap();
+
+  const handleCenter = () => {
+    if (map && center) {
+      map.panTo(center);
+      map.setZoom(15);
+    }
+  };
+
+  return (
+    <div className="absolute top-4 left-4 z-10">
+       <button
+          onClick={handleCenter}
+          disabled={disabled || !center}
+          className={`bg-white text-gray-800 p-2 rounded-full shadow-lg font-bold hover:bg-gray-100 flex items-center justify-center transition-all ${(!center || disabled) ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title="Center on Me"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-blue-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+          </svg>
+        </button>
+    </div>
+  );
+}
+
+export default function MapComponent({ items, onClose, userLocation, geofences = [] }: MapComponentProps) {
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
   // Filter items that have at least a name
   const validItems = useMemo(() => items.filter(i => i.name), [items]);
-  
-  // Calculate center (fallback if no items)
-  const defaultCenter = { lat: 48.8566, lng: 2.3522 }; // Paris
 
-  console.log("MapComponent Debug:", {
-    itemsCount: items.length,
-    validItemsCount: validItems.length,
-    validItems: validItems
-  });
-
-  if (!items || items.length === 0) {
-    return (
-      <div className="w-full h-full relative flex flex-col items-center justify-center bg-gray-50">
-        <div className="text-center p-8">
-          <div className="text-6xl mb-4">🗺️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Add Places to See Route</h2>
-          <p className="text-gray-600">
-            Add places to your itinerary on the left to see the route on the map
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (validItems.length === 0) {
-    return (
-      <div className="w-full h-full relative flex flex-col items-center justify-center bg-gray-50">
-        <div className="text-center p-8">
-          <div className="text-5xl mb-4">⏳</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Your Route...</h2>
-          <p className="text-gray-600">
-            Processing your places...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Calculate center (prioritize user location, then first item, then IUT)
+  const initialCenter = userLocation || (validItems.length > 0 && validItems[0].lat && validItems[0].lng ? { lat: validItems[0].lat, lng: validItems[0].lng } : DEFAULT_CENTER);
 
   if (!GOOGLE_MAPS_API_KEY) {
-     return <div className="p-4 text-red-500">Error: Google Maps API Key is missing.</div>;
+    return <div className="p-4 text-red-500">Error: Google Maps API Key is missing.</div>;
   }
 
   return (
     <div className="w-full h-full relative flex flex-col">
       {/* Header / Close Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <button 
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <button
           onClick={onClose}
           className="bg-white text-gray-800 px-4 py-2 rounded-full shadow-lg font-bold hover:bg-gray-100"
         >
@@ -146,47 +190,59 @@ export default function MapComponent({ items, onClose }: MapComponentProps) {
 
       <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
         <Map
-          defaultCenter={defaultCenter}
-          defaultZoom={12}
-          mapId="DEMO_MAP_ID" // Required for AdvancedMarker
+          defaultCenter={initialCenter}
+          defaultZoom={15}
+          mapId="DEMO_MAP_ID" 
           className="w-full h-full"
           fullscreenControl={false}
         >
-           {/* Render Markers */}
-           {validItems.map((item, index) => (
-             <AdvancedMarkerWithRef
-               key={item.id || index}
-               item={item}
-               index={index}
-               onClick={() => setSelectedItem(item)}
-             />
-           ))}
+          {/* Helper to center map on user location updates */}
+          <MapUpdater center={userLocation || DEFAULT_CENTER} />
+          
+          {/* Manual Center Control */}
+          <CenterControl center={userLocation || DEFAULT_CENTER} disabled={!userLocation} />
 
-           {/* Render Route */}
-           <Directions items={validItems} />
+          {/* Render Markers */}
+          {validItems.map((item, index) => (
+            <AdvancedMarkerWithRef
+              key={item.id || index}
+              item={item}
+              index={index}
+              onClick={() => setSelectedItem(item)}
+            />
+          ))}
 
-           {/* Info Window */}
-           {selectedItem && (
-             <InfoWindow
-               position={null} // AdvancedMarker handles position usually, but we need coordinates. 
-               // Issue: If we use placeId, we don't have lat/lng immediately for InfoWindow anchor unless we geocode or use the marker anchor.
-               // Workaround: simpler approach is to rely on marker click. 
-               // Actually, InfoWindow in this library is tricky with just PlaceID.
-               // Let's skip InfoWindow for V1 or try to anchor it to the marker if possible.
-               // BETTER: Just show a card at the bottom of the screen?
-               // Let's try standard InfoWindow if we have lat/lng? We might not.
-               // For now, let's just log or show a simple overlay.
-               onCloseClick={() => setSelectedItem(null)}
-             >
-               <div className="p-2">
-                 <h3 className="font-bold">{selectedItem.name}</h3>
-                 <p className="text-xs text-gray-500">{selectedItem.category}</p>
-                 {selectedItem.visitDurationMin && (
-                    <p className="text-xs">⏱ {selectedItem.visitDurationMin} min</p>
-                 )}
-               </div>
-             </InfoWindow>
-           )}
+          {/* Render Route */}
+          {/* Directions component logic already filters invalid items, but we pass validItems which filters by name.
+              Ideally Directions should also filter by having location/placeId.
+              The Directions component implementation (not shown here fully) handles validItems.filter(item => item.placeId || item.name)
+              We should ensure it strictly uses valid items for routing.
+          */}
+          <Directions items={validItems} />
+
+          {/* Render User Location */}
+          {userLocation && <UserLocationMarker position={userLocation} />}
+
+          {/* Render Geofences */}
+          {geofences.map((geo, idx) => (
+            <GeofenceCircle key={idx} center={{ lat: geo.lat, lng: geo.lng }} radius={geo.radius} color={geo.color} />
+          ))}
+
+          {/* Info Window */}
+          {selectedItem && (
+            <InfoWindow
+              position={null} 
+              onCloseClick={() => setSelectedItem(null)}
+            >
+              <div className="p-2">
+                <h3 className="font-bold">{selectedItem.name}</h3>
+                <p className="text-xs text-gray-500">{selectedItem.category}</p>
+                {selectedItem.visitDurationMin && (
+                  <p className="text-xs">⏱ {selectedItem.visitDurationMin} min</p>
+                )}
+              </div>
+            </InfoWindow>
+          )}
         </Map>
       </APIProvider>
     </div>
@@ -210,21 +266,21 @@ export default function MapComponent({ items, onClose }: MapComponentProps) {
 // We can just rely on DirectionsRenderer for the visual map.
 
 function AdvancedMarkerWithRef({ item, index, onClick }: any) {
-    // If we don't have lat/lng, we can't render AdvancedMarker easily without looking it up.
-    // We will skip rendering manual markers if we don't have coordinates, 
-    // and rely on DirectionsRenderer to show the points.
-    // IF the item has lat/lng (e.g. from Clustering/Database), we show it.
-    
-    // Check if we have standard lat/lng (some AI responses might fake it or database has it)
-    // The `places` table has `location` (PostGIS), need to see if it's passed to frontend.
-    // If not, we rely on DirectionsRenderer.
-    
-    if (item.lat && item.lng) {
-        return (
-            <AdvancedMarker position={{ lat: item.lat, lng: item.lng }} onClick={onClick}>
-                <Pin background={"#FBBC04"} glyphColor={"#000"} borderColor={"#000"} />
-            </AdvancedMarker>
-        );
-    }
-    return null;
+  // If we don't have lat/lng, we can't render AdvancedMarker easily without looking it up.
+  // We will skip rendering manual markers if we don't have coordinates, 
+  // and rely on DirectionsRenderer to show the points.
+  // IF the item has lat/lng (e.g. from Clustering/Database), we show it.
+
+  // Check if we have standard lat/lng (some AI responses might fake it or database has it)
+  // The `places` table has `location` (PostGIS), need to see if it's passed to frontend.
+  // If not, we rely on DirectionsRenderer.
+
+  if (item.lat && item.lng) {
+    return (
+      <AdvancedMarker position={{ lat: item.lat, lng: item.lng }} onClick={onClick}>
+        <Pin background={"#FBBC04"} glyphColor={"#000"} borderColor={"#000"} />
+      </AdvancedMarker>
+    );
+  }
+  return null;
 }

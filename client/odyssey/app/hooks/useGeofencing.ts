@@ -26,9 +26,10 @@ export interface GeofenceHookOptions {
   throttleInterval?: number;
   itineraryId?: string;
   autoCheckin?: boolean;
+  mockLocation?: { lat: number; lng: number }; // For testing/presentation
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export const useGeofencing = (options: GeofenceHookOptions = {}) => {
   const {
@@ -71,8 +72,8 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
         err.code === 1
           ? 'Location permission denied. Please enable location in your browser settings.'
           : err.code === 2
-          ? 'Location unavailable. Please check your GPS signal.'
-          : 'Unable to get location. Please try again.';
+            ? 'Location unavailable. Please check your GPS signal.'
+            : 'Unable to get location. Please try again.';
 
       setError(errorMsg);
       setLocationEnabled(false);
@@ -136,6 +137,11 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
    */
   const handlePositionUpdate = useCallback(
     (position: GeolocationPosition) => {
+      const { latitude, longitude } = position.coords;
+
+      // Update local state for Map UI
+      setUserLocation({ lat: latitude, lng: longitude });
+
       const now = Date.now();
 
       // Throttle: only check if enough time has passed
@@ -144,7 +150,6 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
       }
 
       lastCheckRef.current = now;
-      const { latitude, longitude } = position.coords;
 
       // Clear any existing timeout
       if (throttleTimeoutRef.current) {
@@ -240,6 +245,31 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
     };
   }, [enabled, itineraryId, startTracking, stopTracking]);
 
+  // --- MOCK LOCATION LOGIC (For Presentation/Testing) ---
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (options.mockLocation) {
+      setUserLocation(options.mockLocation);
+      // Also trigger geofence check for the mock location
+      checkGeofenceStatus(options.mockLocation.lat, options.mockLocation.lng);
+    }
+  }, [options.mockLocation, checkGeofenceStatus]);
+
+  // Update handlePositionUpdate to also set local state for UI
+  const originalHandlePositionUpdate = handlePositionUpdate;
+  const enhancedHandlePositionUpdate = useCallback((position: GeolocationPosition) => {
+    const { latitude, longitude } = position.coords;
+    setUserLocation({ lat: latitude, lng: longitude });
+    originalHandlePositionUpdate(position);
+  }, [originalHandlePositionUpdate]);
+
+  // Override the watcher to use the enhanced handler
+  // Note: We need to re-implement startTracking to use enhancedHandlePositionUpdate if we want real-time updates
+  // For now, let's just make sure when we DO get an update, we set state.
+  // Actually, easier way: just modify the callback inside startTracking or the `handlePositionUpdate` definition itself.
+
+  // Let's modify the return to include userLocation
   return {
     geofenceStatus,
     isLoading,
@@ -250,5 +280,6 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
     stopTracking,
     checkGeofenceStatus,
     requestLocationPermission,
+    userLocation, // Expose raw location for Map UI
   };
 };
