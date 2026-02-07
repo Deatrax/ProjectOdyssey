@@ -1,4 +1,5 @@
 const supabase = require("../config/supabaseClient");
+const GoogleMapsService = require("./googleMapsService");
 
 /**
  * Geofence Service
@@ -16,9 +17,9 @@ class GeofenceService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -91,13 +92,34 @@ class GeofenceService {
       let minDistance = Infinity;
 
       for (const place of places) {
-        if (!place.coordinates) continue;
+        let placeLat, placeLng;
+
+        if (place.coordinates && place.coordinates.latitude && place.coordinates.longitude) {
+          placeLat = place.coordinates.latitude;
+          placeLng = place.coordinates.longitude;
+        } else if (place.placeId) {
+          // Fallback: Fetch from Google Maps if missing
+          try {
+            // We can use a simpler cache check or just call details.
+            // GoogleMapsService.getPlaceDetails handles caching internally.
+            const details = await GoogleMapsService.getPlaceDetails(place.placeId);
+            if (details && details.coordinates) {
+              placeLat = details.coordinates.lat;
+              placeLng = details.coordinates.lng;
+            }
+          } catch (err) {
+            console.error(`Failed to fetch coords for place ${place.placeId}:`, err.message);
+            continue;
+          }
+        }
+
+        if (!placeLat || !placeLng) continue;
 
         const distance = this.haversineMeters(
           userLat,
           userLon,
-          place.coordinates.latitude,
-          place.coordinates.longitude
+          placeLat,
+          placeLng
         );
 
         if (distance < minDistance) {

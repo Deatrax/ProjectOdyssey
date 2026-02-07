@@ -1,20 +1,61 @@
 "use client";
 
 import { useState } from "react";
-import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from "@vis.gl/react-google-maps";
 import MapSearch from "../../../components/map/MapSearch";
 import PlaceDetailsModal from "../../../components/map/PlaceDetailsModal";
 import Link from "next/link";
+import { useGeofencing } from "../../hooks/useGeofencing";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 interface SearchResult {
   placeId: string;
   name: string;
-  address: string;
-  coordinates: { lat: number; lng: number };
+  address?: string;
+  coordinates?: { lat: number; lng: number };
   types: string[];
   description?: string;
+}
+
+
+function UserLocationMarker({ position }: { position: { lat: number; lng: number } }) {
+  return (
+    <AdvancedMarker position={position}>
+      <div className="relative flex items-center justify-center w-6 h-6">
+        <div className="absolute w-full h-full bg-blue-500 rounded-full opacity-30 animate-ping"></div>
+        <div className="relative w-3 h-3 bg-blue-600 border-2 border-white rounded-full shadow-sm"></div>
+      </div>
+    </AdvancedMarker>
+  );
+}
+
+function CenterControl({ center, map }: { center: { lat: number; lng: number } | null | undefined; map: google.maps.Map | null }) {
+  const handleCenter = () => {
+    if (map && center) {
+      map.panTo(center);
+      map.setZoom(15);
+    }
+  };
+
+  return (
+    <div className="absolute top-24 right-2.5 z-10">
+       <button
+          onClick={handleCenter}
+          disabled={!center}
+          className={`bg-white text-gray-800 p-2 rounded-sm shadow-md font-bold hover:bg-gray-50 flex items-center justify-center transition-all w-10 h-10 ${(!center) ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title="Center on Me"
+        >
+          <span className="text-xl">📍</span>
+        </button>
+    </div>
+  );
+}
+
+// Wrapper to use useMap hook inside APIProvider
+function MapControlWrapper({ userLocation }: { userLocation: any }) {
+  const map = useMap();
+  return <CenterControl center={userLocation} map={map} />;
 }
 
 export default function DestinationsPage() {
@@ -25,17 +66,22 @@ export default function DestinationsPage() {
   const [detailsPlaceId, setDetailsPlaceId] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  
+  // Geofencing Hook for User Location
+  const { userLocation } = useGeofencing({ enabled: true });
 
   const handlePlaceSelect = (place: SearchResult) => {
     console.log("Selected place:", place);
-    setSelectedPlace(place);
-    setMapCenter(place.coordinates);
-    setMapZoom(14);
-    setShowInfoWindow(true);
+    if (place.coordinates) {
+      setSelectedPlace(place);
+      setMapCenter(place.coordinates);
+      setMapZoom(14);
+      setShowInfoWindow(true);
 
-    // Add to search results if not already there
-    if (!searchResults.find(p => p.placeId === place.placeId)) {
-      setSearchResults(prev => [...prev, place]);
+      // Add to search results if not already there
+      if (!searchResults.find(p => p.placeId === place.placeId)) {
+        setSearchResults(prev => [...prev, place]);
+      }
     }
   };
 
@@ -166,8 +212,12 @@ export default function DestinationsPage() {
               style={{ width: "100%", height: "100%" }}
               onCenterChanged={(e: any) => console.log('Map center:', e.detail)}
             >
+               {/* Controls */}
+               <MapControlWrapper userLocation={userLocation} />
+
               {/* Markers for Search Results */}
               {searchResults.map((place, index) => (
+                place.coordinates && (
                 <AdvancedMarker
                   key={place.placeId}
                   position={place.coordinates}
@@ -184,10 +234,14 @@ export default function DestinationsPage() {
                     <span className="font-bold text-sm">{index + 1}</span>
                   </Pin>
                 </AdvancedMarker>
+                )
               ))}
 
+              {/* User Location */}
+              {userLocation && <UserLocationMarker position={userLocation} />}
+
               {/* Info Window for Selected Place */}
-              {showInfoWindow && selectedPlace && (
+              {showInfoWindow && selectedPlace && selectedPlace.coordinates && (
                 <InfoWindow
                   position={selectedPlace.coordinates}
                   onCloseClick={() => setShowInfoWindow(false)}
@@ -241,9 +295,11 @@ export default function DestinationsPage() {
                   className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${selectedPlace?.placeId === place.placeId ? 'bg-blue-50 border-l-4 border-blue-600' : ''
                     }`}
                   onClick={() => {
-                    setSelectedPlace(place);
-                    setMapCenter(place.coordinates);
-                    setShowInfoWindow(true);
+                    if (place.coordinates) {
+                      setSelectedPlace(place);
+                      setMapCenter(place.coordinates);
+                      setShowInfoWindow(true);
+                    }
                   }}
                 >
                   <div className="flex items-start gap-3">
