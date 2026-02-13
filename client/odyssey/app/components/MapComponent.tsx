@@ -73,8 +73,8 @@ function Directions({ items }: { items: any[] }) {
       return;
     }
 
-    // Filter valid locations
-    const validItems = items.filter(item => item.placeId || item.name);
+    // Filter valid locations (exclude breaks which have no placeId/location)
+    const validItems = items.filter(item => (item.placeId || item.name) && !item.isBreak);
 
     if (validItems.length < 2) {
       return;

@@ -64,6 +64,8 @@ interface ResourcePanelProps {
     savedItinerary?: any;
     savedItineraryId?: string | null;
     onVisitChange?: (count: number) => void;
+    // Itinerary places for Visits tab (manual drag-and-drop items)
+    itineraryPlaces?: { day: number; name: string; time?: string; category?: string; isBreak?: boolean }[];
 }
 
 // Draggable source item for drag and drop
@@ -164,6 +166,7 @@ export default function ResourcePanel({
     savedItinerary,
     savedItineraryId,
     onVisitChange,
+    itineraryPlaces,
 }: ResourcePanelProps) {
 
     const tabs: Array<"chat" | "destinations" | "summaries" | "visits"> = ["chat", "destinations", "summaries", "visits"];
@@ -457,10 +460,34 @@ export default function ResourcePanel({
                                 token={typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''}
                                 onVisitChange={onVisitChange || (() => { })}
                             />
+                        ) : itineraryPlaces && itineraryPlaces.filter(p => !p.isBreak).length > 0 ? (
+                            <div>
+                                <h4 className="font-bold text-gray-800 text-sm mb-3">📋 Planned Visits</h4>
+                                <p className="text-xs text-gray-400 mb-4">Items from your itinerary timeline. Save the trip to start tracking visits.</p>
+                                {(() => {
+                                    const days = [...new Set(itineraryPlaces.filter(p => !p.isBreak).map(p => p.day))].sort();
+                                    return days.map(day => (
+                                        <div key={day} className="mb-4">
+                                            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Day {day}</div>
+                                            {itineraryPlaces.filter(p => p.day === day && !p.isBreak).map((place, idx) => (
+                                                <div key={idx} className="flex items-center gap-3 py-2 px-3 bg-gray-50 rounded-lg mb-1.5">
+                                                    <span className="font-mono text-xs font-bold text-[#4A9B7F] bg-[#4A9B7F]/10 px-2 py-0.5 rounded">
+                                                        {place.time || '--:--'}
+                                                    </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-gray-800 truncate">{place.name}</p>
+                                                        {place.category && <p className="text-xs text-gray-400">{place.category}</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
                         ) : (
                             <div className="text-center py-12 text-gray-400">
-                                <p className="text-sm italic">No saved itinerary yet.</p>
-                                <p className="text-xs mt-2">Generate and save an itinerary to track visits.</p>
+                                <p className="text-sm italic">No planned visits yet.</p>
+                                <p className="text-xs mt-2">Add places to your itinerary to see them here.</p>
                             </div>
                         )}
                     </div>

@@ -191,6 +191,56 @@ export default function PlannerPage() {
 
   // --- DATA LOADERS ---
 
+  // Normalize schedule from backend — may be array [{day, items}] or Record<number, Item[]>
+  const normalizeSchedule = (raw: any, days: number): Record<number, ItineraryItem[]> => {
+    const schedule: Record<number, ItineraryItem[]> = {};
+    // Initialize empty days
+    for (let i = 1; i <= days; i++) schedule[i] = [];
+
+    if (Array.isArray(raw)) {
+      // AI format: [{day: 1, items: [{name, category, ...}]}]
+      for (const dayObj of raw) {
+        const dayNum = dayObj.day || 1;
+        const items = (dayObj.items || []).map((ai: any, idx: number) => ({
+          id: ai.id || `loaded-${dayNum}-${idx}-${Date.now()}`,
+          name: ai.name || ai.place || "Unnamed",
+          placeId: ai.placeId || undefined,
+          lat: ai.lat || ai.coordinates?.latitude || undefined,
+          lng: ai.lng || ai.coordinates?.longitude || undefined,
+          category: ai.category || ai.activity || "place",
+          visitDurationMin: ai.visitDurationMin || 60,
+          time: ai.time || ai.timeRange?.split("-")[0] || "09:00",
+          description: ai.notes || ai.description || "",
+          isBreak: ai.isBreak || false,
+          source: (ai.source || "db") as "db" | "ai",
+        }));
+        schedule[dayNum] = items;
+      }
+    } else if (raw && typeof raw === "object") {
+      // Record format: {"1": [...], "2": [...]}
+      for (const key of Object.keys(raw)) {
+        const dayNum = Number(key);
+        if (isNaN(dayNum)) continue;
+        const items = Array.isArray(raw[key]) ? raw[key].map((ai: any, idx: number) => ({
+          id: ai.id || `loaded-${dayNum}-${idx}-${Date.now()}`,
+          name: ai.name || "Unnamed",
+          placeId: ai.placeId || undefined,
+          lat: ai.lat || ai.coordinates?.latitude || undefined,
+          lng: ai.lng || ai.coordinates?.longitude || undefined,
+          category: ai.category || "place",
+          visitDurationMin: ai.visitDurationMin || 60,
+          time: ai.time || "09:00",
+          description: ai.description || "",
+          isBreak: ai.isBreak || false,
+          source: (ai.source || "db") as "db" | "ai",
+        })) : [];
+        schedule[dayNum] = items;
+      }
+    }
+
+    return schedule;
+  };
+
   const loadTrips = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -202,15 +252,18 @@ export default function PlannerPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data) {
-          const loadedTrips = data.data.map((t: any) => ({
-            id: t.id,
-            tripName: t.trip_name,
-            startDate: t.selected_itinerary?.startDate || "2024-06-01",
-            days: t.selected_itinerary?.days || 3,
-            travelers: t.selected_itinerary?.travelers || 1,
-            status: t.status || "draft",
-            schedule: t.selected_itinerary?.schedule || {}
-          }));
+          const loadedTrips = data.data.map((t: any) => {
+            const days = t.selected_itinerary?.days || 3;
+            return {
+              id: t.id,
+              tripName: t.trip_name,
+              startDate: t.selected_itinerary?.startDate || "2024-06-01",
+              days,
+              travelers: t.selected_itinerary?.travelers || 1,
+              status: t.status || "draft",
+              schedule: normalizeSchedule(t.selected_itinerary?.schedule, days)
+            };
+          });
           setTrips(loadedTrips);
 
           if (loadedTrips.length > 0) {
@@ -529,6 +582,17 @@ export default function PlannerPage() {
         return newChat;
       });
 
+      // Save AI response to backend
+      if (token && activeTripId) {
+        try {
+          await fetch("http://localhost:4000/api/chat/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ message: aiMessage, role: "ai", sessionId: activeTripId, metadata: { cards: aiCards, bullets: data.bullets || [] } })
+          });
+        } catch (err) { console.error("Error saving AI response:", err); }
+      }
+
     } catch (err) {
       console.error(err);
       setChatMessages(prev => [...prev, { id: "err", text: "Error connecting to AI.", sender: "ai" }]);
@@ -657,9 +721,29 @@ export default function PlannerPage() {
         schedule: tripData.selectedItinerary.schedule
       });
 
+      // --- Merge AI schedule into local trip timeline ---
+      if (activeTrip && selectedItinerary.schedule && Array.isArray(selectedItinerary.schedule)) {
+        const newSchedule: Record<number, ItineraryItem[]> = {};
+        for (const dayObj of selectedItinerary.schedule) {
+          const dayNum = dayObj.day || 1;
+          const items: ItineraryItem[] = (dayObj.items || []).map((ai: any, idx: number) => ({
+            id: `ai-${dayNum}-${idx}-${Date.now()}`,
+            name: ai.name || ai.place || "Unnamed",
+            placeId: ai.placeId || undefined,
+            category: ai.category || ai.activity || "place",
+            visitDurationMin: ai.visitDurationMin || 60,
+            time: ai.timeRange?.split("-")[0] || "09:00",
+            description: ai.notes || "",
+            source: "ai" as const,
+          }));
+          newSchedule[dayNum] = recalculateDayTimes(items);
+        }
+        updateTripSchedule(newSchedule);
+      }
+
       setChatMessages(prev => [...prev, {
         id: Date.now().toString() + "saved",
-        text: `✅ Trip saved successfully! Trip ID: ${itineraryId}. You can view it in your dashboard.`,
+        text: `✅ Trip saved successfully! Trip ID: ${itineraryId}. The itinerary has been placed in your timeline.`,
         sender: "ai", cards: []
       }]);
 
@@ -860,6 +944,27 @@ export default function PlannerPage() {
     } catch (e) { console.error("Save failed", e); }
   };
 
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!confirm("Are you sure you want to delete this trip?")) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      await fetch(`http://localhost:4000/api/trips/${tripId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTrips(prev => {
+        const remaining = prev.filter(t => t.id !== tripId);
+        if (activeTripId === tripId) {
+          const next = remaining.find(t => t.status !== "completed");
+          if (next) setActiveTripId(next.id);
+          else { setActiveTripId(null); setShowSetup(true); }
+        }
+        return remaining;
+      });
+    } catch (e) { console.error("Delete failed", e); }
+  };
+
   // --- RENDER ---
 
   if (showSetup) {
@@ -889,6 +994,7 @@ export default function PlannerPage() {
             activeItineraryId={activeTripId}
             onSelectItinerary={setActiveTripId}
             onNewTrip={() => setShowSetup(true)}
+            onDeleteTrip={handleDeleteTrip}
           />
         ) : (
           <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">
@@ -967,7 +1073,7 @@ export default function PlannerPage() {
                 <div className="h-full w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
                   <MapComponent
                     items={allTripItems.filter(i => !i.isBreak)}
-                    userLocation={userLocation}
+                    userLocation={mockLocation || userLocation}
                     geofences={allTripItems.filter((i: any) => i.lat && i.lng && !i.isBreak).map((i: any) => ({
                       lat: i.lat, lng: i.lng, radius: 100, color: "#22c55e"
                     }))}
@@ -1048,6 +1154,15 @@ export default function PlannerPage() {
                 savedItinerary={savedItinerary}
                 savedItineraryId={savedItineraryId}
                 onVisitChange={setVisitCount}
+                itineraryPlaces={activeTrip ? Object.entries(activeTrip.schedule).flatMap(([day, items]) =>
+                  (Array.isArray(items) ? items : []).map(item => ({
+                    day: Number(day),
+                    name: item.name,
+                    time: item.time,
+                    category: item.category,
+                    isBreak: item.isBreak,
+                  }))
+                ) : []}
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Layout, CheckCircle, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, Layout, CheckCircle, Trash2 } from "lucide-react";
 
 interface Itinerary {
     id: string;
@@ -15,13 +15,15 @@ interface ItinerarySidebarProps {
     activeItineraryId: string | null;
     onSelectItinerary: (id: string) => void;
     onNewTrip: () => void;
+    onDeleteTrip?: (id: string) => void;
 }
 
 export default function ItinerarySidebar({
     itineraries,
     activeItineraryId,
     onSelectItinerary,
-    onNewTrip
+    onNewTrip,
+    onDeleteTrip
 }: ItinerarySidebarProps) {
     const [completedCollapsed, setCompletedCollapsed] = useState(true);
 
@@ -52,32 +54,52 @@ export default function ItinerarySidebar({
                         {activeItineraries.length === 0 && (
                             <p className="text-sm text-gray-400 px-2 italic">No active trips</p>
                         )}
-                        {activeItineraries.map((trip) => (
-                            <button
-                                key={trip.id}
-                                onClick={() => onSelectItinerary(trip.id)}
-                                className={`w-full text-left p-3 rounded-xl transition-all ${activeItineraryId === trip.id
-                                    ? "bg-[#F5EFE7] ring-1 ring-[#4A9B7F] shadow-sm"
-                                    : "hover:bg-gray-50 text-gray-600"
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeItineraryId === trip.id ? "bg-[#4A9B7F] text-white" : "bg-gray-100 text-gray-400"
-                                        }`}>
-                                        <Layout className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <h4 className={`text-sm font-medium ${activeItineraryId === trip.id ? "text-gray-900" : "text-gray-600"
+                        {activeItineraries.map((trip) => {
+                            const isActive = activeItineraryId === trip.id;
+                            return (
+                                <div
+                                    key={trip.id}
+                                    className={`group relative w-full text-left p-3 rounded-xl transition-all cursor-pointer ${isActive
+                                        ? "bg-[#F5EFE7] ring-1 ring-[#4A9B7F] shadow-sm"
+                                        : "hover:bg-gray-50 text-gray-600"
+                                        }`}
+                                    onClick={() => onSelectItinerary(trip.id)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? "bg-[#4A9B7F] text-white" : "bg-gray-100 text-gray-400"
                                             }`}>
-                                            {trip.tripName || "Untitled Trip"}
-                                        </h4>
-                                        {trip.startDate && (
-                                            <p className="text-xs text-gray-400 mt-0.5">{trip.startDate}</p>
+                                            <Layout className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`text-sm font-medium truncate ${isActive ? "text-gray-900" : "text-gray-600"
+                                                }`}>
+                                                {trip.tripName || "Untitled Trip"}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                {trip.startDate && (
+                                                    <p className="text-xs text-gray-400">{trip.startDate}</p>
+                                                )}
+                                                {isActive && (
+                                                    <span className="text-[10px] font-bold text-[#4A9B7F] bg-[#4A9B7F]/10 px-1.5 py-0.5 rounded-full uppercase">
+                                                        Active
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Delete Button */}
+                                        {onDeleteTrip && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }}
+                                                className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                                title="Delete trip"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                         )}
                                     </div>
                                 </div>
-                            </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -95,19 +117,28 @@ export default function ItinerarySidebar({
                         {!completedCollapsed && (
                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {completedItineraries.map((trip) => (
-                                    <button
+                                    <div
                                         key={trip.id}
-                                        onClick={() => onSelectItinerary(trip.id)}
-                                        className={`w-full text-left p-3 rounded-xl transition-all ${activeItineraryId === trip.id
+                                        className={`group relative w-full text-left p-3 rounded-xl transition-all cursor-pointer ${activeItineraryId === trip.id
                                             ? "bg-gray-100 text-gray-900"
                                             : "hover:bg-gray-50 text-gray-500 opacity-75 hover:opacity-100"
                                             }`}
+                                        onClick={() => onSelectItinerary(trip.id)}
                                     >
                                         <div className="flex items-center gap-3">
                                             <CheckCircle className="w-4 h-4 text-gray-400" />
-                                            <span className="text-sm truncate">{trip.tripName}</span>
+                                            <span className="text-sm truncate flex-1">{trip.tripName}</span>
+                                            {onDeleteTrip && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }}
+                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                                    title="Delete trip"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                         </div>
-                                    </button>
+                                    </div>
                                 ))}
                             </div>
                         )}
