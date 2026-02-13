@@ -192,7 +192,7 @@ export default function TripPage() {
                             const isPending = !visitLog && !isCurrent;
 
                             return (
-                                <div key={item.id} className="flex gap-6 relative group">
+                                <div key={`${item.id || 'item'}-${index}`} className="flex gap-6 relative group">
                                     {/* Node */}
                                     <div className={`
                     w-5 h-5 rounded-full border-4 z-10 flex-shrink-0 mt-1 transition-all duration-300
@@ -272,11 +272,11 @@ export default function TripPage() {
             {!mapCollapsed && (
                 <div className="hidden md:block flex-1 relative h-full bg-gray-100">
                     <MapComponent 
-                      items={currentDayItems.filter((i:any) => i.placeId || (i.lat && i.lng))} 
+                      items={currentDayItems.filter((i:any) => (i.placeId || (i.lat && i.lng)) && !i.isBreak)} 
                       userLocation={userLocation}
                       geofences={currentDayItems
-                        .filter((i:any) => i.lat && i.lng) // Ensure coords exist
-                        .map((i:any) => ({ lat: i.lat, lng: i.lng, radius: 100, color: visitHistory.find(v => v.place_id === (i.placeId || i.id))?.status === 'completed' ? '#9ca3af' : '#22c55e' }))} // Grey if visited
+                        .filter((i:any) => i.lat && i.lng && !i.isBreak)
+                        .map((i:any) => ({ lat: i.lat, lng: i.lng, radius: 100, color: visitHistory.find(v => v.place_id === (i.placeId || i.id))?.status === 'completed' ? '#9ca3af' : '#22c55e' }))}
                       onClose={() => { }} 
                     />
 

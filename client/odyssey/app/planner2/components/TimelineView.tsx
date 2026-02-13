@@ -14,6 +14,7 @@ type ItineraryItem = {
     time?: string;
     description?: string;
     source?: "db" | "ai";
+    isBreak?: boolean;
 };
 
 interface TimelineViewProps {
@@ -23,6 +24,7 @@ interface TimelineViewProps {
     onEditItem: (item: ItineraryItem) => void;
     onAddItem?: (time: string) => void;
     onUpdateItemTime?: (id: string, newTime: string) => void;
+    onAddMealBreak?: () => void;
 }
 
 function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem; onRemove: () => void; onEdit: () => void }) {
@@ -36,10 +38,14 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
         transition,
     };
 
+    const isBreak = item.isBreak;
+
     return (
-        <div ref={setNodeRef} style={style} className="group relative pl-4 pr-3 py-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all mb-3 flex gap-3 items-start z-10 w-[95%] ml-auto">
+        <div ref={setNodeRef} style={style} className={`group relative pl-4 pr-3 py-3 rounded-xl border shadow-sm hover:shadow-md transition-all mb-3 flex gap-3 items-start z-10 w-[95%] ml-auto ${
+            isBreak ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'
+        }`}>
             {/* Time Indicator Line */}
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4A9B7F] rounded-l-xl"></div>
+            <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isBreak ? 'bg-orange-400' : 'bg-[#4A9B7F]'}`}></div>
 
             <div className="mt-1 text-gray-400 cursor-grab active:cursor-grabbing" {...listeners} {...attributes}>
                 <GripVertical size={16} />
@@ -47,12 +53,15 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-[#4A9B7F] bg-[#4A9B7F]/10 px-2 py-0.5 rounded-md">
+                    <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-md ${
+                        isBreak ? 'text-orange-600 bg-orange-100' : 'text-[#4A9B7F] bg-[#4A9B7F]/10'
+                    }`}>
                         {item.time || "09:00"}
                     </span>
+                    {isBreak && <span className="text-base">🍽️</span>}
                     <h4 className="font-bold text-gray-900 text-sm truncate">{item.name}</h4>
                 </div>
-                {item.category && (
+                {item.category && !isBreak && (
                     <p className="text-xs text-gray-500 mb-1">{item.category}</p>
                 )}
                 <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -62,9 +71,11 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
             </div>
 
             <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                    <Edit2 size={14} />
-                </button>
+                {!isBreak && (
+                    <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                        <Edit2 size={14} />
+                    </button>
+                )}
                 <button onClick={onRemove} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
                     <Trash2 size={14} />
                 </button>
@@ -73,7 +84,7 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
     );
 }
 
-export default function TimelineView({ day, items = [], onRemoveItem, onEditItem, onAddItem }: TimelineViewProps) {
+export default function TimelineView({ day, items = [], onRemoveItem, onEditItem, onAddItem, onAddMealBreak }: TimelineViewProps) {
     // Generate hours 08:00 to 22:00
     const hours = Array.from({ length: 15 }, (_, i) => {
         const h = i + 8;
@@ -145,6 +156,16 @@ export default function TimelineView({ day, items = [], onRemoveItem, onEditItem
 
                     </div>
                 </SortableContext>
+            </div>
+
+            {/* Add Meal Break Button */}
+            <div className="p-3 border-t border-gray-100">
+                <button
+                    onClick={onAddMealBreak}
+                    className="w-full text-sm flex items-center justify-center gap-2 font-medium text-orange-600 hover:bg-orange-50 px-3 py-2 rounded-lg transition-colors border border-dashed border-orange-300"
+                >
+                    🍽️ Add Meal Break
+                </button>
             </div>
         </div>
     );

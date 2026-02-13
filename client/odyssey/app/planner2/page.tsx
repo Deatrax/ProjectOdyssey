@@ -47,6 +47,7 @@ type ItineraryItem = {
   source?: "db" | "ai";
   lat?: number;
   lng?: number;
+  isBreak?: boolean;
 };
 
 type Trip = {
@@ -299,12 +300,23 @@ export default function PlannerPage() {
 
   const recalculateDayTimes = (items: ItineraryItem[], startTime = "09:00"): ItineraryItem[] => {
     let currentTime = new Date(`2000-01-01T${startTime}`);
-    return items.map(item => {
+    const TRAVEL_BUFFER_MIN = 15; // Buffer between activities for travel
+    return items.map((item, idx) => {
       const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       const duration = item.visitDurationMin || 60;
       currentTime.setMinutes(currentTime.getMinutes() + duration);
+      // Add travel buffer between activities (not after last item, not after breaks)
+      if (idx < items.length - 1 && !item.isBreak) {
+        currentTime.setMinutes(currentTime.getMinutes() + TRAVEL_BUFFER_MIN);
+      }
       return { ...item, time: timeStr };
     });
+  };
+
+  // Helper to safely get day items (schedule keys can be numbers or strings from backend)
+  const getDayItems = (schedule: Record<number | string, ItineraryItem[]>, day: number): ItineraryItem[] => {
+    const raw = schedule[day] ?? schedule[String(day)];
+    return Array.isArray(raw) ? raw : [];
   };
 
   // --- ACTIONS ---
@@ -688,12 +700,46 @@ export default function PlannerPage() {
 
   // --- HANDLER: Search ---
   const handleSearch = async () => {
-    // TODO: integrate real search API
-    const mockResults: ItineraryItem[] = [
-      { id: "p1", name: `Result for ${searchQuery} 1`, category: "Museum", visitDurationMin: 120 },
-      { id: "p2", name: `Result for ${searchQuery} 2`, category: "Park", visitDurationMin: 60 },
-    ];
-    setSearchResults(mockResults);
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/data/places?search=${encodeURIComponent(searchQuery)}&limit=20`);
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      const places = (data.places || []).map((p: any) => ({
+        id: p.place_id || p.id || `search-${Date.now()}-${Math.random()}`,
+        name: p.name,
+        placeId: p.google_place_id || p.place_id,
+        category: p.category || p.type || 'Place',
+        visitDurationMin: p.visit_duration_min || p.visitDurationMin || 60,
+        description: p.description || '',
+        images: p.images || (p.image_url ? [p.image_url] : []),
+        lat: p.latitude || p.lat,
+        lng: p.longitude || p.lng,
+        source: 'db' as const,
+      }));
+      setSearchResults(places);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    }
+  };
+
+  // --- HANDLER: Add Meal Break ---
+  const handleAddMealBreak = (day: number) => {
+    if (!activeTrip) return;
+    const breakItem: ItineraryItem = {
+      id: `break-${Date.now()}-${Math.random()}`,
+      name: 'Meal Break',
+      category: 'Break',
+      visitDurationMin: 60,
+      isBreak: true,
+      source: 'db',
+    };
+    const currentList = getDayItems(activeTrip.schedule, day);
+    const newList = recalculateDayTimes([...currentList, breakItem]);
+    const newSchedule = { ...activeTrip.schedule };
+    newSchedule[day] = newList;
+    updateTripSchedule(newSchedule);
   };
 
   // --- SIMULATION ---
@@ -720,20 +766,26 @@ export default function PlannerPage() {
     if (!over || !activeTrip) return;
 
     const activeData = active.data.current as any;
+    const overData = over.data?.current as any;
     const overId = over.id as string;
 
     // Case 1: Dragging from Resource Panel to Timeline
-    if (activeData?.type === "source-item" && overId.startsWith("timeline-day-")) {
-      const targetDay = parseInt(overId.replace("timeline-day-", ""));
-      if (targetDay === currentDay) {
+    if (activeData?.type === "source-item") {
+      // Dropped on the droppable zone OR on an existing timeline item
+      if (overId.startsWith("timeline-day-")) {
+        const targetDay = parseInt(overId.replace("timeline-day-", ""));
         addItemToSchedule(activeData, targetDay);
+      } else if (overData?.type === "timeline-item") {
+        // Dropped over an existing item in the timeline — add to current day
+        addItemToSchedule(activeData, currentDay);
       }
+      return;
     }
 
     // Case 2: Reordering within Timeline
     if (activeData?.type === "timeline-item") {
       const activeId = active.id;
-      const daySchedule = activeTrip.schedule[currentDay] || [];
+      const daySchedule = getDayItems(activeTrip.schedule, currentDay);
       const oldIndex = daySchedule.findIndex(i => i.id === activeId);
       const newIndex = daySchedule.findIndex(i => i.id === over.id);
 
@@ -748,7 +800,8 @@ export default function PlannerPage() {
 
   const addItemToSchedule = (item: ItineraryItem, day: number) => {
     if (!activeTrip) return;
-    const currentList = activeTrip.schedule[day] || [];
+    // Schedule keys may be strings from backend — try both
+    const currentList = getDayItems(activeTrip.schedule, day);
     const newItem = {
       ...item,
       id: `${item.id}-${Date.now()}`,
@@ -765,11 +818,11 @@ export default function PlannerPage() {
   const removeItemFromSchedule = (itemId: string, day: number) => {
     if (!activeTrip) return;
     const newSchedule = { ...activeTrip.schedule };
-    if (newSchedule[day]) {
-      const filtered = newSchedule[day].filter(i => i.id !== itemId);
-      newSchedule[day] = recalculateDayTimes(filtered);
-      updateTripSchedule(newSchedule);
-    }
+    const raw = newSchedule[day] ?? newSchedule[String(day) as any];
+    const dayItems = Array.isArray(raw) ? raw : [];
+    const filtered = dayItems.filter(i => i.id !== itemId);
+    newSchedule[day] = recalculateDayTimes(filtered);
+    updateTripSchedule(newSchedule);
   };
 
   const updateTripSchedule = (newSchedule: Record<number, ItineraryItem[]>) => {
@@ -902,19 +955,20 @@ export default function PlannerPage() {
                   <div className="flex-1 overflow-hidden rounded-2xl shadow-sm border border-gray-200 bg-white">
                     <TimelineView
                       day={currentDay}
-                      items={activeTrip.schedule[currentDay] || []}
+                      items={getDayItems(activeTrip.schedule, currentDay)}
                       onRemoveItem={(id) => removeItemFromSchedule(id, currentDay)}
                       onEditItem={handleViewDetails}
                       onAddItem={handleAddItem}
+                      onAddMealBreak={() => handleAddMealBreak(currentDay)}
                     />
                   </div>
                 </>
               ) : activeMainTab === "map" && activeTrip ? (
                 <div className="h-full w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
                   <MapComponent
-                    items={allTripItems}
+                    items={allTripItems.filter(i => !i.isBreak)}
                     userLocation={userLocation}
-                    geofences={allTripItems.filter((i: any) => i.lat && i.lng).map((i: any) => ({
+                    geofences={allTripItems.filter((i: any) => i.lat && i.lng && !i.isBreak).map((i: any) => ({
                       lat: i.lat, lng: i.lng, radius: 100, color: "#22c55e"
                     }))}
                     onClose={() => setActiveMainTab("itinerary")}
