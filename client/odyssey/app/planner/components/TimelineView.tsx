@@ -73,7 +73,7 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
     );
 }
 
-export default function TimelineView({ day, items, onRemoveItem, onEditItem, onAddItem }: TimelineViewProps) {
+export default function TimelineView({ day, items = [], onRemoveItem, onEditItem, onAddItem }: TimelineViewProps) {
     // Generate hours 08:00 to 22:00
     const hours = Array.from({ length: 15 }, (_, i) => {
         const h = i + 8;
@@ -86,7 +86,8 @@ export default function TimelineView({ day, items, onRemoveItem, onEditItem, onA
     });
 
     // Sort items by time
-    const sortedItems = [...items].sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
+    const safeItems = Array.isArray(items) ? items : [];
+    const sortedItems = [...safeItems].sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -94,7 +95,7 @@ export default function TimelineView({ day, items, onRemoveItem, onEditItem, onA
             {/* Header */}
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                    Day {day} <span className="text-xs font-normal text-gray-500 bg-white border px-2 py-0.5 rounded-full">{items.length} Activities</span>
+                    Day {day} <span className="text-xs font-normal text-gray-500 bg-white border px-2 py-0.5 rounded-full">{safeItems.length} Activities</span>
                 </h3>
                 <button
                     onClick={() => onAddItem?.("09:00")}
