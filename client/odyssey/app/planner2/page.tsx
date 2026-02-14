@@ -729,7 +729,10 @@ export default function PlannerPage() {
       // --- Merge AI schedule into local trip timeline ---
       if (activeTrip && selectedItinerary.schedule && Array.isArray(selectedItinerary.schedule)) {
         // Build a lookup of original items by normalized name for placeId/coords injection
-        const originalItems = Object.values(activeTrip.schedule).flat();
+        // Include both current timeline items AND collections (since generation now uses collections)
+        const timelineItems = Object.values(activeTrip.schedule).flat();
+        const originalItems = [...timelineItems, ...collections];
+        
         const originalLookup = new Map<string, ItineraryItem>();
         for (const item of originalItems) {
           if (item.name) originalLookup.set(item.name.toLowerCase().trim(), item);
