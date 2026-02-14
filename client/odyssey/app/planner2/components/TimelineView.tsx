@@ -36,6 +36,7 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
+        height: `${Math.max(64, ((item.visitDurationMin || 60) / 60) * 64)}px`, // 64px per hour
     };
 
     const isBreak = item.isBreak;

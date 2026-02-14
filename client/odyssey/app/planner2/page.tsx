@@ -1051,11 +1051,11 @@ export default function PlannerPage() {
             {/* Generate Button */}
             <button
               onClick={handleGenerateItineraries}
-              disabled={allTripItems.length === 0 || optionsLoading}
+              disabled={collections.length === 0 || optionsLoading}
               className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${
-                allTripItems.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
+                collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
               }`}
-              title={allTripItems.length === 0 ? "Add places to itinerary first" : "Generate 3 itinerary options"}
+              title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
             >
               <Sparkles size={16} />
               {optionsLoading ? "Generating..." : "Generate Itineraries"}
