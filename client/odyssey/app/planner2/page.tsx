@@ -648,7 +648,13 @@ export default function PlannerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          selectedPlaces: allItems.map(item => ({ name: item.name, category: item.category || "place" })),
+          selectedPlaces: allItems.map(item => ({
+            name: item.name,
+            category: item.category || "place",
+            placeId: item.placeId || undefined,
+            lat: item.lat || undefined,
+            lng: item.lng || undefined
+          })),
           tripDuration: activeTrip?.days || 3,
           userContext: { budget: "medium", pace: "moderate" },
           customRequirements: customRequirements.length > 0 ? customRequirements.join(" | ") : undefined
@@ -723,19 +729,32 @@ export default function PlannerPage() {
 
       // --- Merge AI schedule into local trip timeline ---
       if (activeTrip && selectedItinerary.schedule && Array.isArray(selectedItinerary.schedule)) {
+        // Build a lookup of original items by normalized name for placeId/coords injection
+        const originalItems = Object.values(activeTrip.schedule).flat();
+        const originalLookup = new Map<string, ItineraryItem>();
+        for (const item of originalItems) {
+          if (item.name) originalLookup.set(item.name.toLowerCase().trim(), item);
+        }
+
         const newSchedule: Record<number, ItineraryItem[]> = {};
         for (const dayObj of selectedItinerary.schedule) {
           const dayNum = dayObj.day || 1;
-          const items: ItineraryItem[] = (dayObj.items || []).map((ai: any, idx: number) => ({
-            id: `ai-${dayNum}-${idx}-${Date.now()}`,
-            name: ai.name || ai.place || "Unnamed",
-            placeId: ai.placeId || undefined,
-            category: ai.category || ai.activity || "place",
-            visitDurationMin: ai.visitDurationMin || 60,
-            time: ai.timeRange?.split("-")[0] || "09:00",
-            description: ai.notes || "",
-            source: "ai" as const,
-          }));
+          const items: ItineraryItem[] = (dayObj.items || []).map((ai: any, idx: number) => {
+            const aiName = (ai.name || ai.place || "Unnamed").toLowerCase().trim();
+            const original = originalLookup.get(aiName);
+            return {
+              id: `ai-${dayNum}-${idx}-${Date.now()}`,
+              name: ai.name || ai.place || "Unnamed",
+              placeId: ai.placeId || original?.placeId || undefined,
+              lat: ai.lat || original?.lat || undefined,
+              lng: ai.lng || original?.lng || undefined,
+              category: ai.category || ai.activity || "place",
+              visitDurationMin: ai.visitDurationMin || original?.visitDurationMin || 60,
+              time: ai.timeRange?.split("-")[0] || "09:00",
+              description: ai.notes || "",
+              source: "ai" as const,
+            };
+          });
           newSchedule[dayNum] = recalculateDayTimes(items);
         }
         updateTripSchedule(newSchedule);
