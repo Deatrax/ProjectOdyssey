@@ -628,9 +628,8 @@ export default function PlannerPage() {
 
   // --- HANDLER: Generate Itineraries (Stage 2) ---
   const handleGenerateItineraries = async () => {
-    const allItems = activeTrip ? Object.values(activeTrip.schedule).flat() : [];
-    if (allItems.length === 0) {
-      alert("Please add places to your itinerary first!");
+    if (collections.length === 0) {
+      alert("Please add places to your collections first!");
       return;
     }
 
@@ -640,7 +639,7 @@ export default function PlannerPage() {
     try {
       setChatMessages(prev => [...prev, {
         id: Date.now().toString() + "thinking",
-        text: "Odyssey is generating 3 different itinerary options for you...",
+        text: "Generating itineraries based on your collections...",
         sender: "ai", cards: []
       }]);
 
@@ -648,7 +647,7 @@ export default function PlannerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          selectedPlaces: allItems.map(item => ({
+          selectedPlaces: collections.map(item => ({
             name: item.name,
             category: item.category || "place",
             placeId: item.placeId || undefined,
