@@ -53,8 +53,8 @@ const NavBar = () => {
             <div className="hidden md:flex items-center gap-7">
                 {[
                     { name: "Home", path: "/dashboard" },
-                    { name: "Planner", path: "/planner" },
-                    { name: "[DEV] Admin Page", path: "/admin" },
+                    { name: "Planner", path: "/planner2" },
+                    { name: "Trip Mode", path: "/trip" },
                     { name: "Destinations", path: "/destinations" },
                     { name: "Co-travellers", path: "/co-travellers" },
                 ].map((link) => (
@@ -104,7 +104,7 @@ const NavBar = () => {
                             <Link href="/saved-places" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
                                 Saved Places
                             </Link>
-                            <Link href="/settings" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
+                            <Link href="/admin" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
                                 Settings
                             </Link>
                             <div className="h-px bg-gray-200 my-1 mx-2"></div>
