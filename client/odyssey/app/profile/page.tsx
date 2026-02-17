@@ -1,7 +1,7 @@
 // app/profile/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -132,10 +132,53 @@ const collections: CollectionProps[] = [
   }
 ];
 
+// Helper to get relative time string
+const getRelativeTime = (dateStr: string): string => {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+};
+
 const ProfilePage: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(true);
+
+  // Fetch user trips on mount
+  useEffect(() => {
+    const fetchTrips = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) { setTripsLoading(false); return; }
+        const res = await fetch("http://localhost:4000/api/trips", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            setTrips(data.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch trips:", err);
+      } finally {
+        setTripsLoading(false);
+      }
+    };
+    fetchTrips();
+  }, []);
 
   // Render star rating
   const renderStars = (rating: number) => {
@@ -227,7 +270,7 @@ const ProfilePage: React.FC = () => {
         {/* Stats Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">{userProfile.stats.tripsCompleted}</p>
+            <p className="text-3xl font-bold text-gray-900">{trips.filter(t => t.status === 'confirmed').length}</p>
             <p className="text-gray-600 text-sm mt-1">Trips Completed</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
@@ -253,8 +296,8 @@ const ProfilePage: React.FC = () => {
           <button
             onClick={() => setActiveTab("overview")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "overview"
-                ? "bg-[#4A9B7F] text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
           >
             Overview
@@ -262,8 +305,8 @@ const ProfilePage: React.FC = () => {
           <button
             onClick={() => setActiveTab("trips")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "trips"
-                ? "bg-[#4A9B7F] text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
           >
             Shared Trips
@@ -271,8 +314,8 @@ const ProfilePage: React.FC = () => {
           <button
             onClick={() => setActiveTab("reviews")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "reviews"
-                ? "bg-[#4A9B7F] text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
           >
             Reviews
@@ -280,8 +323,8 @@ const ProfilePage: React.FC = () => {
           <button
             onClick={() => setActiveTab("collections")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "collections"
-                ? "bg-[#4A9B7F] text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
           >
             Collections
@@ -289,8 +332,8 @@ const ProfilePage: React.FC = () => {
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "settings"
-                ? "bg-[#4A9B7F] text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
           >
             Settings
@@ -307,33 +350,44 @@ const ProfilePage: React.FC = () => {
               <div className="bg-white rounded-2xl p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Recent Activity</h3>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-4 pb-4 border-b border-gray-200">
-                    <div className="w-12 h-12 bg-[#4A9B7F] rounded-full flex items-center justify-center text-white font-bold">
-                      ✓
+                  {tripsLoading ? (
+                    <p className="text-gray-500 text-sm italic">Loading activity...</p>
+                  ) : trips.length === 0 ? (
+                    <div className="bg-[#FFF5E9] rounded-xl p-6 text-center">
+                      <p className="text-gray-600">No activity yet — plan your first trip!</p>
+                      <button
+                        onClick={() => router.push("/planner")}
+                        className="mt-4 bg-[#4A9B7F] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#3d8a6d] transition"
+                      >
+                        Plan a Trip
+                      </button>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-gray-900 font-semibold">Completed Trip to Bali</p>
-                      <p className="text-gray-600 text-sm mt-1">Visited 8 amazing places • 2 weeks ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 pb-4 border-b border-gray-200">
-                    <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-white font-bold">
-                      ⭐
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-900 font-semibold">Left a review for Tanah Lot Temple</p>
-                      <p className="text-gray-600 text-sm mt-1">5 stars • 2 weeks ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 pb-4 border-b border-gray-200">
-                    <div className="w-12 h-12 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold">
-                      📍
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-900 font-semibold">Added 12 places to "Beach Paradises"</p>
-                      <p className="text-gray-600 text-sm mt-1">3 weeks ago</p>
-                    </div>
-                  </div>
+                  ) : (
+                    trips.slice(0, 5).map((trip, index) => {
+                      const placeCount = Array.isArray(trip.selected_places) ? trip.selected_places.length : 0;
+                      const isConfirmed = trip.status === "confirmed";
+                      return (
+                        <div
+                          key={trip.id}
+                          className={`flex items-start gap-4 pb-4 cursor-pointer hover:bg-gray-50 rounded-xl px-2 -mx-2 transition ${index < trips.length - 1 ? 'border-b border-gray-200' : ''}`}
+                          onClick={() => router.push('/planner')}
+                        >
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${isConfirmed ? 'bg-[#4A9B7F]' : 'bg-amber-400'
+                            }`}>
+                            {isConfirmed ? '✓' : '✏️'}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-gray-900 font-semibold">
+                              {isConfirmed ? 'Confirmed' : 'Planned'} trip: {trip.trip_name}
+                            </p>
+                            <p className="text-gray-600 text-sm mt-1">
+                              {placeCount} place{placeCount !== 1 ? 's' : ''} • {trip.status} • {getRelativeTime(trip.updated_at || trip.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -345,18 +399,44 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Upcoming Trips */}
+              {/* Upcoming Trips (Draft trips) */}
               <div className="bg-white rounded-2xl p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Trips</h3>
-                <div className="bg-[#FFF5E9] rounded-xl p-6 text-center">
-                  <p className="text-gray-600">No upcoming trips planned yet</p>
-                  <button
-                    onClick={() => router.push("/planner")}
-                    className="mt-4 bg-[#4A9B7F] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#3d8a6d] transition"
-                  >
-                    Plan a Trip
-                  </button>
-                </div>
+                {(() => {
+                  const draftTrips = trips.filter(t => t.status === 'draft');
+                  if (tripsLoading) return <p className="text-gray-500 text-sm italic">Loading...</p>;
+                  if (draftTrips.length === 0) return (
+                    <div className="bg-[#FFF5E9] rounded-xl p-6 text-center">
+                      <p className="text-gray-600">No upcoming trips planned yet</p>
+                      <button
+                        onClick={() => router.push("/planner")}
+                        className="mt-4 bg-[#4A9B7F] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#3d8a6d] transition"
+                      >
+                        Plan a Trip
+                      </button>
+                    </div>
+                  );
+                  return (
+                    <div className="space-y-3">
+                      {draftTrips.slice(0, 3).map((trip) => (
+                        <div
+                          key={trip.id}
+                          onClick={() => router.push('/planner')}
+                          className="flex items-center gap-4 p-4 bg-[#FFF5E9] rounded-xl cursor-pointer hover:bg-amber-100/60 transition"
+                        >
+                          <div className="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                            ✈️
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-gray-900 font-semibold">{trip.trip_name}</p>
+                            <p className="text-gray-600 text-sm">{Array.isArray(trip.selected_places) ? trip.selected_places.length : 0} places • Draft</p>
+                          </div>
+                          <span className="text-gray-400">→</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -364,35 +444,73 @@ const ProfilePage: React.FC = () => {
           {/* SHARED TRIPS TAB */}
           {activeTab === "trips" && (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sharedTrips.map((trip) => (
-                  <div key={trip.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition cursor-pointer">
-                    <div className="h-48 overflow-hidden">
-                      <img
-                        src={trip.image}
-                        alt={trip.title}
-                        className="w-full h-full object-cover hover:scale-105 transition duration-300"
-                      />
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{trip.title}</h3>
-                      <p className="text-gray-600 text-sm mb-1">📍 {trip.destination}</p>
-                      <p className="text-gray-600 text-sm mb-3">📅 {trip.dates}</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          <span className="text-gray-600 text-sm">{trip.collaborators} collaborators</span>
+              {tripsLoading ? (
+                <p className="text-gray-500 text-sm italic">Loading trips...</p>
+              ) : trips.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
+                  <p className="text-gray-600 mb-4">No trips yet</p>
+                  <button
+                    onClick={() => router.push("/planner")}
+                    className="bg-[#4A9B7F] text-white px-6 py-2 rounded-full font-semibold hover:bg-[#3d8a6d] transition"
+                  >
+                    Plan Your First Trip
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trips.map((trip) => {
+                    const placeCount = Array.isArray(trip.selected_places) ? trip.selected_places.length : 0;
+                    // Try to find an image from the trip data
+                    let tripImage: string | null = null;
+                    if (Array.isArray(trip.selected_places)) {
+                      for (const p of trip.selected_places) {
+                        if (p?.images?.[0]) { tripImage = p.images[0]; break; }
+                        if (p?.image) { tripImage = p.image; break; }
+                      }
+                    }
+                    if (!tripImage) {
+                      const schedule = trip.selected_itinerary?.schedule;
+                      if (Array.isArray(schedule)) {
+                        for (const d of schedule) {
+                          for (const item of (d?.items || [])) {
+                            if (item?.images?.[0]) { tripImage = item.images[0]; break; }
+                            if (item?.image) { tripImage = item.image; break; }
+                          }
+                          if (tripImage) break;
+                        }
+                      }
+                    }
+                    return (
+                      <div
+                        key={trip.id}
+                        onClick={() => router.push('/planner')}
+                        className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition cursor-pointer"
+                      >
+                        <div className="h-48 overflow-hidden">
+                          {tripImage ? (
+                            <img src={tripImage} alt={trip.trip_name} className="w-full h-full object-cover hover:scale-105 transition duration-300" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400" />
+                          )}
                         </div>
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                          Public
-                        </span>
+                        <div className="p-6">
+                          <h3 className="text-xl font-bold text-gray-900 mb-2">{trip.trip_name}</h3>
+                          <p className="text-gray-600 text-sm mb-1">📍 {placeCount} place{placeCount !== 1 ? 's' : ''}</p>
+                          <p className="text-gray-600 text-sm mb-3">📅 {getRelativeTime(trip.created_at)}</p>
+                          <div className="flex items-center justify-between">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${trip.status === 'confirmed'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                              }`}>
+                              {trip.status === 'confirmed' ? 'Confirmed' : 'Draft'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
