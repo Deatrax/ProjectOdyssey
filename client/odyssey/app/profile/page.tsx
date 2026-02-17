@@ -810,7 +810,7 @@ const ProfilePage: React.FC = () => {
               {showReviewModal && (
 
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl">
+                  <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-2xl font-bold text-gray-900">Write a Review</h3>
                       <button
