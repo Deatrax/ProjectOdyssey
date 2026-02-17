@@ -765,7 +765,10 @@ const ProfilePage: React.FC = () => {
           {activeTab === "overview" && (
             <div className="space-y-6">
               {/* Travel Stats Card (Gamification) */}
-              <TravelStatsCard />
+              <TravelStatsCard
+                xp={userData.xp || 0}
+                level={userData.level || 1}
+              />
 
               {/* Recent Activity */}
               <div className="bg-white rounded-2xl p-8 shadow-lg">

@@ -10,15 +10,30 @@ import {
     Zap
 } from "lucide-react";
 
-const TravelStatsCard: React.FC = () => {
-    // Mock static data
+interface TravelStatsCardProps {
+    xp?: number;
+    level?: number;
+}
+
+const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) => {
+    // Determine dynamic title based on XP
+    const getTravelTitle = (points: number) => {
+        if (points >= 6000) return "Master Nomad";
+        if (points >= 3000) return "World Roamer";
+        if (points >= 1000) return "Route Builder";
+        return "New Explorer";
+    };
+
+    const travelTitle = getTravelTitle(xp);
+
+    // Mock static data mixed with dynamic XP
     const stats = {
         efficiency: 92,
-        totalXP: "14,250",
+        totalXP: xp.toLocaleString(),
         badge: {
-            name: "Elite Voyager",
-            level: "Gold",
-            icon: "🏆"
+            name: level > 10 ? "Legendary Explorer" : level > 5 ? "Veteran Voyager" : "Elite Voyager",
+            level: level > 10 ? "Diamond" : level > 5 ? "Platinum" : "Gold",
+            icon: level > 10 ? "💎" : "🏆"
         },
         streak: {
             days: 14,
@@ -35,6 +50,17 @@ const TravelStatsCard: React.FC = () => {
         <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 overflow-hidden relative">
             {/* Decorative background element */}
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#4A9B7F]/5 rounded-full blur-3xl"></div>
+
+            {/* Travel Title Header */}
+            <div className="mb-6 pb-6 border-b border-gray-100 flex justify-between items-end relative">
+                <div>
+                    <p className="text-[10px] font-black text-[#4A9B7F] uppercase tracking-[0.2em] mb-1">Current Ranking</p>
+                    <h2 className="text-3xl font-black text-gray-900 leading-none">{travelTitle}</h2>
+                </div>
+                <div className="bg-[#4A9B7F] text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                    Level {level}
+                </div>
+            </div>
 
             {/* Top Header Section: Efficiency & XP */}
             <div className="flex flex-col sm:flex-row justify-between gap-6 mb-8 relative">
