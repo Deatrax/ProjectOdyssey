@@ -6,7 +6,7 @@ const router = express.Router();
 // GET /profile
 router.get("/profile", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password"); 
+    const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json({
@@ -15,6 +15,44 @@ router.get("/profile", protect, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /profile - Update user profile settings
+router.put("/profile", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Update allowed fields
+    const allowedUpdates = [
+      'displayName', 'bio', 'profileImage', 'coverImage',
+      'travelStyle', 'privacy', 'preferences', 'notifications', 'email'
+    ];
+
+    // Apply updates
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        user[field] = req.body[field];
+      }
+    });
+
+    await user.save();
+
+    // Return updated user without password
+    const updatedUser = await User.findById(req.user.id).select("-password");
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error("Profile update error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 });
 

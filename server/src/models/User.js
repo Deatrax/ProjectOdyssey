@@ -21,8 +21,47 @@ const userSchema = new mongoose.Schema({
   dob: {
     type: Date, 
     required: true
+  },
+  // Profile Settings
+  displayName: {
+    type: String,
+    default: function() { return this.username; }
+  },
+  bio: {
+    type: String,
+    default: ""
+  },
+  profileImage: {
+    type: String,
+    default: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop"
+  },
+  coverImage: {
+    type: String,
+    default: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=400&fit=crop"
+  },
+  travelStyle: {
+    type: [String],
+    default: []
+  },
+  // Privacy Settings
+  privacy: {
+    publicProfile: { type: Boolean, default: true },
+    showTripHistory: { type: Boolean, default: true },
+    showReviewsPublicly: { type: Boolean, default: true }
+  },
+  // Travel Preferences
+  preferences: {
+    currency: { type: String, default: "USD - US Dollar" },
+    budgetRange: { type: String, default: "$50 - $100 (Moderate)" },
+    accommodation: { type: String, default: "Mid-range Hotels" }
+  },
+  // Notification Settings
+  notifications: {
+    emailNotifications: { type: Boolean, default: true },
+    tripReminders: { type: Boolean, default: true },
+    friendActivity: { type: Boolean, default: true }
   }
-});
+}, { timestamps: true });
 
 // Hash password before saving
 userSchema.pre("save", async function() {
