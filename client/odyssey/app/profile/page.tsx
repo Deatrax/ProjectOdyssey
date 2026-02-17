@@ -149,6 +149,7 @@ const ProfilePage: React.FC = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [placesVisitedCount, setPlacesVisitedCount] = useState(0);
 
   // Fetch user trips on mount
   useEffect(() => {
@@ -213,7 +214,24 @@ const ProfilePage: React.FC = () => {
         setReviewsLoading(false);
       }
     };
+    const fetchVisitStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:4000/api/visits/user/stats", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setPlacesVisitedCount(data.data.count);
+        }
+      } catch (error) {
+        console.error("Error fetching visit stats:", error);
+      }
+    };
+
     fetchReviews();
+    fetchVisitStats();
   }, []);
 
   // Submit a new review
@@ -238,10 +256,17 @@ const ProfilePage: React.FC = () => {
           setCurrentImageUrl("");
           setShowReviewModal(false);
           setStats(prev => ({ ...prev, reviews: prev.reviews + 1 }));
+          alert("Review submitted successfully!");
+        } else {
+          alert(data.error || "Failed to submit review");
         }
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Server error occurred");
       }
     } catch (err) {
       console.error("Failed to submit review:", err);
+      alert("Something went wrong. Please try again.");
     } finally {
       setSubmittingReview(false);
     }
@@ -405,7 +430,7 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-600 text-sm mt-1">Trips Completed</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">{userProfile.stats.placesVisited}</p>
+            <p className="text-3xl font-bold text-gray-900">{placesVisitedCount}</p>
             <p className="text-gray-600 text-sm mt-1">Places Visited</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">

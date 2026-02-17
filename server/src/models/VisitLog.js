@@ -364,6 +364,33 @@ class VisitLogModel {
       throw err;
     }
   }
+
+  /**
+   * Get unique places visited count for a user
+   * @param {string} userId - User ID
+   * @returns {number} Count of unique places visited
+   */
+  static async getUserVisitStats(userId) {
+    try {
+      const { data, error, count } = await supabase
+        .from("visit_logs")
+        .select("place_id", { count: "exact", head: false })
+        .eq("user_id", userId)
+        .eq("status", "completed");
+
+      if (error) {
+        console.error("Error fetching user visit stats:", error);
+        throw new Error(`Failed to fetch user visit stats: ${error.message}`);
+      }
+
+      // Get unique place_ids
+      const uniquePlaces = new Set(data.map(v => v.place_id));
+      return uniquePlaces.size;
+    } catch (err) {
+      console.error("VisitLogModel.getUserVisitStats error:", err);
+      throw err;
+    }
+  }
 }
 
 module.exports = VisitLogModel;
