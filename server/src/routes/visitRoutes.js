@@ -362,6 +362,29 @@ router.get("/user", async (req, res) => {
 });
 
 /**
+ * GET /api/visits/user/stats
+ * Get visit statistics aggregated by country for logged-in user
+ */
+router.get("/user/stats", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stats = await VisitLogModel.getUserVisitStats(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    console.error("GET /user/stats error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+
+/**
  * PUT /api/visits/:visitId
  * Update visit with feedback (rating, notes, photos)
  * 

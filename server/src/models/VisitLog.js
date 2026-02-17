@@ -364,6 +364,47 @@ class VisitLogModel {
       throw err;
     }
   }
+  /**
+   * Get visit statistics aggregated by country for a user
+   * @param {string} userId - User ID
+   * @returns {object} Object with country names and visit counts
+   */
+  static async getUserVisitStats(userId) {
+    try {
+      // Fetch completed visits for the user and join with place data
+      const { data, error } = await supabase
+        .from("visit_logs")
+        .select(`
+          status,
+          places (
+            country
+          )
+        `)
+        .eq("user_id", userId)
+        .eq("status", "completed");
+
+      if (error) {
+        console.error("Error fetching user visit stats:", error);
+        throw new Error(`Failed to fetch user visit stats: ${error.message}`);
+      }
+
+      // Aggregate counts by country
+      const stats = {};
+      data.forEach(log => {
+        // Handle case where places might be returned as an array or object
+        const placesData = Array.isArray(log.places) ? log.places[0] : log.places;
+        const countryName = placesData?.country;
+        if (countryName) {
+          stats[countryName] = (stats[countryName] || 0) + 1;
+        }
+      });
+
+      return stats;
+    } catch (err) {
+      console.error("VisitLogModel.getUserVisitStats error:", err);
+      throw err;
+    }
+  }
 }
 
 module.exports = VisitLogModel;

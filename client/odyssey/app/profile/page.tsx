@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import VisitMap from "./VisitMap";
+import TravelStatsCard from "./TravelStatsCard";
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -149,6 +151,17 @@ const getRelativeTime = (dateStr: string): string => {
   return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
 };
 
+const getApiBase = () => {
+  if (typeof window !== "undefined") {
+    // If we're on a non-localhost domain, use that host with port 4000
+    const { hostname, protocol } = window.location;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `${protocol}//${hostname}:4000`;
+    }
+  }
+  return "http://localhost:4000";
+};
+
 const ProfilePage: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
@@ -161,6 +174,10 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // New state for visit stats
+  const [visitStats, setVisitStats] = useState<Record<string, number>>({});
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // Image upload state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -192,6 +209,33 @@ const ProfilePage: React.FC = () => {
     }
   });
 
+  // Fetch visit stats on mount
+  useEffect(() => {
+    const fetchVisitStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch(`${getApiBase()}/api/visits/user/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          if (result.success) {
+            setVisitStats(result.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch visit stats:", err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchVisitStats();
+  }, []);
+
   // Fetch user profile and trips on mount
   useEffect(() => {
     const fetchUserData = async () => {
@@ -203,7 +247,7 @@ const ProfilePage: React.FC = () => {
         }
 
         // Fetch user profile
-        const userRes = await fetch("http://localhost:4000/api/user/profile", {
+        const userRes = await fetch(`${getApiBase()}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -239,7 +283,7 @@ const ProfilePage: React.FC = () => {
         }
 
         // Fetch trips
-        const tripsRes = await fetch("http://localhost:4000/api/trips", {
+        const tripsRes = await fetch(`${getApiBase()}/api/trips`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (tripsRes.ok) {
@@ -346,13 +390,13 @@ const ProfilePage: React.FC = () => {
       if (imagePreview.profile) updates.profileImage = imagePreview.profile;
       if (imagePreview.cover) updates.coverImage = imagePreview.cover;
 
-      const res = await fetch("http://localhost:4000/api/user/profile", {
+      const res = await fetch(`${getApiBase()}/api/user/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(updates)
+        body: JSON.stringify(updates),
       });
 
       const data = await res.json();
@@ -720,6 +764,9 @@ const ProfilePage: React.FC = () => {
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <div className="space-y-6">
+              {/* Travel Stats Card (Gamification) */}
+              <TravelStatsCard />
+
               {/* Recent Activity */}
               <div className="bg-white rounded-2xl p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Recent Activity</h3>
@@ -765,12 +812,23 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Travel Map Placeholder */}
-              <div className="bg-white rounded-2xl p-8 shadow-lg">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Places I've Been</h3>
-                <div className="h-64 bg-gray-200 rounded-xl flex items-center justify-center">
-                  <p className="text-gray-500 font-semibold">Interactive Travel Map Coming Soon</p>
+              {/* Travel Map Section */}
+              <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900">Places I've Been</h3>
                 </div>
+                {statsLoading ? (
+                  <div className="h-64 bg-gray-50 rounded-xl flex items-center justify-center">
+                    <p className="text-gray-500 animate-pulse font-semibold">Loading Map Data...</p>
+                  </div>
+                ) : Object.keys(visitStats).length === 0 ? (
+                  <div className="h-64 bg-gray-50 rounded-xl flex items-center justify-center flex-col gap-4 text-center px-4">
+                    <p className="text-gray-500 font-semibold">No travel history found yet</p>
+                    <p className="text-sm text-gray-400">Venture out and check-in to places to see them on your map!</p>
+                  </div>
+                ) : (
+                  <VisitMap stats={visitStats} />
+                )}
               </div>
 
               {/* Upcoming Trips (Draft trips) */}

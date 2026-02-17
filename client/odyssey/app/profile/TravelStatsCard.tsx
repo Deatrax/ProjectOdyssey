@@ -1,0 +1,131 @@
+"use strict";
+
+import React from "react";
+import {
+    Trophy,
+    Flame,
+    TrendingUp,
+    Award,
+    Users,
+    Zap
+} from "lucide-react";
+
+const TravelStatsCard: React.FC = () => {
+    // Mock static data
+    const stats = {
+        efficiency: 92,
+        totalXP: "14,250",
+        badge: {
+            name: "Elite Voyager",
+            level: "Gold",
+            icon: "🏆"
+        },
+        streak: {
+            days: 14,
+            message: "Personal Best!"
+        },
+        leaderboard: {
+            rank: 4,
+            totalFriends: 12,
+            rankChange: "up"
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 overflow-hidden relative">
+            {/* Decorative background element */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#4A9B7F]/5 rounded-full blur-3xl"></div>
+
+            {/* Top Header Section: Efficiency & XP */}
+            <div className="flex flex-col sm:flex-row justify-between gap-6 mb-8 relative">
+                <div className="flex-1 bg-[#F0F7F4] p-5 rounded-2xl flex items-center gap-4 transition-transform hover:scale-[1.02]">
+                    <div className="w-12 h-12 bg-[#4A9B7F]/10 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="text-[#4A9B7F] w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Travel Efficiency</p>
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black text-gray-900">{stats.efficiency}%</span>
+                            <div className="h-1.5 w-24 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-[#4A9B7F] rounded-full"
+                                    style={{ width: `${stats.efficiency}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 bg-[#FFF5E9] p-5 rounded-2xl flex items-center gap-4 transition-transform hover:scale-[1.02]">
+                    <div className="w-12 h-12 bg-[#FF8C42]/10 rounded-xl flex items-center justify-center">
+                        <Zap className="text-[#FF8C42] w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Points Earned</p>
+                        <p className="text-2xl font-black text-gray-900">{stats.totalXP} <span className="text-sm font-bold text-[#FF8C42]">XP</span></p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Grid Section: Badge, Streak, Leaderboard */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Badge Section */}
+                <div className="group bg-gray-50 p-6 rounded-2xl border border-transparent hover:border-[#4A9B7F]/20 hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Award className="text-[#4A9B7F] w-5 h-5" />
+                        <h4 className="font-bold text-gray-800">Top Badge</h4>
+                    </div>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="text-5xl mb-3 transform transition-transform group-hover:scale-110 duration-300">
+                            {stats.badge.icon}
+                        </div>
+                        <p className="font-black text-gray-900">{stats.badge.name}</p>
+                        <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest">{stats.badge.level} Level</p>
+                    </div>
+                </div>
+
+                {/* Streak Section */}
+                <div className="group bg-gray-50 p-6 rounded-2xl border border-transparent hover:border-orange-200 hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Flame className="text-orange-500 w-5 h-5" />
+                        <h4 className="font-bold text-gray-800">Current Streak</h4>
+                    </div>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="relative">
+                            <span className="text-5xl font-black text-gray-900">{stats.streak.days}</span>
+                            <span className="text-sm font-bold text-gray-500 absolute -bottom-1 -right-8">DAYS</span>
+                        </div>
+                        <div className="mt-4 px-3 py-1 bg-orange-100 rounded-full border border-orange-200">
+                            <p className="text-[10px] font-black text-orange-600 uppercase tracking-tighter italic">
+                                {stats.streak.message}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Leaderboard Section */}
+                <div className="group bg-gray-50 p-6 rounded-2xl border border-transparent hover:border-blue-200 hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Users className="text-blue-500 w-5 h-5" />
+                        <h4 className="font-bold text-gray-800">Leaderboard</h4>
+                    </div>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-sm font-bold text-gray-500 uppercase">Rank</span>
+                            <span className="text-5xl font-black text-gray-900">#{stats.leaderboard.rank}</span>
+                        </div>
+                        <p className="mt-2 text-sm font-medium text-gray-600">
+                            Top <span className="font-bold text-blue-600">33%</span> among {stats.leaderboard.totalFriends} friends
+                        </p>
+                        <div className="mt-3 flex items-center gap-1 text-green-600 font-bold text-xs">
+                            <Trophy className="w-3 h-3" />
+                            <span>Moving up this week!</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default TravelStatsCard;
