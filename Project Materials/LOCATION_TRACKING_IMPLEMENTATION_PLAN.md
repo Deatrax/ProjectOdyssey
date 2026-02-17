@@ -1721,7 +1721,7 @@ ALTER TABLE itineraries ADD COLUMN IF NOT EXISTS creation_method VARCHAR DEFAULT
 CREATE INDEX IF NOT EXISTS idx_itineraries_map_routes 
 ON itineraries USING GIN (map_routes);
 
--- Cache search results for performance (reduces Google API quota usage)
+-- Cache search results for performance
 CREATE TABLE IF NOT EXISTS place_search_cache (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   search_query VARCHAR NOT NULL,
@@ -1731,183 +1731,97 @@ CREATE TABLE IF NOT EXISTS place_search_cache (
 );
 
 CREATE INDEX idx_place_search_query ON place_search_cache(search_query);
-
--- NOTE: User's destination collection (Type 1) is stored CLIENT-SIDE ONLY
--- No database table needed - use React state until "Create Itinerary" is clicked
 ```
 
-**Backend (4 hours):**
+**Backend (3.5 hours):**
 - [ ] `server/src/routes/mapRoutes.js` - Map and search API
 ```javascript
-// Search & Discovery
 POST /api/map/search-places (Google Places Autocomplete)
 GET /api/map/place-details/:placeId (Get full place info)
-POST /api/map/nearby-search (Find nearby places by category/radius)
-
-// Type 1: Manual Day Planning (Pre-Generation)
-// NOTE: Destinations stored in React state client-side, not database
-POST /api/map/create-manual-itinerary (Create itinerary from organized days)
-  // Body: { trip_name, days: [{ day: 1, places: [...] }], creation_method: 'manual' }
-
-// Type 2: Post-Generation Editing
-PUT /api/map/itinerary/:id/reorder (Update place order within day)
-PUT /api/map/itinerary/:id/move-place (Move place to different day)
-POST /api/map/itinerary/:id/add-place (Add new place to existing itinerary)
-DELETE /api/map/itinerary/:id/remove-place/:placeId
-
-// Route Generation (Both Types)
+POST /api/map/nearby-search (Find nearby places)
 POST /api/map/generate-route (Generate route from places)
 GET /api/map/route/:itineraryId
-POST /api/map/recalculate-route/:itineraryId (After manual edits)
+PUT /api/map/route/:itineraryId (update waypoint order)
+POST /api/map/create-manual-itinerary (Create from selected places)
 ```
 - [ ] `server/src/services/googleMapsService.js` - Google Maps API wrapper
   - Places Autocomplete
   - Place Details
   - Nearby Search
-  - Directions API (multi-day routes)
+  - Directions API
 - [ ] `server/src/services/placeSearchService.js` - Search caching logic
-- [ ] `server/src/services/routeOptimizer.js` - Route recalculation logic
-- [ ] `server/src/models/DestinationCollection.js` - Destination management
-- [ ] Store route polyline, distance, duration per day in database
+- [ ] Store route polyline, distance, duration in database
 
-**Agent prompt (Backend):**
+**Agent prompt:**
 ```
-"Create Express API for Google Places and manual itinerary planning:
-
-1) Search endpoints:
-   - POST /api/map/search-places: Google Places Autocomplete, returns predictions
-   - GET /api/map/place-details/:placeId: Full place info with photos, reviews
-   - POST /api/map/nearby-search: Find places by lat/lng, radius, category
-
-2) Type 1 - Pre-planning (destinations stored client-side):
-   - POST /api/map/create-manual-itinerary: Accept days array with places,
-     create itinerary with creation_method='manual', generate routes per day
-   - No destination collection endpoints needed (React state handles this)
-
-3) Type 2 - Post-generation editing:
-   - PUT /api/map/itinerary/:id/reorder: Update place order within day
-   - PUT /api/map/itinerary/:id/move-place: Move place between days
-   - POST /api/map/recalculate-route/:id: Regenerate routes after changes
-
-4) For route generation, call Google Directions API for each day separately,
-   store per-day polylines in map_routes JSONB as:
-   { day1: { polyline, distance, duration, waypoints }, day2: {...} }
-
-Include Supabase integration, JWT auth, caching, error handling, TypeScript."
+"Create Express API for Google Places search with endpoints: 
+1) /api/map/search-places - accepts query string, calls Google Places 
+   Autocomplete, returns place predictions with name, address, coordinates
+2) /api/map/place-details/:placeId - fetches full place info (photos, 
+   reviews, hours, category)
+3) /api/map/nearby-search - accepts lat/lng and radius, returns nearby 
+   places by category
+4) /api/map/create-manual-itinerary - accepts array of selected places, 
+   creates itinerary with creation_method='manual'
+Include caching, error handling, and TypeScript types."
 ```
 
-**Frontend (6 hours):**
-
-**Core Components:**
-- [ ] `client/odyssey/components/map/MapSearch.tsx` - Search bar with autocomplete
-- [ ] `client/odyssey/components/map/MapView.tsx` - Google Maps display
-- [ ] `client/odyssey/components/map/PlaceDetailsModal.tsx` - Place info popup
+**Frontend (5 hours):**
+- [ ] `client/odyssey/components/MapSearch.tsx` - Search bar with autocomplete
+- [ ] `client/odyssey/components/MapView.tsx` - Google Maps component
+- [ ] `client/odyssey/components/PlaceDetailsModal.tsx` - Show place info
+- [ ] `client/odyssey/components/ManualItineraryBuilder.tsx` - Build itinerary from map
 - [ ] `client/odyssey/services/mapService.ts` - API calls
+- [ ] Search functionality:
+  - Search bar with Google Places Autocomplete
+  - Display search results as markers
+  - Click marker → show place details
+  - "Add to Itinerary" button on each place
+- [ ] Manual itinerary creation:
+  - Selected places list (sidebar)
+  - Drag to reorder places
+  - Remove place from list
+  - "Create Itinerary" button
+- [ ] Route visualization:
+  - Draw polyline between selected places
+  - Show distance and duration
+  - Display user's current location (blue dot)
+- [ ] Nearby discovery:
+  - "Find nearby restaurants" button
+  - Filter by category (food, attractions, hotels)
 
-**Type 1: Manual Day Planning Components:**
-- [ ] `client/odyssey/app/planner/manual/page.tsx` - Manual planning page
-- [ ] `client/odyssey/components/planner/DestinationsPanel.tsx` - Saved destinations list
-- [ ] `client/odyssey/components/planner/DayPlannerGrid.tsx` - Day columns (Day 1, 2, 3)
-- [ ] `client/odyssey/components/planner/PlaceCard.tsx` - Draggable place card
-- [ ] Drag-and-drop logic:
-  - Destinations panel ↔ Day columns
-  - Reorder within day columns
-  - Use dnd-kit library
-- [ ] "Add Day" / "Remove Day" buttons
-- [ ] "Generate Routes" button → calls backend
-- [ ] Preview routes on map for each day
-
-**Type 2: Itinerary Editor Components:**
-- [ ] `client/odyssey/app/itinerary/[id]/edit/page.tsx` - Edit existing itinerary
-- [ ] `client/odyssey/components/itinerary/DayCard.tsx` - Day with places list
-- [ ] `client/odyssey/components/itinerary/EditablePlaceItem.tsx` - Draggable place
-- [ ] Drag-and-drop logic:
-  - Reorder within same day
-  - Move between days
-  - Real-time route updates
-- [ ] "Add Place" button → opens map search
-- [ ] Live distance/time updates on map
-- [ ] "Save Changes" → updates itinerary
-- [ ] Change history/undo (optional)
-
-**Shared Features:**
-- [ ] Search functionality (works in both modes)
-- [ ] Place details modal (works in both modes)
-- [ ] Map route visualization
-- [ ] User current location display
-- [ ] Nearby places discovery
-- [ ] Transport mode selector (walking/driving/transit)
-
-**Agent prompt (Frontend):**
+**Agent prompt:**
 ```
-"Create two React workflows for manual itinerary planning:
-
-WORKFLOW 1 - Manual Day Planning:
-Page: /planner/manual
-- Google Maps with search bar (Places Autocomplete)
-- Left sidebar: 'Destinations' panel with saved places
-- Center: 3-column grid (Day 1, Day 2, Day 3)
-- User can:
-  1) Search place → Click 'Add to Destinations'
-  2) Drag place from Destinations → Day column
-  3) Drag to reorder within day
-  4) Set visit duration per place
-  5) Click 'Generate Routes' → Shows polyline for each day on map
-  6) Save as itinerary
-- Use dnd-kit for drag-drop, TypeScript + Tailwind
-
-WORKFLOW 2 - Itinerary Editor:
-Page: /itinerary/[id]/edit
-- Display existing itinerary as day cards with places
-- Each place is draggable
-- User can:
-  1) Drag place to reorder within same day
-  2) Drag place to different day
-  3) Click 'Add Place' → Opens map search modal
-  4) Remove place with X button
-  5) Map updates routes in real-time as user drags
-  6) Shows updated distance/time after each change
-  7) 'Save Changes' button
-- Live route recalculation using /api/map/recalculate-route
-- Use optimistic UI updates (show changes immediately, sync with backend)
-
-Both workflows share: MapView component, search functionality, place details modal.
-Include loading states, error handling, animations with Framer Motion."
+"Create React map interface with Google Maps that includes:
+1) Search bar using Google Places Autocomplete - shows dropdown suggestions
+2) Click result → adds marker to map and shows details modal with photos, 
+   rating, address, 'Add to Itinerary' button
+3) Sidebar showing selected places list with drag-to-reorder (use dnd-kit), 
+   remove buttons, and 'Create Itinerary' button at bottom
+4) When places selected, draw polyline route between them in order
+5) 'Nearby Places' dropdown with categories (Restaurants, Attractions, Hotels) 
+   that searches within 1km radius
+6) Show user's current location as blue pulsing dot
+TypeScript + Tailwind + dnd-kit for drag-drop."
 ```
 
-**Integration (2 hours):**
-- [ ] Add routes to planner:
-  - `/planner/manual` - Type 1: Manual day planning
-  - `/itinerary/[id]/edit` - Type 2: Edit existing itinerary
-- [ ] Update existing planner page:
-  - Add "Manual Planning" button → /planner/manual
-  - Add "Edit" button on itinerary cards → /itinerary/[id]/edit
-- [ ] Test Type 1 workflow:
-  - Search → Add to destinations → Organize by day → Generate routes → Save
-- [ ] Test Type 2 workflow:
-  - Open AI-generated itinerary → Edit mode → Drag places → Map updates → Save
-- [ ] Test AI optimization:
-  - Manual itinerary → "Ask AI to Optimize" → Shows suggestions
-- [ ] Handle edge cases:
-  - Empty day (no places)
-  - Single place (no route needed)
-  - Remove last place from day
-- [ ] Mock Google API if quota exceeded
+**Integration (1.5 hours):**
+- [ ] Add "Map Builder" as PRIMARY tab in planner page
+- [ ] Create new route: `/planner/map-builder`
+- [ ] Test: Search → Select places → Reorder → Create itinerary → View route
+- [ ] Mock Google API if quota exceeded (use sample data)
+- [ ] Connect to existing itinerary system (save to database)
 
 **Deliverables:**
 ✅ Google Places search integration working
 ✅ Search results display as map markers
 ✅ Place details modal with full info
-✅ **Type 1:** Manual day-by-day planning interface
-✅ **Type 1:** Drag-and-drop from destinations to day columns
-✅ **Type 1:** Route generation for organized days
-✅ **Type 2:** Itinerary editor for existing itineraries
-✅ **Type 2:** Real-time route updates on drag
-✅ **Type 2:** Add/remove places in existing itinerary
-✅ Both types save to database with proper metadata
+✅ Manual itinerary builder with drag-to-reorder
+✅ "Add to Itinerary" functionality
+✅ Route generation for selected places
+✅ Database stores manually-created itineraries
 ✅ Nearby places discovery
 ✅ User location visible
-✅ Multi-day route visualization
 
 ---
 
@@ -2167,40 +2081,28 @@ text. Make it Instagram-worthy."
 
 #### Evening (2 hours): Demo Rehearsal & Backup Plan
 
-**Demo Script (12 minutes):**
+**Demo Script (10 minutes):**
 
 **1. Intro (30 sec):**
 - "Project Odyssey: AI-powered AND manual trip planning with real-time tracking"
-- "Today we'll show TWO ways to plan manually"
 
-**2A. Manual Day Planning - Build from Scratch (3 min):**
-- Click "Manual Planning" button
-- Search for "Eiffel Tower" → Add to Destinations
-- Search "Louvre Museum" → Add to Destinations
-- Search "Arc de Triomphe" → Add to Destinations
-- Search "Sacré-Cœur" → Add to Destinations
-- Search "Notre-Dame" → Add to Destinations
-- Now organize by day:
-  - Drag Eiffel Tower + Louvre to "Day 1"
-  - Drag Arc de Triomphe + Sacré-Cœur to "Day 2"
-  - Drag Notre-Dame to "Day 3"
-- Reorder within Day 1 (Louvre before Eiffel)
-- Click "Generate Routes"
-- Map shows separate routes for each day with distances
-- Click "Save Itinerary" → "My Paris Adventure" created
+**2. Manual Itinerary Creation (2.5 min):**
+- Click "Map Builder" tab
+- Search for "Eiffel Tower, Paris" → Shows on map
+- Click marker → Details modal appears with photos
+- Click "Add to Itinerary" → Appears in sidebar
+- Search "Louvre Museum" → Add to itinerary
+- Search "Arc de Triomphe" → Add to itinerary
+- Use "Nearby Restaurants" → Find lunch spot near Louvre
+- Add restaurant to itinerary
+- Drag places to reorder in sidebar
+- Route automatically draws between places
+- Click "Create Itinerary" → Saves as "My Paris Adventure"
 
-**2B. Post-Generation Editing - Modify Existing (2.5 min):**
-- Show AI-generated itinerary: "Rome 2-Day Tour"
-- Click "Edit" button → Edit mode
-- Map shows current routes
-- User decides: "I want Colosseum on Day 2, not Day 1"
-- Drag Colosseum from Day 1 to Day 2
-- Map instantly recalculates routes
-- Shows new distance: Day 1 now 6km, Day 2 now 9km
-- Add new place: Click "Add Place" → Search "Trevi Fountain"
-- Add to Day 1 → Map updates again
-- Remove "Spanish Steps" from Day 2
-- Click "Save Changes" → Updated itinerary stored
+**3. View Generated Route (1 min):**
+- Route displayed with walking distances and times
+- Total: 8.5km, 6-7 hours
+- All 5 places marked on map
 
 **4. Start Trip (3 min):**
 - Click "Start Trip" → Goes to Active Trip view
