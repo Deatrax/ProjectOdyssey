@@ -77,13 +77,17 @@ const NavBar = () => {
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-7">
-                {[
+                {(isLoggedIn ? [
                     { name: "Home", path: "/dashboard" },
                     { name: "Planner", path: "/planner2" },
                     { name: "Trip Mode", path: "/trip" },
                     { name: "Destinations", path: "/destinations" },
                     { name: "Co-travellers", path: "/co-travellers" },
-                ].map((link) => (
+                ] : [
+                    { name: "Home", path: "/" },
+                    { name: "Planner", path: "/planner2" },
+                    { name: "Destinations", path: "/destinations" },
+                ]).map((link) => (
                     <Link
                         key={link.name}
                         href={link.path}
