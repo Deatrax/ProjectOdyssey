@@ -11,6 +11,7 @@ const LoginPage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
   const [loading, setLoading] = useState(false);
   const [redirectMessage, setRedirectMessage] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
 
   // 2. NEW: Check if user is already logged in
   useEffect(() => {
@@ -47,6 +48,11 @@ const LoginPage: React.FC = () => {
       // Store Token
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("rememberMe", rememberMe ? "true" : "false");
+
+      // Set Cookie for Middleware
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 2 * 60 * 60; // 30 days or 2 hours
+      document.cookie = `token=${data.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
       // Redirect
       router.push("/dashboard");
@@ -174,6 +180,25 @@ const LoginPage: React.FC = () => {
               </svg>
               Sign in with Google
             </button>
+            {/* Remember Me */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-gray-400 text-sm">Remember me</span>
+              </label>
+              <a
+                href="#"
+                className="text-green-500 text-sm hover:text-green-400"
+              >
+                Forgot Password?
+              </a>
+            </div>
+
             {/* Login Button */}
             <button
               type="submit"

@@ -93,6 +93,8 @@ const DashboardPage: React.FC = () => {
         // 5. CRITICAL: Wipe storage so Login page doesn't bounce us back
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        localStorage.removeItem("rememberMe");
+        document.cookie = "token=; path=/; max-age=0";
 
         router.push("/login");
       } finally {
