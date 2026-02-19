@@ -365,9 +365,10 @@ class VisitLogModel {
     }
   }
   /**
-   * Get visit statistics aggregated by country for a user
+   * Get visit statistics for a user
+   * Returns both the count of unique places visited and an aggregation by country
    * @param {string} userId - User ID
-   * @returns {object} Object with country names and visit counts
+   * @returns {object} { count: number, countryStats: object }
    */
   static async getUserVisitStats(userId) {
     try {
@@ -375,6 +376,7 @@ class VisitLogModel {
       const { data, error } = await supabase
         .from("visit_logs")
         .select(`
+          place_id,
           status,
           places (
             country
@@ -388,18 +390,25 @@ class VisitLogModel {
         throw new Error(`Failed to fetch user visit stats: ${error.message}`);
       }
 
+      // Calculate unique places count
+      const uniquePlaces = new Set(data.map(v => v.place_id));
+      const count = uniquePlaces.size;
+
       // Aggregate counts by country
-      const stats = {};
+      const countryStats = {};
       data.forEach(log => {
         // Handle case where places might be returned as an array or object
         const placesData = Array.isArray(log.places) ? log.places[0] : log.places;
         const countryName = placesData?.country;
         if (countryName) {
-          stats[countryName] = (stats[countryName] || 0) + 1;
+          countryStats[countryName] = (countryStats[countryName] || 0) + 1;
         }
       });
 
-      return stats;
+      return {
+        count,
+        countryStats
+      };
     } catch (err) {
       console.error("VisitLogModel.getUserVisitStats error:", err);
       throw err;
