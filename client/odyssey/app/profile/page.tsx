@@ -412,17 +412,6 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-[#FFF5E9] min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#4A9B7F] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-semibold">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Fetch user reviews on mount
   useEffect(() => {
     const fetchReviews = async () => {
@@ -448,6 +437,17 @@ const ProfilePage: React.FC = () => {
     // Redundant fetchVisitStats removed, as it's already handled above
     fetchReviews();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-[#FFF5E9] min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#4A9B7F] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-semibold">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Submit a new review
   const handleSubmitReview = async () => {

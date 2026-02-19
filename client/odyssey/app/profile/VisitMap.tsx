@@ -71,7 +71,7 @@ const VisitMap: React.FC<VisitMapProps> = ({ stats }) => {
                                     <Geography
                                         key={geo.rsmKey}
                                         geography={geo}
-                                        fill={visitCount > 0 ? colorScale(visitCount) : "#F8FAFC"}
+                                        fill={visitCount > 0 ? colorScale(visitCount) : "#E2E8F0"}
                                         stroke="#FFFFFF"
                                         strokeWidth={0.5}
                                         style={{
