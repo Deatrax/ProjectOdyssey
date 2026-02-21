@@ -6,27 +6,20 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 // --- Types & Interfaces ---
-interface TripCardProps {
-  title: string;
-  image: string;
+interface Itinerary {
+  id: string;
+  trip_name: string;
+  selected_places: any[];
+  selected_itinerary: any;
+  status: "draft" | "confirmed";
+  created_at: string;
+  updated_at: string;
 }
 
 interface RecommendationProps {
   title: string;
   image: string;
 }
-
-// --- Mock Data ---
-const recentDrafts: TripCardProps[] = [
-  {
-    title: "Bali Trip",
-    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=300&h=300&fit=crop"
-  },
-  {
-    title: "Darjeeling Trip",
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop"
-  }
-];
 
 const recommendations: RecommendationProps[] = [
   {
@@ -50,8 +43,10 @@ const recommendations: RecommendationProps[] = [
 const DashboardPage: React.FC = () => {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true); // Add loading state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
+  const [loading, setLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [trips, setTrips] = useState<Itinerary[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(true);
 
   // --- PROTECTION LOGIC ---
   useEffect(() => {
@@ -87,6 +82,27 @@ const DashboardPage: React.FC = () => {
         // Optional: Update local storage with fresh user data
         localStorage.setItem("user", JSON.stringify(data.user));
 
+        // 5. Fetch user's trips for Recent Drafts
+        try {
+          const tripsRes = await fetch("http://localhost:4000/api/trips", {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+          });
+          if (tripsRes.ok) {
+            const tripsData = await tripsRes.json();
+            if (tripsData.success && Array.isArray(tripsData.data)) {
+              setTrips(tripsData.data);
+            }
+          }
+        } catch (tripErr) {
+          console.error("Failed to fetch trips:", tripErr);
+        } finally {
+          setTripsLoading(false);
+        }
+
       } catch (err) {
         console.error("Session expired:", err);
         alert("session expired, please login again");
@@ -119,13 +135,13 @@ const DashboardPage: React.FC = () => {
         <div className="relative mb-12 rounded-3xl overflow-hidden h-64 sm:h-96 shadow-xl">
           {/* Ensure this path points to your public folder */}
           <img
-            src="dashboard-bg.jpg"
+            src="/dashboard-bg.jpg"
             alt="Travel"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
             <div className="w-full max-w-xl px-4">
-              <div 
+              <div
                 onClick={() => router.push('/destinations')}
                 className="flex items-center bg-gray-900 bg-opacity-70 rounded-full overflow-hidden cursor-pointer hover:bg-opacity-80 transition"
               >
@@ -150,16 +166,91 @@ const DashboardPage: React.FC = () => {
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">Recent Drafts</h2>
           <div className="flex flex-wrap gap-4">
-            {recentDrafts.map((draft, index) => (
-              <div key={index} className="relative w-1/2 sm:w-40 h-32 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg">
-                <img src={draft.image} alt={draft.title} className="w-full h-full object-cover brightness-75" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <span className="absolute bottom-3 left-3 text-white text-sm font-semibold">{draft.title}</span>
+            {tripsLoading ? (
+              <div className="text-gray-500 text-sm italic">Loading your trips...</div>
+            ) : trips.length === 0 ? (
+              <div
+                onClick={() => router.push('/planner')}
+                className="w-full sm:w-auto flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/60 border-2 border-dashed border-gray-300 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition shadow-sm"
+              >
+                <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-gray-600 font-medium">No trips yet — start planning!</span>
               </div>
-            ))}
+            ) : (
+              trips.map((trip) => {
+                // Search for an image across selected_places and itinerary schedule items
+                const getTripImage = (): string | null => {
+                  // 1. Check selected_places for images
+                  if (Array.isArray(trip.selected_places)) {
+                    for (const place of trip.selected_places) {
+                      if (place?.images?.[0]) return place.images[0];
+                      if (place?.image) return place.image;
+                    }
+                  }
+                  // 2. Check selected_itinerary.schedule items for images
+                  const schedule = trip.selected_itinerary?.schedule;
+                  if (Array.isArray(schedule)) {
+                    // Array format: [{day, items: [{name, images, ...}]}]
+                    for (const dayObj of schedule) {
+                      const items = dayObj?.items || [];
+                      for (const item of items) {
+                        if (item?.images?.[0]) return item.images[0];
+                        if (item?.image) return item.image;
+                      }
+                    }
+                  } else if (schedule && typeof schedule === "object") {
+                    // Record format: {"1": [{name, images, ...}], ...}
+                    for (const key of Object.keys(schedule)) {
+                      const items = schedule[key];
+                      if (Array.isArray(items)) {
+                        for (const item of items) {
+                          if (item?.images?.[0]) return item.images[0];
+                          if (item?.image) return item.image;
+                        }
+                      }
+                    }
+                  }
+                  return null;
+                };
+                const tripImage = getTripImage();
+
+                return (
+                  <div
+                    key={trip.id}
+                    onClick={() => router.push('/planner')}
+                    className="relative w-1/2 sm:w-44 h-36 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg group"
+                  >
+                    {tripImage ? (
+                      <img src={tripImage} alt={trip.trip_name} className="w-full h-full object-cover brightness-75 group-hover:brightness-[0.6] transition" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                    {/* Status badge */}
+                    <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${trip.status === 'confirmed'
+                      ? 'bg-green-500/90 text-white'
+                      : 'bg-white/80 text-gray-700'
+                      }`}>
+                      {trip.status}
+                    </span>
+
+                    {/* Trip name */}
+                    <span className="absolute bottom-3 left-3 right-3 text-white text-sm font-semibold truncate">
+                      {trip.trip_name}
+                    </span>
+                  </div>
+                );
+              })
+            )}
 
             {/* 'Add New' Placeholder */}
-            <div className="w-1/2 sm:w-40 h-32 rounded-2xl bg-gray-300 bg-opacity-60 flex items-center justify-center cursor-pointer hover:bg-gray-400 transition shadow-lg">
+            <div
+              onClick={() => router.push('/planner')}
+              className="w-1/2 sm:w-44 h-36 rounded-2xl bg-gray-300/60 flex items-center justify-center cursor-pointer hover:bg-gray-400/60 transition shadow-lg"
+            >
               <svg className="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
               </svg>
