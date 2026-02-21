@@ -53,6 +53,57 @@ router.post("/save", authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/trips/collection/add
+ * Add a place to "My Collection" (or create if not exists)
+ */
+router.post("/collection/add", authMiddleware, async (req, res) => {
+  try {
+    const { place } = req.body;
+    const userId = req.user.id;
+
+    if (!place || !place.name) {
+      return res.status(400).json({ error: "Place data is required" });
+    }
+
+    // 1. Find existing "My Collection" itinerary
+    const allItineraries = await ItineraryModel.getUserItineraries(userId);
+    let collectionTrip = allItineraries.find(t => t.status === 'collection');
+
+    if (collectionTrip) {
+      // 2. Append to existing
+      const currentPlaces = Array.isArray(collectionTrip.selected_places) ? collectionTrip.selected_places : [];
+
+      // Check for duplicates (by name or id)
+      const exists = currentPlaces.some(p => p.name === place.name || (p.id && p.id === place.id));
+
+      if (!exists) {
+        const updatedPlaces = [...currentPlaces, place];
+        await ItineraryModel.updateItinerary(collectionTrip.id, {
+          selectedPlaces: updatedPlaces
+        });
+        return res.json({ success: true, message: "Added to collection", isNew: false });
+      } else {
+        return res.json({ success: true, message: "Already in collection", isNew: false });
+      }
+
+    } else {
+      // 3. Create new "My Collection"
+      await ItineraryModel.createItinerary(userId, {
+        tripName: "My Collection",
+        selectedPlaces: [place],
+        status: "collection",
+        selectedItinerary: { title: "My Personal Collection", schedule: [] }
+      });
+      return res.status(201).json({ success: true, message: "Collection created and place added", isNew: true });
+    }
+
+  } catch (err) {
+    console.error("POST /collection/add error:", err);
+    return res.status(500).json({ error: err.message || "Failed to add to collection" });
+  }
+});
+
+/**
  * GET /api/trips
  * Get all itineraries for logged-in user
  */

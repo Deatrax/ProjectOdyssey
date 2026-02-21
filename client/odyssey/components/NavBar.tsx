@@ -11,7 +11,7 @@ const NavBar = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    
+
     // Initial Auth Check & Session Extension
     React.useEffect(() => {
         const token = localStorage.getItem("token");
@@ -110,13 +110,13 @@ const NavBar = () => {
                 {/* Auth State Switch */}
                 {!isLoggedIn ? (
                     <div className="flex items-center gap-3">
-                        <Link 
+                        <Link
                             href="/login"
                             className="text-sm font-medium text-[#111] hover:opacity-70 transition-opacity"
                         >
                             Log in
                         </Link>
-                        <Link 
+                        <Link
                             href="/signup"
                             className="bg-black text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
                         >
@@ -155,7 +155,7 @@ const NavBar = () => {
                                     Settings
                                 </Link>
                                 <div className="h-px bg-gray-200 my-1 mx-2"></div>
-                                <button 
+                                <button
                                     onClick={handleLogout}
                                     className="w-full text-left block px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
                                 >
