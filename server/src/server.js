@@ -13,8 +13,6 @@ const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
 const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
-const reviewRoutes = require("./routes/reviewRoutes"); // Review Routes
-const uploadRoutes = require("./routes/uploadRoutes"); // Upload Routes
 
 
 const app = express();
@@ -26,9 +24,8 @@ app.use(cors({
 }));
 
 
-// 2. Body Parser (So we can read JSON) - Increased limit for base64 images
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// 2. Body Parser (So we can read JSON)
+app.use(express.json());
 
 // 3. Connect Database
 connectDB();
@@ -67,8 +64,6 @@ app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 app.use('/api/map', mapRoutes); // Map Search & Manual Planning
 app.use('/api/visits', visitRoutes); // Visit Tracking Routes
-app.use('/api/reviews', reviewRoutes); // Review Routes
-app.use('/api/upload', uploadRoutes); // Upload Routes
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;
