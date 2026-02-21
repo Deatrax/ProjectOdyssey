@@ -352,7 +352,7 @@ export default function PlannerPage() {
   // --- HELPERS ---
 
   const recalculateDayTimes = (items: ItineraryItem[], startTime = "09:00"): ItineraryItem[] => {
-    const currentTime = new Date(`2000-01-01T${startTime}`);
+    let currentTime = new Date(`2000-01-01T${startTime}`);
     const TRAVEL_BUFFER_MIN = 15; // Buffer between activities for travel
     return items.map((item, idx) => {
       const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
