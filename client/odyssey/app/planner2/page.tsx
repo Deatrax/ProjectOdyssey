@@ -681,6 +681,7 @@ export default function PlannerPage() {
   // --- HANDLER: Confirm & Save Itinerary ---
   const handleConfirmItinerary = async (finalTripName: string) => {
     if (!selectedItinerary) { alert("No itinerary selected"); return; }
+    if (!activeTrip) { alert("No active trip to confirm"); return; }
 
     try {
       const token = localStorage.getItem("token");
@@ -690,55 +691,23 @@ export default function PlannerPage() {
         return;
       }
 
-      const allItems = activeTrip ? Object.values(activeTrip.schedule).flat() : [];
-      const tripData = {
-        tripName: finalTripName || activeTrip?.tripName || "My Trip",
-        selectedPlaces: allItems.map(item => ({
-          id: item.id, name: item.name, category: item.category || "place", placeId: item.placeId,
-          coordinates: item.lat && item.lng ? { latitude: item.lat, longitude: item.lng } : null
-        })),
-        selectedItinerary: {
-          id: selectedItinerary.id, title: selectedItinerary.title,
-          description: selectedItinerary.description, paceDescription: selectedItinerary.paceDescription,
-          estimatedCost: selectedItinerary.estimatedCost, schedule: selectedItinerary.schedule
-        },
-        status: "draft"
-      };
-
-      const res = await fetch("http://localhost:4000/api/trips/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(tripData)
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to save trip");
-
-      const itineraryId = data.data.id;
-      setSavedItineraryId(itineraryId);
-      setSavedItinerary({
-        id: itineraryId,
-        tripName: finalTripName || activeTrip?.tripName || "My Trip",
-        title: tripData.selectedItinerary.title,
-        description: tripData.selectedItinerary.description,
-        paceDescription: tripData.selectedItinerary.paceDescription,
-        estimatedCost: tripData.selectedItinerary.estimatedCost,
-        schedule: tripData.selectedItinerary.schedule
-      });
+      const newTripName = finalTripName || activeTrip.tripName || "My Trip";
 
       // --- Merge AI schedule into local trip timeline ---
-      if (activeTrip && selectedItinerary.schedule && Array.isArray(selectedItinerary.schedule)) {
+      let newSchedule: Record<number, ItineraryItem[]> = { ...activeTrip.schedule };
+
+      if (selectedItinerary.schedule && Array.isArray(selectedItinerary.schedule)) {
         // Build a lookup of original items by normalized name for placeId/coords injection
         // Include both current timeline items AND collections (since generation now uses collections)
         const timelineItems = Object.values(activeTrip.schedule).flat();
         const originalItems = [...timelineItems, ...collections];
-        
+
         const originalLookup = new Map<string, ItineraryItem>();
         for (const item of originalItems) {
           if (item.name) originalLookup.set(item.name.toLowerCase().trim(), item);
         }
 
-        const newSchedule: Record<number, ItineraryItem[]> = {};
+        const rebuiltSchedule: Record<number, ItineraryItem[]> = {};
         for (const dayObj of selectedItinerary.schedule) {
           const dayNum = dayObj.day || 1;
           const items: ItineraryItem[] = (dayObj.items || []).map((ai: any, idx: number) => {
@@ -757,14 +726,28 @@ export default function PlannerPage() {
               source: "ai" as const,
             };
           });
-          newSchedule[dayNum] = recalculateDayTimes(items);
+          rebuiltSchedule[dayNum] = recalculateDayTimes(items);
         }
-        updateTripSchedule(newSchedule);
+        newSchedule = rebuiltSchedule;
       }
+
+      const updatedTrip = { ...activeTrip, tripName: newTripName, schedule: newSchedule };
+      setTrips(trips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
+
+      setSavedItineraryId(updatedTrip.id);
+      setSavedItinerary({
+        id: updatedTrip.id,
+        tripName: newTripName,
+        title: selectedItinerary.title,
+        description: selectedItinerary.description,
+        paceDescription: selectedItinerary.paceDescription,
+        estimatedCost: selectedItinerary.estimatedCost,
+        schedule: newSchedule
+      });
 
       setChatMessages(prev => [...prev, {
         id: Date.now().toString() + "saved",
-        text: `✅ Trip saved successfully! Trip ID: ${itineraryId}. The itinerary has been placed in your timeline.`,
+        text: `✅ Trip saved successfully! The itinerary has been placed in your timeline.`,
         sender: "ai", cards: []
       }]);
 
@@ -772,6 +755,10 @@ export default function PlannerPage() {
       setStage("chat");
       setSelectedItinerary(null);
       setItineraryOptions([]);
+
+      // Persist the changes to the database
+      await saveTrip(updatedTrip);
+
     } catch (err) {
       console.error("Error saving trip:", err);
       alert(`Error saving trip: ${(err as any).message}`);
@@ -952,6 +939,7 @@ export default function PlannerPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           status: trip.status,
+          tripName: trip.tripName,
           selectedItinerary: {
             title: trip.tripName,
             days: trip.days,
@@ -1055,9 +1043,8 @@ export default function PlannerPage() {
             <button
               onClick={handleGenerateItineraries}
               disabled={collections.length === 0 || optionsLoading}
-              className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${
-                collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
-              }`}
+              className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
+                }`}
               title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
             >
               <Sparkles size={16} />
@@ -1107,9 +1094,8 @@ export default function PlannerPage() {
                       <span className="text-sm font-medium">Simulation Mode</span>
                       <button
                         onClick={isSimulating ? stopSimulation : startSimulation}
-                        className={`px-3 py-1 rounded-md text-sm font-bold text-white transition-colors ${
-                          isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
-                        }`}
+                        className={`px-3 py-1 rounded-md text-sm font-bold text-white transition-colors ${isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                          }`}
                       >
                         {isSimulating ? "Stop" : "Start Travel"}
                       </button>
