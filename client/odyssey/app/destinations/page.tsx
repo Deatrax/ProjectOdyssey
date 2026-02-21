@@ -107,33 +107,10 @@ const DestinationsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const addToCollection = async (place: any) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("Please login to add to collection");
-        return;
-      }
-
-      const res = await fetch("http://localhost:4000/api/trips/collection/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ place }),
-      });
-
-      if (res.ok) {
-        // Silently close the modal without alert
-        setIsModalOpen(false);
-      } else {
-        const err = await res.json();
-        console.error("Failed to add to collection:", err.error);
-      }
-    } catch (error) {
-      console.error("Error adding to collection:", error);
-    }
+  const addToCollection = (place: any) => {
+    // TODO: Implement collection logic (Person 2)
+    alert(`Added ${place.name} to your collection! (Feature coming soon)`);
+    setIsModalOpen(false);
   };
 
   // Handle Enter Key / Form Submit
