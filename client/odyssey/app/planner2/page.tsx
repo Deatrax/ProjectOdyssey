@@ -88,6 +88,7 @@ export default function PlannerPage() {
   const [chatInput, setChatInput] = useState("");
   const [searchResults, setSearchResults] = useState<ItineraryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchSource, setSearchSource] = useState<"google" | "db">("google");
   const [collections, setCollections] = useState<ItineraryItem[]>([]);
 
   // 5. Chat & AI State
@@ -286,7 +287,16 @@ export default function PlannerPage() {
         // For logged-out users, try localStorage scoped to trip
         const savedChat = localStorage.getItem(`guestChat_${tripId}`);
         if (savedChat) {
-          try { setChatMessages(JSON.parse(savedChat)); }
+          try {
+            const parsed = JSON.parse(savedChat);
+            setChatMessages(parsed.map((m: any) => ({
+              ...m,
+              cards: (m.cards || []).map((c: any, cIdx: number) => ({
+                ...c,
+                id: c.id || `guest-card-${Date.now()}-${cIdx}-${Math.random()}`
+              }))
+            })));
+          }
           catch { setChatMessages([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]); }
         } else {
           setChatMessages([{ id: "m1", text: "Hello! Where are we going?", sender: "ai", cards: [] }]);
@@ -331,7 +341,10 @@ export default function PlannerPage() {
             id: m.id,
             text: m.message,
             sender: m.role === 'user' ? 'user' : 'ai',
-            cards: m.metadata?.cards || [],
+            cards: (m.metadata?.cards || []).map((c: any, cIdx: number) => ({
+              ...c,
+              id: c.id || `history-card-${Date.now()}-${cIdx}-${Math.random()}`
+            })),
             bullets: m.metadata?.bullets || []
           }));
           setChatMessages(msgs);
@@ -559,7 +572,12 @@ export default function PlannerPage() {
       const data = await res.json();
 
       let aiCards: ItineraryItem[] = [];
-      if (data.cards) aiCards = [...aiCards, ...data.cards];
+      if (data.cards) {
+        aiCards = data.cards.map((c: any, cIdx: number) => ({
+          ...c,
+          id: c.id || `ai-card-${Date.now()}-${cIdx}-${Math.random()}`
+        }));
+      }
       if (data.itineraryPreview?.days) {
         data.itineraryPreview.days.forEach((day: any) => {
           if (day.items) {
@@ -794,22 +812,45 @@ export default function PlannerPage() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/data/places?search=${encodeURIComponent(searchQuery)}&limit=20`);
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
-      const places = (data.places || []).map((p: any) => ({
-        id: p.place_id || p.id || `search-${Date.now()}-${Math.random()}`,
-        name: p.name,
-        placeId: p.google_place_id || p.place_id,
-        category: p.category || p.type || 'Place',
-        visitDurationMin: p.visit_duration_min || p.visitDurationMin || 60,
-        description: p.description || '',
-        images: p.images || (p.image_url ? [p.image_url] : []),
-        lat: p.latitude || p.lat,
-        lng: p.longitude || p.lng,
-        source: 'db' as const,
-      }));
-      setSearchResults(places);
+      if (searchSource === "google") {
+        const res = await fetch(`http://localhost:4000/api/map/search-places`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery })
+        });
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+        const places = (data.results || []).map((p: any) => ({
+          id: p.place_id || `search-${Date.now()}-${Math.random()}`,
+          name: p.name,
+          placeId: p.place_id,
+          category: p.types?.[0] || 'Place',
+          visitDurationMin: 60,
+          description: p.formatted_address || '',
+          images: p.photos && p.photos.length > 0 ? [`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photos[0].photo_reference}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`] : [],
+          lat: p.geometry?.location?.lat,
+          lng: p.geometry?.location?.lng,
+          source: 'db' as const,
+        }));
+        setSearchResults(places);
+      } else {
+        const res = await fetch(`http://localhost:4000/api/places?search_query=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+        const places = (data.places || []).map((p: any) => ({
+          id: p.id || `db-${Date.now()}-${Math.random()}`,
+          name: p.name,
+          placeId: p.place_id || p.id,
+          category: p.type || 'Place',
+          visitDurationMin: 60,
+          description: p.short_desc || p.country || '',
+          images: p.img_url ? [p.img_url] : [`https://source.unsplash.com/400x300/?${p.name}`],
+          lat: p.latitude,
+          lng: p.longitude,
+          source: 'db' as const,
+        }));
+        setSearchResults(places);
+      }
     } catch (err) {
       console.error('Search error:', err);
       setSearchResults([]);
@@ -994,183 +1035,187 @@ export default function PlannerPage() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-screen w-full bg-[#f8f9fa] overflow-hidden">
+      <div className="flex h-[calc(100vh-110px)] w-full max-w-[1800px] mx-auto bg-[#FFF5E9] overflow-hidden px-4 md:px-8 pb-6 pt-2">
+        <div className="flex w-full h-full bg-white rounded-3xl shadow-xl border border-orange-100 overflow-hidden relative">
 
-        {/* Sidebar */}
-        {sidebarOpen ? (
-          <ItinerarySidebar
-            itineraries={trips}
-            activeItineraryId={activeTripId}
-            onSelectItinerary={setActiveTripId}
-            onNewTrip={() => setShowSetup(true)}
-            onDeleteTrip={handleDeleteTrip}
-          />
-        ) : (
-          <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">
-            <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
-              <Menu size={20} />
-            </button>
-          </div>
-        )}
+          {/* Sidebar */}
+          {sidebarOpen ? (
+            <ItinerarySidebar
+              itineraries={trips}
+              activeItineraryId={activeTripId}
+              onSelectItinerary={setActiveTripId}
+              onNewTrip={() => setShowSetup(true)}
+              onDeleteTrip={handleDeleteTrip}
+            />
+          ) : (
+            <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">
+              <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <Menu size={20} />
+              </button>
+            </div>
+          )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col min-w-0">
 
-          {/* Top Bar */}
-          <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm z-20">
-            <div className="flex items-center gap-4">
-              {!sidebarOpen && (
-                <div className="font-bold text-lg">{activeTrip?.tripName}</div>
-              )}
-              {/* View Switcher */}
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setActiveMainTab("itinerary")}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${activeMainTab === "itinerary" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black"}`}
-                >
-                  <List size={16} /> Itinerary
-                </button>
-                <button
-                  onClick={() => setActiveMainTab("map")}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${activeMainTab === "map" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black"}`}
-                >
-                  <MapIcon size={16} /> Map
-                </button>
+            {/* Top Bar */}
+            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm z-20">
+              <div className="flex items-center gap-4">
+                {!sidebarOpen && (
+                  <div className="font-bold text-lg">{activeTrip?.tripName}</div>
+                )}
+                {/* View Switcher */}
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setActiveMainTab("itinerary")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${activeMainTab === "itinerary" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black"}`}
+                  >
+                    <List size={16} /> Itinerary
+                  </button>
+                  <button
+                    onClick={() => setActiveMainTab("map")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${activeMainTab === "map" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black"}`}
+                  >
+                    <MapIcon size={16} /> Map
+                  </button>
+                </div>
               </div>
+
+              {/* Generate Button */}
+              <button
+                onClick={handleGenerateItineraries}
+                disabled={collections.length === 0 || optionsLoading}
+                className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
+                  }`}
+                title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
+              >
+                <Sparkles size={16} />
+                {optionsLoading ? "Generating..." : "Generate Itineraries"}
+              </button>
             </div>
 
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateItineraries}
-              disabled={collections.length === 0 || optionsLoading}
-              className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
-                }`}
-              title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
-            >
-              <Sparkles size={16} />
-              {optionsLoading ? "Generating..." : "Generate Itineraries"}
-            </button>
-          </div>
+            {/* Main Body */}
+            <div className="flex-1 flex overflow-hidden">
 
-          {/* Main Body */}
-          <div className="flex-1 flex overflow-hidden">
-
-            {/* Center Panel (Timeline or Map) */}
-            <div className="flex-1 flex flex-col overflow-hidden relative p-4">
-              {activeMainTab === "itinerary" && activeTrip ? (
-                <>
-                  <div className="mb-4">
-                    <DayTabs
-                      currentDay={currentDay}
-                      totalDays={activeTrip.days}
-                      onDaySelect={setCurrentDay}
-                    />
-                  </div>
-                  <div className="flex-1 overflow-hidden rounded-2xl shadow-sm border border-gray-200 bg-white">
-                    <TimelineView
-                      day={currentDay}
-                      items={getDayItems(activeTrip.schedule, currentDay)}
-                      onRemoveItem={(id) => removeItemFromSchedule(id, currentDay)}
-                      onEditItem={handleViewDetails}
-                      onAddItem={handleAddItem}
-                      onAddMealBreak={() => handleAddMealBreak(currentDay)}
-                    />
-                  </div>
-                </>
-              ) : activeMainTab === "map" && activeTrip ? (
-                <div className="h-full w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
-                  <MapComponent
-                    items={allTripItems.filter(i => !i.isBreak)}
-                    userLocation={mockLocation || userLocation}
-                    geofences={allTripItems.filter((i: any) => i.lat && i.lng && !i.isBreak).map((i: any) => ({
-                      lat: i.lat, lng: i.lng, radius: 100, color: "#22c55e"
-                    }))}
-                    onClose={() => setActiveMainTab("itinerary")}
-                  />
-                  {/* Simulation Controls Overlay */}
-                  <div className="absolute bottom-6 left-6 z-10 bg-white p-3 rounded-xl shadow-lg border border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${isSimulating ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                      <span className="text-sm font-medium">Simulation Mode</span>
-                      <button
-                        onClick={isSimulating ? stopSimulation : startSimulation}
-                        className={`px-3 py-1 rounded-md text-sm font-bold text-white transition-colors ${isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
-                          }`}
-                      >
-                        {isSimulating ? "Stop" : "Start Travel"}
-                      </button>
+              {/* Center Panel (Timeline or Map) */}
+              <div className="flex-1 flex flex-col overflow-hidden relative p-4">
+                {activeMainTab === "itinerary" && activeTrip ? (
+                  <>
+                    <div className="mb-4">
+                      <DayTabs
+                        currentDay={currentDay}
+                        totalDays={activeTrip.days}
+                        onDaySelect={setCurrentDay}
+                      />
                     </div>
-                    {isSimulating && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Visiting place {simulationIndex + 1} of {allTripItems.length}
+                    <div className="flex-1 overflow-hidden rounded-2xl shadow-sm border border-gray-200 bg-white">
+                      <TimelineView
+                        day={currentDay}
+                        items={getDayItems(activeTrip.schedule, currentDay)}
+                        onRemoveItem={(id) => removeItemFromSchedule(id, currentDay)}
+                        onEditItem={handleViewDetails}
+                        onAddItem={handleAddItem}
+                        onAddMealBreak={() => handleAddMealBreak(currentDay)}
+                      />
+                    </div>
+                  </>
+                ) : activeMainTab === "map" && activeTrip ? (
+                  <div className="h-full w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
+                    <MapComponent
+                      items={allTripItems.filter(i => !i.isBreak)}
+                      userLocation={mockLocation || userLocation}
+                      geofences={allTripItems.filter((i: any) => i.lat && i.lng && !i.isBreak).map((i: any) => ({
+                        lat: i.lat, lng: i.lng, radius: 100, color: "#22c55e"
+                      }))}
+                      onClose={() => setActiveMainTab("itinerary")}
+                    />
+                    {/* Simulation Controls Overlay */}
+                    <div className="absolute bottom-6 left-6 z-10 bg-white p-3 rounded-xl shadow-lg border border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${isSimulating ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        <span className="text-sm font-medium">Simulation Mode</span>
+                        <button
+                          onClick={isSimulating ? stopSimulation : startSimulation}
+                          className={`px-3 py-1 rounded-md text-sm font-bold text-white transition-colors ${isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                            }`}
+                        >
+                          {isSimulating ? "Stop" : "Start Travel"}
+                        </button>
                       </div>
-                    )}
+                      {isSimulating && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Visiting place {simulationIndex + 1} of {allTripItems.length}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  Select a trip to start planning
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    Select a trip to start planning
+                  </div>
+                )}
+              </div>
 
-            {/* Right Panel (Resource Panel) */}
-            <div className="w-[400px] border-l border-gray-200 bg-white h-full">
-              <ResourcePanel
-                activeTab={activeRightTab}
-                onTabChange={setActiveRightTab}
-                chatMessages={chatMessages}
-                chatInput={chatInput}
-                setChatInput={setChatInput}
-                onSendMessage={handleSendMessage}
-                onAddCard={(item) => addItemToSchedule(item, currentDay)}
-                onAddToCollections={handleAddToCollections}
-                searchResults={searchResults}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                onSearch={handleSearch}
-                collections={collections}
-                onRemoveFromCollections={handleRemoveFromCollections}
-                tripInfo={activeTrip ? {
-                  dates: activeTrip.startDate,
-                  travelers: activeTrip.travelers,
-                  days: activeTrip.days,
-                  budget: "Calculating..."
-                } : undefined}
-                onViewDetails={handleViewDetails}
-                destinationsView={destinationsView}
-                setDestinationsView={setDestinationsView}
-                // AI Stage Props
-                loading={loading}
-                chatHistoryLoading={chatHistoryLoading}
-                stage={stage}
-                clusteringData={clusteringData}
-                clusteringLoading={clusteringLoading}
-                onClusteringContinue={handleClusteringContinue}
-                onClusteringCancel={() => setStage("chat")}
-                itineraryOptions={itineraryOptions}
-                onSelectItineraryOption={(option: any) => { setSelectedItinerary(option); setConfirmationOpen(true); }}
-                // Custom Requirements
-                customRequirements={customRequirements}
-                requirementInput={requirementInput}
-                onRequirementInputChange={setRequirementInput}
-                onAddRequirement={handleAddRequirement}
-                onRemoveRequirement={handleRemoveRequirement}
-                // Visit Tracking
-                visitCount={visitCount}
-                savedItinerary={savedItinerary}
-                savedItineraryId={savedItineraryId}
-                onVisitChange={setVisitCount}
-                itineraryPlaces={activeTrip ? Object.entries(activeTrip.schedule).flatMap(([day, items]) =>
-                  (Array.isArray(items) ? items : []).map(item => ({
-                    day: Number(day),
-                    name: item.name,
-                    time: item.time,
-                    category: item.category,
-                    isBreak: item.isBreak,
-                  }))
-                ) : []}
-              />
+              {/* Right Panel (Resource Panel) */}
+              <div className="w-[400px] border-l border-gray-200 bg-white h-full">
+                <ResourcePanel
+                  activeTab={activeRightTab}
+                  onTabChange={setActiveRightTab}
+                  chatMessages={chatMessages}
+                  chatInput={chatInput}
+                  setChatInput={setChatInput}
+                  onSendMessage={handleSendMessage}
+                  onAddCard={(item) => addItemToSchedule(item, currentDay)}
+                  onAddToCollections={handleAddToCollections}
+                  searchResults={searchResults}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  onSearch={handleSearch}
+                  searchSource={searchSource}
+                  onSearchSourceChange={setSearchSource}
+                  collections={collections}
+                  onRemoveFromCollections={handleRemoveFromCollections}
+                  tripInfo={activeTrip ? {
+                    dates: activeTrip.startDate,
+                    travelers: activeTrip.travelers,
+                    days: activeTrip.days,
+                    budget: "Calculating..."
+                  } : undefined}
+                  onViewDetails={handleViewDetails}
+                  destinationsView={destinationsView}
+                  setDestinationsView={setDestinationsView}
+                  // AI Stage Props
+                  loading={loading}
+                  chatHistoryLoading={chatHistoryLoading}
+                  stage={stage}
+                  clusteringData={clusteringData}
+                  clusteringLoading={clusteringLoading}
+                  onClusteringContinue={handleClusteringContinue}
+                  onClusteringCancel={() => setStage("chat")}
+                  itineraryOptions={itineraryOptions}
+                  onSelectItineraryOption={(option: any) => { setSelectedItinerary(option); setConfirmationOpen(true); }}
+                  // Custom Requirements
+                  customRequirements={customRequirements}
+                  requirementInput={requirementInput}
+                  onRequirementInputChange={setRequirementInput}
+                  onAddRequirement={handleAddRequirement}
+                  onRemoveRequirement={handleRemoveRequirement}
+                  // Visit Tracking
+                  visitCount={visitCount}
+                  savedItinerary={savedItinerary}
+                  savedItineraryId={savedItineraryId}
+                  onVisitChange={setVisitCount}
+                  itineraryPlaces={activeTrip ? Object.entries(activeTrip.schedule).flatMap(([day, items]) =>
+                    (Array.isArray(items) ? items : []).map(item => ({
+                      day: Number(day),
+                      name: item.name,
+                      time: item.time,
+                      category: item.category,
+                      isBreak: item.isBreak,
+                    }))
+                  ) : []}
+                />
+              </div>
             </div>
           </div>
         </div>
