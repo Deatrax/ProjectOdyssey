@@ -25,10 +25,15 @@ router.post("/:postId", authMiddleware, async (req, res) => {
       // Unlike: Remove the like
       await Like.findByIdAndDelete(existingLike._id);
 
-      // Decrement likes count
-      await Post.findByIdAndUpdate(postId, {
+      // Decrement likes count (but don't go below 0)
+      const updatedPost = await Post.findByIdAndUpdate(postId, {
         $inc: { likesCount: -1 }
-      });
+      }, { new: true });
+
+      // Ensure likesCount never goes negative
+      if (updatedPost.likesCount < 0) {
+        await Post.findByIdAndUpdate(postId, { likesCount: 0 });
+      }
 
       return res.json({
         success: true,
@@ -144,10 +149,15 @@ router.delete("/:postId", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "You haven't liked this post" });
     }
 
-    // Decrement likes count
-    await Post.findByIdAndUpdate(postId, {
+    // Decrement likes count (but don't go below 0)
+    const updatedPost = await Post.findByIdAndUpdate(postId, {
       $inc: { likesCount: -1 }
-    });
+    }, { new: true });
+
+    // Ensure likesCount never goes negative
+    if (updatedPost.likesCount < 0) {
+      await Post.findByIdAndUpdate(postId, { likesCount: 0 });
+    }
 
     return res.json({
       success: true,

@@ -19,8 +19,9 @@ export default function SinglePostPage() {
 
   useEffect(() => {
     if (post) {
-      setLikesCount(post.likesCount);
-      setCommentsCount(post.commentsCount);
+      // Ensure counts are never negative
+      setLikesCount(Math.max(0, post.likesCount));
+      setCommentsCount(Math.max(0, post.commentsCount));
     }
   }, [post]);
 
@@ -186,9 +187,7 @@ export default function SinglePostPage() {
             </div>
 
             <div className="text-xs text-gray-500">
-              {post.likesCount > 0 && (
-                <span className="font-semibold text-gray-700">{likesCount}</span>
-              )}
+              <span className="font-semibold text-gray-700">{likesCount}</span>
             </div>
           </div>
         </article>

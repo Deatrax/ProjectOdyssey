@@ -14,7 +14,8 @@ interface LikeButtonProps {
 export default function LikeButton({ postId, initialLikesCount, onLikeChange }: LikeButtonProps) {
   const { isLiked: initialIsLiked, loading, refetch } = useLikeStatus(postId);
   const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(initialLikesCount);
+  // Ensure likesCount is never negative
+  const [likesCount, setLikesCount] = useState(Math.max(0, initialLikesCount));
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Sync local state with hook state when it changes
@@ -50,8 +51,8 @@ export default function LikeButton({ postId, initialLikesCount, onLikeChange }: 
     
     if (result.success) {
       // Use the backend response to ensure correctness
-      if (result.isLiked !== undefined) {
-        setIsLiked(result.isLiked);
+      if (result.liked !== undefined) {
+        setIsLiked(result.liked);
       }
       // Refetch to ensure we have the latest state
       refetch();
@@ -79,7 +80,7 @@ export default function LikeButton({ postId, initialLikesCount, onLikeChange }: 
         } ${isAnimating ? 'scale-125' : 'scale-100'}`}
       />
       <span className="text-sm font-medium text-gray-700">
-        {likesCount > 0 ? likesCount : ''}
+        {likesCount}
       </span>
     </button>
   );

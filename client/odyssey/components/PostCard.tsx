@@ -12,7 +12,8 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const router = useRouter();
-  const [likesCount, setLikesCount] = useState(post.likesCount);
+  // Ensure likesCount is never negative
+  const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));
 
   // Extract text content from BlockNote JSON
   const extractTextContent = (content: any): string => {
@@ -106,7 +107,7 @@ export default function PostCard({ post }: PostCardProps) {
           <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 hover:bg-white/80 transition-all duration-200">
             <MessageCircle className="w-5 h-5 text-gray-600" />
             <span className="text-sm font-medium text-gray-700">
-              {post.commentsCount > 0 ? post.commentsCount : ''}
+              {post.commentsCount}
             </span>
           </button>
         </div>

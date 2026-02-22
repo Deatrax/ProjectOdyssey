@@ -37,7 +37,7 @@ export function useLikeStatus(postId: string) {
 
         const data = await res.json();
         if (data.success) {
-          setIsLiked(data.data.isLiked);
+          setIsLiked(data.liked);
         }
       } catch (err) {
         console.error('Error checking like status:', err);
@@ -86,7 +86,7 @@ export function useLikesList(postId: string, limit: number = 20) {
   return { users, loading, error };
 }
 
-export async function toggleLike(postId: string): Promise<{ success: boolean; isLiked?: boolean; error?: string }> {
+export async function toggleLike(postId: string): Promise<{ success: boolean; liked?: boolean; error?: string }> {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -101,7 +101,7 @@ export async function toggleLike(postId: string): Promise<{ success: boolean; is
     });
 
     const data = await res.json();
-    return { success: data.success, isLiked: data.data?.isLiked, error: data.message };
+    return { success: data.success, liked: data.liked, error: data.message };
   } catch (err) {
     return { success: false, error: 'Network error' };
   }
