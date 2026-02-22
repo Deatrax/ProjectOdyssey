@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authMiddleware");
 const VisitLogModel = require("../models/VisitLog");
 const VisitTrackerService = require("../services/visitTracker");
@@ -21,6 +22,101 @@ const supabase = require("../config/supabaseClient");
  * GET    /api/visits/summary/:itineraryId  - Get trip summary
  * GET    /api/visits/user              - Get user's all visits
  */
+
+/**
+ * GET /api/visits/stream/:itineraryId
+ * Server-Sent Events stream for group trip sync.
+ *
+ * Instead of each client polling every N seconds, this endpoint:
+ *  1. Opens ONE persistent HTTP connection per client.
+ *  2. Subscribes to Supabase Realtime postgres_changes on visit_logs.
+ *  3. Pushes a lightweight "changed" event whenever any member checks in/out.
+ *  4. Client calls fetchVisitHistory() ONLY then — zero traffic when idle.
+ *
+ * Auth: reads Bearer token from Authorization header OR ?token= query param.
+ * EventSource (browser API) cannot set custom headers, so the query-param
+ * fallback is required for browser clients.
+ *
+ * Prerequisite: enable Realtime on the visit_logs table in Supabase dashboard
+ * (Table Editor → visit_logs → Enable Realtime), or run:
+ *   ALTER TABLE visit_logs REPLICA IDENTITY FULL;
+ * and add it to the Supabase Realtime publication.
+ */
+router.get("/stream/:itineraryId", async (req, res) => {
+  try {
+    // ── Auth (header or query param) ─────────────────────────────────────────
+    let token = req.headers.authorization;
+    if (token && token.startsWith("Bearer ")) token = token.slice(7);
+    if (!token && req.query.token) token = String(req.query.token);
+
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: "Token is not valid" });
+    }
+
+    const { itineraryId } = req.params;
+
+    // ── SSE headers ──────────────────────────────────────────────────────────
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // disable nginx/proxy buffering
+    res.flushHeaders();
+
+    // Initial comment — confirms stream is open to the client
+    res.write(":connected\n\n");
+
+    // ── Supabase Realtime subscription ───────────────────────────────────────
+    const channel = supabase
+      .channel(`visit-stream-${itineraryId}-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "visit_logs",
+          filter: `itinerary_id=eq.${itineraryId}`,
+        },
+        (payload) => {
+          // Send minimal payload — client will do a single full re-fetch.
+          // Keeping events small means virtually no bandwidth cost.
+          const data = JSON.stringify({
+            placeId: payload.new?.place_id || payload.old?.place_id,
+            status: payload.new?.status || null,
+          });
+          res.write(`event: changed\ndata: ${data}\n\n`);
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // Tell the client the realtime channel is live
+          res.write("event: ready\ndata: {}\n\n");
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          // Realtime not available — tell client to fall back to polling
+          res.write("event: unavailable\ndata: {}\n\n");
+        }
+      });
+
+    // ── Heartbeat every 25 s ─────────────────────────────────────────────────
+    // Keeps the TCP connection alive through proxies that kill idle connections.
+    const heartbeat = setInterval(() => {
+      res.write(":heartbeat\n\n");
+    }, 25_000);
+
+    // ── Cleanup on client disconnect ─────────────────────────────────────────
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      supabase.removeChannel(channel);
+    });
+  } catch (err) {
+    console.error("SSE /stream/:itineraryId error:", err);
+    res.end();
+  }
+});
 
 // Middleware to protect all routes
 router.use(authMiddleware);
@@ -223,13 +319,17 @@ router.get("/logs/:itineraryId", async (req, res) => {
 
 /**
  * GET /api/visits/current/:itineraryId
- * Get currently active visit for an itinerary
+ * Get currently active visit for an itinerary (scoped to the calling user)
  */
 router.get("/current/:itineraryId", async (req, res) => {
   try {
     const { itineraryId } = req.params;
+    const userId = req.user?.id || null;
 
-    const currentVisit = await VisitLogModel.getCurrentVisit(itineraryId);
+    // Pass userId so only THIS user's active visit is returned.
+    // In a group trip multiple members can each be in-progress at different places;
+    // .single() would crash — the model now uses .limit(1) + user filter.
+    const currentVisit = await VisitLogModel.getCurrentVisit(itineraryId, userId);
 
     if (!currentVisit) {
       return res.status(200).json({

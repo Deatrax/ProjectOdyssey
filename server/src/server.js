@@ -13,6 +13,7 @@ const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
 const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
+const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
 
 
 const app = express();
@@ -44,7 +45,8 @@ app.get("/", (req, res) => {
       ai: "/api/ai",
       chat: "/api/chat",
       map: "/api/map",
-      clustering: "/api/clustering"
+      clustering: "/api/clustering",
+      groups: "/api/groups"
     }
   });
 });
@@ -64,6 +66,7 @@ app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 app.use('/api/map', mapRoutes); // Map Search & Manual Planning
 app.use('/api/visits', visitRoutes); // Visit Tracking Routes
+app.use('/api/groups', groupRoutes); // Group Trip Planning
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;

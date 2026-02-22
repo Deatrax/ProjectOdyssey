@@ -185,8 +185,11 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div className="bg-[#3A3A3A] text-white rounded-2xl p-8 flex flex-col items-center justify-center h-52 shadow-xl">
             <h3 className="text-4xl font-bold mb-6 text-center">Check out what your Friends are doing!</h3>
-            <button className="bg-gray-300 text-gray-800 px-8 py-3 rounded-full flex items-center justify-center hover:bg-gray-400 transition">
-              <span className="font-bold text-2xl">→</span>
+            <button
+              onClick={() => router.push("/groups")}
+              className="bg-gray-300 text-gray-800 px-8 py-3 rounded-full flex items-center justify-center gap-2 hover:bg-gray-400 transition font-semibold"
+            >
+              👥 Browse Group Trips <span className="font-bold text-2xl">→</span>
             </button>
           </div>
           <div className="grid grid-rows-2 gap-4">
