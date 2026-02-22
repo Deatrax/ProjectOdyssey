@@ -16,29 +16,9 @@ interface Itinerary {
   updated_at: string;
 }
 
-interface RecommendationProps {
-  title: string;
-  image: string;
-}
+import RecommendedPlaces from "./RecommendedPlaces";
 
-const recommendations: RecommendationProps[] = [
-  {
-    title: "Summer Vibes",
-    image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Winter Trips near you",
-    image: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Shopping this season",
-    image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Safari",
-    image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=300&fit=crop"
-  }
-];
+// --- Types & Interfaces ---
 
 const DashboardPage: React.FC = () => {
   const router = useRouter();
@@ -259,18 +239,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Recommended Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-bold mb-6 text-center text-gray-900">Recommended For You:</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {recommendations.map((item, index) => (
-              <div key={index} className="relative h-36 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg">
-                <img src={item.image} alt={item.title} className="w-full h-full object-cover brightness-75" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <span className="absolute bottom-3 left-3 text-white text-sm font-semibold">{item.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RecommendedPlaces />
 
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
