@@ -69,6 +69,14 @@ const userSchema = new mongoose.Schema({
   level: {
     type: Number,
     default: 1
+  },
+  weeklyRecommendations: {
+    type: Array,
+    default: []
+  },
+  lastRecommendationWeek: {
+    type: String,
+    default: ""
   }
 }, { timestamps: true });
 
