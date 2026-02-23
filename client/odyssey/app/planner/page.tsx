@@ -543,7 +543,37 @@ export default function PlannerPage() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        // Fetch user's saved itineraries from backend
+        // First: check if user is in an active group trip — that takes priority
+        const groupRes = await fetch("http://localhost:4000/api/groups/mine/active", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (groupRes.ok) {
+          const groupData = await groupRes.json();
+          if (groupData.success && groupData.group) {
+            // User is in an active group — use the group's itinerary (or empty if none linked)
+            const groupItinerary = groupData.itinerary;
+            if (groupItinerary) {
+              const selectedItin = groupItinerary.selected_itinerary;
+              setSavedItineraryId(groupItinerary.id);
+              setSavedItinerary({
+                id: groupItinerary.id,
+                tripName: `[Group] ${groupData.group.title}`,
+                title: selectedItin?.title,
+                description: selectedItin?.description,
+                paceDescription: selectedItin?.paceDescription,
+                estimatedCost: selectedItin?.estimatedCost,
+                schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : []
+              });
+            } else {
+              // Group exists but has no itinerary — show empty planner
+              setSavedItineraryId(null);
+              setSavedItinerary(null);
+            }
+            return; // Don't fall through to personal itineraries
+          }
+        }
+
+        // No active group — load user's own most recent itinerary
         const res = await fetch("http://localhost:4000/api/trips", {
           method: "GET",
           headers: {
@@ -1336,24 +1366,44 @@ export default function PlannerPage() {
                     <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#15803d" }}>
                       ✅ {savedItinerary.tripName}
                     </h3>
-                    <button
-                      onClick={() => {
-                        setSavedItinerary(null);
-                        setSavedItineraryId(null);
-                      }}
-                      style={{
-                        background: "#22c55e",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "6px 12px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        cursor: "pointer"
-                      }}
-                    >
-                      Clear
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        onClick={() => router.push(`/groups/create?itineraryId=${savedItineraryId}`)}
+                        style={{
+                          background: "#6366f1",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px"
+                        }}
+                      >
+                        👥 Plan as Group
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSavedItinerary(null);
+                          setSavedItineraryId(null);
+                        }}
+                        style={{
+                          background: "#22c55e",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
 
                   {/* Summary Stats */}

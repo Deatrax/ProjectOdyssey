@@ -177,16 +177,24 @@ class VisitLogModel {
   /**
    * Get currently active visit for an itinerary
    * @param {string} itineraryId - Itinerary UUID
+   * @param {string|null} userId  - Optional: restrict to a specific user (use for group trips to avoid multi-row .single() crash)
    * @returns {object} Current visit log or null
    */
-  static async getCurrentVisit(itineraryId) {
+  static async getCurrentVisit(itineraryId, userId = null) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("visit_logs")
         .select("*")
         .eq("itinerary_id", itineraryId)
         .eq("status", "in_progress")
-        .single();
+        .order("entered_at", { ascending: false })
+        .limit(1);
+
+      if (userId) {
+        query = query.eq("user_id", userId);
+      }
+
+      const { data, error } = await query;
 
       if (error && error.code !== "PGRST116") {
         // PGRST116 = no rows returned (expected for no active visit)
@@ -194,7 +202,7 @@ class VisitLogModel {
         throw new Error(`Failed to fetch current visit: ${error.message}`);
       }
 
-      return data || null;
+      return (data && data.length > 0) ? data[0] : null;
     } catch (err) {
       console.error("VisitLogModel.getCurrentVisit error:", err);
       throw err;
