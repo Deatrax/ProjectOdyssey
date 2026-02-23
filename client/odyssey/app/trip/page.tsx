@@ -195,10 +195,25 @@ export default function TripPage() {
         throttleInterval: 10000,
     });
 
-    // Handle Auto-Actions
+    // Request Notification Permission on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // Send Notification helper
+    const sendNotification = (title: string, body: string) => {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body, icon: '/icon.png' });
+        }
+    };
+
+    // Handle Auto-Actions & Notifications
     useEffect(() => {
         if (geofenceStatus?.action === 'auto_checked_in' && geofenceStatus.place) {
             if (!currentVisit) {
+                sendNotification("Arrived!", `You have arrived at ${geofenceStatus.place.placeName}`);
                 checkIn({
                     placeId: geofenceStatus.place.placeId,
                     placeName: geofenceStatus.place.placeName,
@@ -210,6 +225,7 @@ export default function TripPage() {
             }
         } else if (geofenceStatus?.action === 'auto_checked_out' && geofenceStatus.place) {
             if (currentVisit && currentVisit.place_id === geofenceStatus.place.placeId) {
+                sendNotification("Departed", `You have left ${geofenceStatus.place.placeName}`);
                 checkOut({
                     location: {
                         lat: geofenceStatus.place.latitude,
@@ -303,7 +319,8 @@ export default function TripPage() {
                     <div className="space-y-8 relative">
                         {currentDayItems.map((item: any, index: number) => {
                             const placeKey = item.placeId || item.id;
-
+                            //Deatrax: manually resolved code
+                            const visitLog = visitHistory.find(v => v.place_id === (item.placeId || item.id));
                             // visitHistory is itinerary-scoped: includes ALL group members' logs.
                             // A place is "completed" if ANY member checked out of it.
                             const completedLog = visitHistory.find(
@@ -312,17 +329,17 @@ export default function TripPage() {
                             // A place is "active" only if THIS user is currently there.
                             const isCurrent = currentVisit?.place_id === placeKey;
                             const isCompleted = !!completedLog;
-
+                            const isPending = !visitLog && !isCurrent;
                             // Who completed this place?
                             const completedBy =
                                 completedLog?.user_id === currentUserId
                                     ? 'You'
                                     : completedLog?.user_id
-                                    ? shortUser(completedLog.user_id)
-                                    : null;
+                                        ? shortUser(completedLog.user_id)
+                                        : null;
 
                             return (
-                                <div key={item.id} className="flex gap-6 relative group">
+                                <div key={`${item.id || 'item'}-${index}`} className="flex gap-6 relative group">
                                     {/* Node */}
                                     <div className={`
                     w-5 h-5 rounded-full border-4 z-10 flex-shrink-0 mt-1 transition-all duration-300
@@ -343,7 +360,7 @@ export default function TripPage() {
                                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1 block">
                                                     {item.time || 'Flexible Time'}
                                                 </span>
-                                                <h3 className={`font-bold text-gray-900 ${isCurrent ? 'text-lg' : 'text-base'}`}>
+                                                <h3 className={`font-bold text-gray-900 ${isCurrent ? 'text-lg' : 'text-base'} ${isCompleted ? 'line-through text-gray-500' : ''}`}>
                                                     {item.name || item.place}
                                                 </h3>
                                             </div>
@@ -358,7 +375,7 @@ export default function TripPage() {
                                         </div>
 
                                         {item.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                                            <p className={`text-sm text-gray-600 line-clamp-2 mb-3 ${isCompleted ? 'line-through opacity-50' : ''}`}>
                                                 {item.description}
                                             </p>
                                         )}
@@ -372,6 +389,21 @@ export default function TripPage() {
 
                                         {/* Actions */}
                                         <div className="flex gap-2 mt-2">
+                                            {/* Navigate Button */}
+                                            <a
+                                                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.name || item.place)}${item.placeId ? `&destination_place_id=${item.placeId}` : ''}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                                title="Open in Google Maps"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                                                </svg>
+                                                Navigate
+                                            </a>
+
                                             {!isCompleted && !isCurrent && (
                                                 <button
                                                     onClick={() => checkIn({
@@ -408,19 +440,26 @@ export default function TripPage() {
             {/* RIGHT PANEL: Map */}
             {!mapCollapsed && (
                 <div className="hidden md:block flex-1 relative h-full bg-gray-100">
+                    {/*Deatrax: manually resolved code by accepting current instead of incoming*/}
                     <MapComponent
-                        items={currentDayItems.filter((i: any) => i.placeId || (i.lat && i.lng))}
+                        items={currentDayItems.filter((i: any) => (i.placeId || (i.lat && i.lng)) && !i.isBreak)}
                         userLocation={userLocation}
                         geofences={currentDayItems
-                            .filter((i: any) => i.lat && i.lng)
-                            .map((i: any) => ({
-                                lat: i.lat,
-                                lng: i.lng,
-                                radius: 100,
-                                color: visitHistory.find((v: any) => v.place_id === (i.placeId || i.id) && v.status === 'completed')
-                                    ? '#9ca3af'
-                                    : '#22c55e',
-                            }))}
+                            .filter((i: any) => i.lat && i.lng && !i.isBreak)
+                            .map((i: any) => {
+                                const isCurrent = currentVisit?.place_id === (i.placeId || i.id);
+                                const isCompleted = visitHistory.find(v => v.place_id === (i.placeId || i.id))?.status === 'completed';
+                                let color = '#22c55e'; // Default Green (Pending)
+                                if (isCurrent) color = '#3b82f6'; // Blue (Active)
+                                if (isCompleted) color = '#9ca3af'; // Gray (Completed)
+
+                                return {
+                                    lat: i.lat,
+                                    lng: i.lng,
+                                    radius: 100,
+                                    color
+                                };
+                            })}
                         onClose={() => { }}
                     />
 

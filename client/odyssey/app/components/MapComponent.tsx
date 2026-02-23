@@ -73,21 +73,34 @@ function Directions({ items }: { items: any[] }) {
       return;
     }
 
-    // Filter valid locations
-    const validItems = items.filter(item => item.placeId || item.name);
+    // Filter valid locations for Routing
+    // MUST have placeId OR coordinates. Pure names are risky if they are generic.
+    const validItems = items.filter(item => 
+      !item.isBreak && 
+      (item.placeId || (item.lat && item.lng))
+    );
 
     if (validItems.length < 2) {
+      // Not enough points for a route
+      directionsRenderer.setMap(null);
       return;
     }
 
     try {
-      const origin = validItems[0].placeId ? { placeId: validItems[0].placeId } : { query: validItems[0].name };
-      const destination = validItems[validItems.length - 1].placeId
-        ? { placeId: validItems[validItems.length - 1].placeId }
-        : { query: validItems[validItems.length - 1].name };
+      const originItem = validItems[0];
+      const destItem = validItems[validItems.length - 1];
+
+      const getLoc = (item: any) => {
+        if (item.placeId) return { placeId: item.placeId };
+        if (item.lat && item.lng) return { location: { lat: item.lat, lng: item.lng } };
+        return { query: item.name }; // Fallback (should be covered by filter)
+      };
+
+      const origin = getLoc(originItem);
+      const destination = getLoc(destItem);
 
       const waypoints = validItems.slice(1, -1).map(item => ({
-        location: item.placeId ? { placeId: item.placeId } : { query: item.name },
+        location: getLoc(item) as any, // Type cast for Google Maps
         stopover: true
       }));
 
@@ -97,9 +110,11 @@ function Directions({ items }: { items: any[] }) {
         waypoints,
         travelMode: google.maps.TravelMode.DRIVING
       }).then(response => {
+        directionsRenderer.setMap(map); // Ensure map is set
         directionsRenderer.setDirections(response);
       }).catch(err => {
         console.error("Directions request failed", err);
+        // Don't clear map here, let markers stay
       });
     } catch (err) {
       console.error("Directions: Error during route setup", err);

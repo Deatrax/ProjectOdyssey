@@ -206,11 +206,11 @@ export const useVisitTracking = (itineraryId: string, token: string, userId?: st
 
         const result = await response.json();
         setCurrentVisit(null);
-        
+
         // Refresh history and progress
         await fetchVisitHistory();
         await fetchProgress();
-        
+
         return result.data.visit;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Check-out failed';
@@ -249,7 +249,7 @@ export const useVisitTracking = (itineraryId: string, token: string, userId?: st
         }
 
         const result = await response.json();
-        
+
         // Update in history
         setVisitHistory((prev) =>
           prev.map((v) => (v.id === visitId ? result.data.visit : v))

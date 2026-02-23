@@ -10,10 +10,36 @@ const NavBar = () => {
     const [isProfileHovered, setIsProfileHovered] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // Initial Auth Check & Session Extension
+    React.useEffect(() => {
+        const token = localStorage.getItem("token");
+        setIsLoggedIn(!!token);
+
+        // Slide session if logged in and NOT "remember me"
+        if (token) {
+            const rememberMe = localStorage.getItem("rememberMe") === "true";
+            if (!rememberMe) {
+                // Extend for 2 hours
+                document.cookie = `token=${token}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
+            }
+        }
+    }, [pathname]);
+
     // Exclude NavBar on Landing Page, Login, and Signup
     if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
         return null;
     }
+
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("rememberMe");
+        document.cookie = "token=; path=/; max-age=0";
+        setIsLoggedIn(false);
+        router.push("/login");
+    };
 
     const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
@@ -51,14 +77,18 @@ const NavBar = () => {
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-7">
-                {[
+                {(isLoggedIn ? [
                     { name: "Home", path: "/dashboard" },
-                    { name: "Planner", path: "/planner" },
+                    { name: "Planner", path: "/planner2" },
                     { name: "Trip Mode", path: "/trip" },
                     { name: "Destinations", path: "/destinations" },
                     { name: "Groups", path: "/groups" },
                     { name: "Co-travellers", path: "/co-travellers" },
-                ].map((link) => (
+                ] : [
+                    { name: "Home", path: "/" },
+                    { name: "Planner", path: "/planner2" },
+                    { name: "Destinations", path: "/destinations" },
+                ]).map((link) => (
                     <Link
                         key={link.name}
                         href={link.path}
@@ -78,43 +108,64 @@ const NavBar = () => {
                     </svg>
                 </button>
 
-                {/* Profile Dropdown Container */}
-                <div
-                    className="relative"
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                >
-                    <div
-                        className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden cursor-pointer border border-white shadow-sm hover:shadow-md transition-shadow"
-                        onClick={() => router.push("/profile")}
-                    >
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                {/* Auth State Switch */}
+                {!isLoggedIn ? (
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/login"
+                            className="text-sm font-medium text-[#111] hover:opacity-70 transition-opacity"
+                        >
+                            Log in
+                        </Link>
+                        <Link
+                            href="/signup"
+                            className="bg-black text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
+                        >
+                            Sign up
+                        </Link>
                     </div>
-
-                    {/* Bridge pseudo-element to bridge gap if needed, but relative positioning usually handles it. Adding padding-top to dropdown container helps too. */}
-
+                ) : (
+                    /* Profile Dropdown Container */
                     <div
-                        className={`absolute right-0 top-full pt-2 w-56 transition-all duration-300 origin-top-right z-50 ${isProfileHovered ? "opacity-100 translate-y-0 scale-100" : "opacity-0 -translate-y-2 scale-95 pointer-events-none"
-                            }`}
+                        className="relative"
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
                     >
-                        {/* Actual Dropdown Content */}
-                        <div className="bg-[#FFF5E9] rounded-2xl shadow-xl border border-white/50 overflow-hidden p-2">
-                            <Link href="/my-destinations" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
-                                My Destinations
-                            </Link>
-                            <Link href="/saved-places" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
-                                Saved Places
-                            </Link>
-                            <Link href="/admin" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
-                                Settings
-                            </Link>
-                            <div className="h-px bg-gray-200 my-1 mx-2"></div>
-                            <Link href="/login" className="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium">
-                                Logout
-                            </Link>
+                        <div
+                            className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden cursor-pointer border border-white shadow-sm hover:shadow-md transition-shadow"
+                            onClick={() => router.push("/profile")}
+                        >
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                        </div>
+
+                        {/* Bridge pseudo-element to bridge gap if needed, but relative positioning usually handles it. Adding padding-top to dropdown container helps too. */}
+
+                        <div
+                            className={`absolute right-0 top-full pt-2 w-56 transition-all duration-300 origin-top-right z-50 ${isProfileHovered ? "opacity-100 translate-y-0 scale-100" : "opacity-0 -translate-y-2 scale-95 pointer-events-none"
+                                }`}
+                        >
+                            {/* Actual Dropdown Content */}
+                            <div className="bg-[#FFF5E9] rounded-2xl shadow-xl border border-white/50 overflow-hidden p-2">
+                                <Link href="/my-destinations" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
+                                    My Destinations
+                                </Link>
+                                <Link href="/saved-places" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
+                                    Saved Places
+                                </Link>
+                                <Link href="/admin" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
+                                    Settings
+                                </Link>
+                                <div className="h-px bg-gray-200 my-1 mx-2"></div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left block px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
+                                >
+                                    Logout
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </nav>
     );

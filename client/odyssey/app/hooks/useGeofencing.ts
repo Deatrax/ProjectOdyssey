@@ -123,8 +123,8 @@ export const useGeofencing = (options: GeofenceHookOptions = {}) => {
         setGeofenceStatus(data);
         setError(null);
       } catch (err: any) {
-        setError(err.message || 'Error checking geofence');
-        console.error('Geofence check error:', err);
+        // Non-critical: geofence check can fail when no itinerary data exists yet
+        console.warn('Geofence check:', err.message || 'Error checking geofence');
       } finally {
         setIsLoading(false);
       }

@@ -9,9 +9,11 @@ This document outlines the implementation strategy for transforming Project Odys
 ## 1. Cross-Platform Location Services
 
 ### Desktop (Web/Laptop)
+
 **Technology:** Browser Geolocation API (`navigator.geolocation`)
 
 **Characteristics:**
+
 - **Accuracy:** 10-50 meters (WiFi/IP triangulation)
 - **Permissions:** One-time browser prompt
 - **Battery Impact:** Minimal (passive updates)
@@ -19,12 +21,14 @@ This document outlines the implementation strategy for transforming Project Odys
 - **Limitations:** Requires active browser tab, less precise
 
 **Use Cases:**
+
 - Trip planning and route visualization
 - General progress tracking
 - Desktop-based itinerary management
 - Backup location source
 
 **Implementation:**
+
 ```javascript
 // services/location/browserLocation.js
 export const BrowserLocationService = {
@@ -62,11 +66,14 @@ export const BrowserLocationService = {
 ```
 
 ### Mobile (React Native)
-**Technology:** 
+
+**Technology:**
+
 - `react-native-geolocation-service` (bare React Native)
 - `expo-location` (Expo)
 
 **Characteristics:**
+
 - **Accuracy:** 5-10 meters (GPS + cellular)
 - **Permissions:** iOS/Android location permissions (foreground + background)
 - **Battery Impact:** Higher (active GPS)
@@ -74,12 +81,14 @@ export const BrowserLocationService = {
 - **Features:** Background tracking, geofencing, altitude, speed
 
 **Use Cases:**
+
 - Real-time visit detection during trips
 - Precise geofencing for arrival/departure
 - Turn-by-turn navigation
 - Offline location caching
 
 **Implementation:**
+
 ```javascript
 // services/location/mobileLocation.js (React Native)
 import Geolocation from 'react-native-geolocation-service';
@@ -140,6 +149,7 @@ export const MobileLocationService = {
 ```
 
 ### Unified Abstraction Layer
+
 **Purpose:** Single API for both platforms
 
 ```javascript
@@ -165,6 +175,7 @@ export default LocationService;
 ### Database Schema
 
 **Extend Existing Itineraries Table:**
+
 ```sql
 -- Add map route column to itineraries table
 ALTER TABLE itineraries ADD COLUMN map_routes JSONB;
@@ -175,6 +186,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ```
 
 **Route Data Structure (JSONB):**
+
 ```json
 {
   "routeId": "550e8400-e29b-41d4-a716-446655440000",
@@ -244,6 +256,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ### Route Generation API
 
 **Backend Endpoint:**
+
 ```javascript
 // server/src/routes/mapRoutes.js
 router.post('/api/map/generate-route', async (req, res) => {
@@ -293,6 +306,7 @@ router.post('/api/map/generate-route', async (req, res) => {
 A virtual perimeter around a geographic location. When a user enters or exits this boundary, an event is triggered.
 
 **Our Implementation:**
+
 - Create circular geofence around each itinerary place
 - Radius: 50-150 meters (configurable per place type)
 - Monitor user location continuously
@@ -339,6 +353,7 @@ CREATE INDEX idx_visit_logs_status ON visit_logs(status);
 ### Geofence Creation Logic
 
 **When itinerary is confirmed:**
+
 ```javascript
 // services/geofencing/setup.js
 export async function createGeofences(itinerary) {
@@ -384,6 +399,7 @@ function determineRadius(category) {
 ### Real-Time Location Monitoring
 
 **Background Tracking Service:**
+
 ```javascript
 // services/tracking/backgroundTracker.js
 class BackgroundTracker {
@@ -594,12 +610,14 @@ export default new BackgroundTracker();
 ### Implementation (Mobile - React Native)
 
 **Setup:**
+
 ```bash
 npm install @react-native-firebase/messaging
 npm install react-native-push-notification
 ```
 
 **Notification Service:**
+
 ```javascript
 // services/notifications/NotificationService.js
 import PushNotification from 'react-native-push-notification';
@@ -769,9 +787,11 @@ export default new BrowserNotificationService();
 ## 5. Implementation Phases (Detailed Roadmap)
 
 ### 🎯 PHASE 1: Map Foundation (Week 1-2)
+
 **Goal:** Display itinerary on interactive map
 
 **Tasks:**
+
 1. **Map Library Integration**
    - [ ] Install Google Maps SDK (or Mapbox)
    - [ ] Create `MapComponent` for desktop
@@ -796,11 +816,13 @@ export default new BrowserNotificationService();
    - [ ] Error handling (no location, API failures)
 
 **Deliverables:**
+
 - ✅ Interactive map showing itinerary places
 - ✅ User location visible on map
 - ✅ Basic map controls functional
 
 **Testing:**
+
 - Verify markers appear for all places
 - Test permission flows on iOS/Android/Web
 - Ensure map loads on slow connections
@@ -808,9 +830,11 @@ export default new BrowserNotificationService();
 ---
 
 ### 🗺️ PHASE 2: Route Visualization (Week 3)
+
 **Goal:** Display optimized routes between places
 
 **Tasks:**
+
 1. **Google Directions API Integration**
    - [ ] Create backend endpoint `/api/map/generate-route`
    - [ ] Call Google Directions API with waypoints
@@ -840,12 +864,14 @@ export default new BrowserNotificationService();
    - [ ] Store routes array in database
 
 **Deliverables:**
+
 - ✅ Visual route connecting all places
 - ✅ Route data persisted in database
 - ✅ Manual reordering updates route
 - ✅ Multi-day trips supported
 
 **Testing:**
+
 - Test routes with 2, 5, and 10+ waypoints
 - Verify route recalculates on marker drag
 - Check database stores complete route data
@@ -853,9 +879,11 @@ export default new BrowserNotificationService();
 ---
 
 ### 📍 PHASE 3: Geofencing & Visit Tracking (Week 4-5)
+
 **Goal:** Detect when users arrive/leave places
 
 **Tasks:**
+
 1. **Geofence Setup**
    - [ ] Create `visit_logs` table in database
    - [ ] Create `active_geofences` table
@@ -891,12 +919,14 @@ export default new BrowserNotificationService();
    - [ ] App closed mid-visit (restore state on reopen)
 
 **Deliverables:**
+
 - ✅ Geofences created for all itinerary places
 - ✅ App detects user arrival at places
 - ✅ Tracks time spent at each location
 - ✅ Detects departure and updates status
 
 **Testing:**
+
 - Simulate GPS locations using dev tools
 - Test with overlapping geofences (50m apart)
 - Verify visit logs saved correctly
@@ -905,9 +935,11 @@ export default new BrowserNotificationService();
 ---
 
 ### 🔔 PHASE 4: Smart Notifications (Week 6)
+
 **Goal:** Guide users with timely, contextual alerts
 
 **Tasks:**
+
 1. **Notification Infrastructure**
    - [ ] Setup Firebase Cloud Messaging (FCM)
    - [ ] Implement `NotificationService` for mobile
@@ -939,11 +971,13 @@ export default new BrowserNotificationService();
    - [ ] Handle FCM token refresh
 
 **Deliverables:**
+
 - ✅ Push notifications sent on visit events
 - ✅ Interactive actions work (mark complete, navigate)
 - ✅ Users can customize notification settings
 
 **Testing:**
+
 - Test all notification types
 - Verify actions update database correctly
 - Test notification persistence (appear even if app closed)
@@ -952,9 +986,11 @@ export default new BrowserNotificationService();
 ---
 
 ### 🔍 PHASE 5: Map Search & Manual Creation (Week 7)
+
 **Goal:** Let users search and build itineraries from map
 
 **Tasks:**
+
 1. **Place Search**
    - [ ] Add search bar to map UI
    - [ ] Integrate Google Places Autocomplete
@@ -984,12 +1020,14 @@ export default new BrowserNotificationService();
    - [ ] Display in modal/bottom sheet
 
 **Deliverables:**
+
 - ✅ Search for places on map
 - ✅ Add custom places to itinerary
 - ✅ Build itinerary entirely from map interface
 - ✅ Discover nearby places on-the-go
 
 **Testing:**
+
 - Test search with various queries
 - Verify new places integrate into route
 - Test nearby discovery at different locations
@@ -998,9 +1036,11 @@ export default new BrowserNotificationService();
 ---
 
 ### 📊 PHASE 6: Progress & Analytics (Week 8)
+
 **Goal:** Visualize trip progress and provide insights
 
 **Tasks:**
+
 1. **Progress Dashboard**
    - [ ] Build "Trip Progress" screen
    - [ ] Visual indicator: 5/10 places visited
@@ -1034,12 +1074,14 @@ export default new BrowserNotificationService();
    - [ ] User engagement metrics
 
 **Deliverables:**
+
 - ✅ Real-time progress tracking during trip
 - ✅ Comprehensive visit history
 - ✅ Trip replay and visualization
 - ✅ Shareable trip summary
 
 **Testing:**
+
 - Complete a test trip end-to-end
 - Verify all stats calculate correctly
 - Test replay animation smoothness
@@ -1156,22 +1198,26 @@ export default new BrowserNotificationService();
 ### Before Trip
 
 **1. Create Itinerary**
+
 - User: "I want to visit Paris, Rome, and Venice for 7 days"
 - AI generates clustering view with places grouped by city
 - User selects desired places
 
 **2. Confirm Itinerary**
+
 - User reviews selected places
 - Clicks "Generate Itinerary"
 - AI creates day-by-day schedule
 
 **3. Route Generation**
+
 - Backend calls Google Directions API
 - Generates walking route between places
 - Saves route polyline to database
 - Displays route on map
 
 **4. Review Map**
+
 - User views all places as numbered markers
 - Sees estimated walking times
 - Can reorder places by dragging markers
@@ -1181,17 +1227,20 @@ export default new BrowserNotificationService();
 ### During Trip
 
 **5. Start Trip**
+
 - User taps "Start Trip" button
 - App requests location permission
 - Background tracking begins
 - Geofences created around all places
 
 **6. Navigate to First Place**
+
 - Map shows route from current location → Eiffel Tower
 - Distance: 2.3km, ETA: 25 minutes
 - User follows route
 
 **7. Arrival at Place A (Eiffel Tower)**
+
 - User enters 100m geofence
 - **Notification:** "Arrived at Eiffel Tower! 🎉 Enjoy your visit."
 - Visit log created: `{ entered_at: 10:30 AM, status: 'in_progress' }`
@@ -1199,16 +1248,19 @@ export default new BrowserNotificationService();
 - Timer starts (expected: 2 hours)
 
 **8. During Visit**
+
 - User explores Eiffel Tower
 - Location tracked every 5 minutes
 - App runs in background (user can use camera, etc.)
 
 **9. Time Warning (Optional)**
+
 - After 2 hours (expected duration)
 - **Notification:** "You've been here for 2 hours. Ready to move on?"
 - Actions: [Complete Visit] [Stay Longer]
 
 **10. Exit Place A**
+
 - User walks away, exits geofence
 - Time spent: 1 hour 45 minutes
 - Visit log updated: `{ exited_at: 12:15 PM, time_spent: 6300s, status: 'completed' }`
@@ -1216,11 +1268,13 @@ export default new BrowserNotificationService();
 - Map auto-focuses on next place
 
 **11. Navigate to Place B**
+
 - Route updates: Current location → Louvre
 - Blue line shows path
 - User follows directions
 
 **12. Repeat for All Places**
+
 - Arrive → Notification → Track time → Exit → Next place
 - Progress bar: "3/5 places visited"
 
@@ -1229,11 +1283,13 @@ export default new BrowserNotificationService();
 ### After Trip
 
 **13. Trip Complete**
+
 - Last place visited and exited
 - **Notification:** "Trip complete! 🎊 You visited 5 amazing places!"
 - Trip summary auto-generated
 
 **14. View Summary**
+
 - Total distance: 12.5km
 - Total time: 8 hours 23 minutes
 - Places visited: 5/5 ✅
@@ -1241,6 +1297,7 @@ export default new BrowserNotificationService();
 - Total cost: $89 (vs $100 budget)
 
 **15. Share Trip**
+
 - Export summary as image
 - Share on social media
 - Send itinerary link to friends
@@ -1252,6 +1309,7 @@ export default new BrowserNotificationService();
 ### Frontend
 
 **Desktop (Web):**
+
 - **Framework:** React + Next.js 16
 - **Maps:** Google Maps JavaScript API or Mapbox GL JS
 - **Location:** Browser Geolocation API
@@ -1259,6 +1317,7 @@ export default new BrowserNotificationService();
 - **Styling:** Tailwind CSS
 
 **Mobile (React Native):**
+
 - **Framework:** React Native (or Expo)
 - **Maps:** `react-native-maps` (iOS/Android native maps)
 - **Location:** `react-native-geolocation-service` or `expo-location`
@@ -1404,40 +1463,47 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ## 10. Future Features (Post-MVP)
 
 ### Trip Sharing
+
 - **Share itinerary link:** Public URL with read-only access
 - **Real-time location sharing:** Friends can see your live location during trip
 - **Collaborative planning:** Multiple users edit same itinerary
 - **Comments:** Friends can leave notes on places
 
 ### Offline Mode
+
 - **Download maps:** Cache map tiles for offline viewing
 - **Offline routing:** Store routes locally
 - **Queue updates:** Sync visit logs when back online
 
 ### Augmented Reality (AR)
+
 - **AR Navigation:** Point camera, see arrows overlaid on real world
 - **AR Place Info:** Point at landmark, see details in AR
 - **Photo opportunities:** AR markers for best photo spots
 
 ### Social Features
+
 - **Check-ins:** Post to social media when visiting places
 - **Photo albums:** Auto-organize trip photos by place
 - **Trip feed:** See friends' trips and places
 - **Recommendations:** "10 people liked this restaurant"
 
 ### Smart Suggestions
+
 - **Context-aware:** "30 min free time? Coffee shop 200m away"
 - **Weather-based:** "Rain predicted. Indoor alternatives?"
 - **Crowd detection:** "Eiffel Tower is crowded. Visit later?"
 - **Budget alerts:** "60% budget spent. Adjust remaining?"
 
 ### Advanced Analytics
+
 - **Travel patterns:** "You love museums! Here are 5 more."
 - **Time optimization:** "Visit Louvre in morning to avoid crowds"
 - **Cost prediction:** "This trip will likely cost $250"
 - **Personalized ranking:** "Top 10 places based on your history"
 
 ### Gamification
+
 - **Badges:** "Visited 10 museums! 🏛️"
 - **Leaderboards:** "Most cities visited this year"
 - **Challenges:** "Visit 5 UNESCO sites in 1 month"
@@ -1491,24 +1557,28 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ## 12. Success Metrics
 
 **User Engagement:**
+
 - % of users who enable location tracking
 - Average number of places visited per trip
 - Trip completion rate (finished all places)
 - Daily active users during trips
 
 **Feature Usage:**
+
 - Notification tap rate (how many users interact with alerts)
 - Manual vs automatic visit completion ratio
 - Map search usage frequency
 - Route editing frequency
 
 **Performance:**
+
 - Location update accuracy (deviation from actual GPS)
 - Battery impact (% drain per hour of tracking)
 - Visit detection latency (seconds to detect arrival)
 - Notification delivery success rate
 
 **Business Metrics:**
+
 - User retention (7-day, 30-day)
 - Trip creation to completion rate
 - Average trip duration
@@ -1542,9 +1612,11 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 - **Project Manager** - Timeline tracking, feature prioritization
 
 **Your Current Setup:**
+
 - You (Full-stack focus) - Can handle all phases with focused effort
 
 **Estimated Effort:**
+
 - **Solo Development:** 8-10 weeks for MVP (Phases 1-4)
 - **With Team:** 4-6 weeks for MVP
 
@@ -1553,6 +1625,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ## 15. Next Steps (Action Items)
 
 ### Immediate (This Week)
+
 1. ✅ Review this implementation plan
 2. [ ] Set up Google Maps API account and get API keys
 3. [ ] Install required libraries (react-native-maps, geolocation)
@@ -1560,6 +1633,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 5. [ ] Set up Firebase project for push notifications
 
 ### Week 1-2 (Phase 1)
+
 1. [ ] Implement `MapComponent` for desktop
 2. [ ] Implement `MapComponent` for mobile
 3. [ ] Add location permission flow
@@ -1567,18 +1641,21 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 5. [ ] Show user's current location
 
 ### Week 3 (Phase 2)
+
 1. [ ] Build `/api/map/generate-route` endpoint
 2. [ ] Call Google Directions API
 3. [ ] Display route polyline on map
 4. [ ] Save route to database
 
 ### Week 4-5 (Phase 3)
+
 1. [ ] Create `BackgroundTracker` service
 2. [ ] Implement geofence creation logic
 3. [ ] Build visit detection (entry/exit)
 4. [ ] Save visit logs to database
 
 ### Week 6 (Phase 4)
+
 1. [ ] Set up Firebase Cloud Messaging
 2. [ ] Implement `NotificationService`
 3. [ ] Add notification triggers
@@ -1589,6 +1666,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 ## 16. Resources & Documentation
 
 **Official Documentation:**
+
 - [Google Maps API Docs](https://developers.google.com/maps/documentation)
 - [React Native Maps](https://github.com/react-native-maps/react-native-maps)
 - [React Native Geolocation](https://github.com/Agontuk/react-native-geolocation-service)
@@ -1596,11 +1674,13 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 - [Supabase Docs](https://supabase.com/docs)
 
 **Tutorials:**
+
 - [Building a Location Tracker with React Native](https://www.example.com)
 - [Geofencing in React Native](https://www.example.com)
 - [Push Notifications Setup](https://www.example.com)
 
 **Tools:**
+
 - [GPS Simulator (Xcode)](https://developer.apple.com/documentation/xcode/simulating-location-updates)
 - [Android Location Mocking](https://developer.android.com/studio/debug/dev-options)
 - [Postman (API Testing)](https://www.postman.com/)
@@ -1612,6 +1692,7 @@ CREATE INDEX idx_itineraries_map_routes ON itineraries USING GIN (map_routes);
 This implementation plan provides a comprehensive roadmap for building location-based travel tracking into Project Odyssey. By following the phased approach, you'll create a robust system that works across desktop and mobile, tracks user visits automatically, and provides intelligent guidance throughout trips.
 
 **Key Takeaways:**
+
 - Start with map visualization (Phase 1-2) to establish foundation
 - Core value is in visit tracking (Phase 3) - prioritize this
 - Notifications (Phase 4) enhance user experience significantly
@@ -1619,6 +1700,7 @@ This implementation plan provides a comprehensive roadmap for building location-
 - Test extensively with real-world trips
 
 **Timeline Summary:**
+
 - **MVP (Phases 1-4):** 6 weeks
 - **Enhanced (Phases 5-6):** +2 weeks
 - **Total:** 8 weeks to full-featured location tracking
@@ -1634,6 +1716,7 @@ This implementation plan provides a comprehensive roadmap for building location-
 This appendix provides an accelerated implementation strategy for teams with limited time (2 days) who need to deliver a working demo. Unlike the 8-week phased approach above, this plan uses **feature-based full-stack teams** where each group owns their feature end-to-end (database → backend → frontend).
 
 **Team Structure:**
+
 - **Group 1 (Map Search & Manual Builder)**: 2 people - Map search, place discovery, manual itinerary creation, route visualization
 - **Group 2 (Visit Tracking)**: 2 people - Geofencing, visit detection, check-in/out
 - **Group 3 (Progress & Notifications)**: 2 people - Dashboard, notifications, trip summary
@@ -1649,6 +1732,7 @@ This appendix provides an accelerated implementation strategy for teams with lim
 #### Shared Foundation
 
 **1. Create shared types file** - `types/shared.types.ts`
+
 ```typescript
 export interface Location {
   latitude: number;
@@ -1672,24 +1756,28 @@ export interface Itinerary {
 ```
 
 **2. Create Git branches:**
-   - `feature/map-routes` (Group 1)
-   - `feature/visit-tracking` (Group 2)
-   - `feature/progress-notifications` (Group 3)
+
+- `feature/map-routes` (Group 1)
+- `feature/visit-tracking` (Group 2)
+- `feature/progress-notifications` (Group 3)
 
 **3. Define API namespace to avoid conflicts:**
-   - Group 1: `/api/map/*`
-   - Group 2: `/api/visits/*`
-   - Group 3: `/api/progress/*` and `/api/notifications/*`
+
+- Group 1: `/api/map/*`
+- Group 2: `/api/visits/*`
+- Group 3: `/api/progress/*` and `/api/notifications/*`
 
 **4. UI Layout agreement:**
-   - Group 1: Tab/modal called "Map Builder" (PRIMARY - shown first)
-   - Group 2: Tab/modal called "Active Trip"
-   - Group 3: Tab/modal called "Trip Progress"
-   
+
+- Group 1: Tab/modal called "Map Builder" (PRIMARY - shown first)
+- Group 2: Tab/modal called "Active Trip"
+- Group 3: Tab/modal called "Trip Progress"
+
    **Navigation flow:**
-   - Landing → Planner → "Map Builder" tab OR "AI Assistant" tab
-   - Map Builder → Create manual itinerary → Active Trip → Progress
-   - AI Assistant → Generate itinerary → Active Trip → Progress
+
+- Landing → Planner → "Map Builder" tab OR "AI Assistant" tab
+- Map Builder → Create manual itinerary → Active Trip → Progress
+- AI Assistant → Generate itinerary → Active Trip → Progress
 
 ---
 
@@ -1712,6 +1800,7 @@ This approach ensures all groups can work in parallel without blocking each othe
 **⚠️ PRIORITY: This feature is built FIRST as it enables manual itinerary planning**
 
 **Database (30 min):**
+
 ```sql
 -- server/sql/map_routes_schema.sql
 ALTER TABLE itineraries ADD COLUMN IF NOT EXISTS map_routes JSONB;
@@ -1721,7 +1810,7 @@ ALTER TABLE itineraries ADD COLUMN IF NOT EXISTS creation_method VARCHAR DEFAULT
 CREATE INDEX IF NOT EXISTS idx_itineraries_map_routes 
 ON itineraries USING GIN (map_routes);
 
--- Cache search results for performance (reduces Google API quota usage)
+-- Cache search results for performance
 CREATE TABLE IF NOT EXISTS place_search_cache (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   search_query VARCHAR NOT NULL,
@@ -1731,183 +1820,104 @@ CREATE TABLE IF NOT EXISTS place_search_cache (
 );
 
 CREATE INDEX idx_place_search_query ON place_search_cache(search_query);
-
--- NOTE: User's destination collection (Type 1) is stored CLIENT-SIDE ONLY
--- No database table needed - use React state until "Create Itinerary" is clicked
 ```
 
-**Backend (4 hours):**
+**Backend (3.5 hours):**
+
 - [ ] `server/src/routes/mapRoutes.js` - Map and search API
+
 ```javascript
-// Search & Discovery
 POST /api/map/search-places (Google Places Autocomplete)
 GET /api/map/place-details/:placeId (Get full place info)
-POST /api/map/nearby-search (Find nearby places by category/radius)
-
-// Type 1: Manual Day Planning (Pre-Generation)
-// NOTE: Destinations stored in React state client-side, not database
-POST /api/map/create-manual-itinerary (Create itinerary from organized days)
-  // Body: { trip_name, days: [{ day: 1, places: [...] }], creation_method: 'manual' }
-
-// Type 2: Post-Generation Editing
-PUT /api/map/itinerary/:id/reorder (Update place order within day)
-PUT /api/map/itinerary/:id/move-place (Move place to different day)
-POST /api/map/itinerary/:id/add-place (Add new place to existing itinerary)
-DELETE /api/map/itinerary/:id/remove-place/:placeId
-
-// Route Generation (Both Types)
+POST /api/map/nearby-search (Find nearby places)
 POST /api/map/generate-route (Generate route from places)
 GET /api/map/route/:itineraryId
-POST /api/map/recalculate-route/:itineraryId (After manual edits)
+PUT /api/map/route/:itineraryId (update waypoint order)
+POST /api/map/create-manual-itinerary (Create from selected places)
 ```
+
 - [ ] `server/src/services/googleMapsService.js` - Google Maps API wrapper
   - Places Autocomplete
   - Place Details
   - Nearby Search
-  - Directions API (multi-day routes)
+  - Directions API
 - [ ] `server/src/services/placeSearchService.js` - Search caching logic
-- [ ] `server/src/services/routeOptimizer.js` - Route recalculation logic
-- [ ] `server/src/models/DestinationCollection.js` - Destination management
-- [ ] Store route polyline, distance, duration per day in database
+- [ ] Store route polyline, distance, duration in database
 
-**Agent prompt (Backend):**
+**Agent prompt:**
+
 ```
-"Create Express API for Google Places and manual itinerary planning:
-
-1) Search endpoints:
-   - POST /api/map/search-places: Google Places Autocomplete, returns predictions
-   - GET /api/map/place-details/:placeId: Full place info with photos, reviews
-   - POST /api/map/nearby-search: Find places by lat/lng, radius, category
-
-2) Type 1 - Pre-planning (destinations stored client-side):
-   - POST /api/map/create-manual-itinerary: Accept days array with places,
-     create itinerary with creation_method='manual', generate routes per day
-   - No destination collection endpoints needed (React state handles this)
-
-3) Type 2 - Post-generation editing:
-   - PUT /api/map/itinerary/:id/reorder: Update place order within day
-   - PUT /api/map/itinerary/:id/move-place: Move place between days
-   - POST /api/map/recalculate-route/:id: Regenerate routes after changes
-
-4) For route generation, call Google Directions API for each day separately,
-   store per-day polylines in map_routes JSONB as:
-   { day1: { polyline, distance, duration, waypoints }, day2: {...} }
-
-Include Supabase integration, JWT auth, caching, error handling, TypeScript."
+"Create Express API for Google Places search with endpoints: 
+1) /api/map/search-places - accepts query string, calls Google Places 
+   Autocomplete, returns place predictions with name, address, coordinates
+2) /api/map/place-details/:placeId - fetches full place info (photos, 
+   reviews, hours, category)
+3) /api/map/nearby-search - accepts lat/lng and radius, returns nearby 
+   places by category
+4) /api/map/create-manual-itinerary - accepts array of selected places, 
+   creates itinerary with creation_method='manual'
+Include caching, error handling, and TypeScript types."
 ```
 
-**Frontend (6 hours):**
+**Frontend (5 hours):**
 
-**Core Components:**
-- [ ] `client/odyssey/components/map/MapSearch.tsx` - Search bar with autocomplete
-- [ ] `client/odyssey/components/map/MapView.tsx` - Google Maps display
-- [ ] `client/odyssey/components/map/PlaceDetailsModal.tsx` - Place info popup
+- [ ] `client/odyssey/components/MapSearch.tsx` - Search bar with autocomplete
+- [ ] `client/odyssey/components/MapView.tsx` - Google Maps component
+- [ ] `client/odyssey/components/PlaceDetailsModal.tsx` - Show place info
+- [ ] `client/odyssey/components/ManualItineraryBuilder.tsx` - Build itinerary from map
 - [ ] `client/odyssey/services/mapService.ts` - API calls
+- [ ] Search functionality:
+  - Search bar with Google Places Autocomplete
+  - Display search results as markers
+  - Click marker → show place details
+  - "Add to Itinerary" button on each place
+- [ ] Manual itinerary creation:
+  - Selected places list (sidebar)
+  - Drag to reorder places
+  - Remove place from list
+  - "Create Itinerary" button
+- [ ] Route visualization:
+  - Draw polyline between selected places
+  - Show distance and duration
+  - Display user's current location (blue dot)
+- [ ] Nearby discovery:
+  - "Find nearby restaurants" button
+  - Filter by category (food, attractions, hotels)
 
-**Type 1: Manual Day Planning Components:**
-- [ ] `client/odyssey/app/planner/manual/page.tsx` - Manual planning page
-- [ ] `client/odyssey/components/planner/DestinationsPanel.tsx` - Saved destinations list
-- [ ] `client/odyssey/components/planner/DayPlannerGrid.tsx` - Day columns (Day 1, 2, 3)
-- [ ] `client/odyssey/components/planner/PlaceCard.tsx` - Draggable place card
-- [ ] Drag-and-drop logic:
-  - Destinations panel ↔ Day columns
-  - Reorder within day columns
-  - Use dnd-kit library
-- [ ] "Add Day" / "Remove Day" buttons
-- [ ] "Generate Routes" button → calls backend
-- [ ] Preview routes on map for each day
+**Agent prompt:**
 
-**Type 2: Itinerary Editor Components:**
-- [ ] `client/odyssey/app/itinerary/[id]/edit/page.tsx` - Edit existing itinerary
-- [ ] `client/odyssey/components/itinerary/DayCard.tsx` - Day with places list
-- [ ] `client/odyssey/components/itinerary/EditablePlaceItem.tsx` - Draggable place
-- [ ] Drag-and-drop logic:
-  - Reorder within same day
-  - Move between days
-  - Real-time route updates
-- [ ] "Add Place" button → opens map search
-- [ ] Live distance/time updates on map
-- [ ] "Save Changes" → updates itinerary
-- [ ] Change history/undo (optional)
-
-**Shared Features:**
-- [ ] Search functionality (works in both modes)
-- [ ] Place details modal (works in both modes)
-- [ ] Map route visualization
-- [ ] User current location display
-- [ ] Nearby places discovery
-- [ ] Transport mode selector (walking/driving/transit)
-
-**Agent prompt (Frontend):**
 ```
-"Create two React workflows for manual itinerary planning:
-
-WORKFLOW 1 - Manual Day Planning:
-Page: /planner/manual
-- Google Maps with search bar (Places Autocomplete)
-- Left sidebar: 'Destinations' panel with saved places
-- Center: 3-column grid (Day 1, Day 2, Day 3)
-- User can:
-  1) Search place → Click 'Add to Destinations'
-  2) Drag place from Destinations → Day column
-  3) Drag to reorder within day
-  4) Set visit duration per place
-  5) Click 'Generate Routes' → Shows polyline for each day on map
-  6) Save as itinerary
-- Use dnd-kit for drag-drop, TypeScript + Tailwind
-
-WORKFLOW 2 - Itinerary Editor:
-Page: /itinerary/[id]/edit
-- Display existing itinerary as day cards with places
-- Each place is draggable
-- User can:
-  1) Drag place to reorder within same day
-  2) Drag place to different day
-  3) Click 'Add Place' → Opens map search modal
-  4) Remove place with X button
-  5) Map updates routes in real-time as user drags
-  6) Shows updated distance/time after each change
-  7) 'Save Changes' button
-- Live route recalculation using /api/map/recalculate-route
-- Use optimistic UI updates (show changes immediately, sync with backend)
-
-Both workflows share: MapView component, search functionality, place details modal.
-Include loading states, error handling, animations with Framer Motion."
+"Create React map interface with Google Maps that includes:
+1) Search bar using Google Places Autocomplete - shows dropdown suggestions
+2) Click result → adds marker to map and shows details modal with photos, 
+   rating, address, 'Add to Itinerary' button
+3) Sidebar showing selected places list with drag-to-reorder (use dnd-kit), 
+   remove buttons, and 'Create Itinerary' button at bottom
+4) When places selected, draw polyline route between them in order
+5) 'Nearby Places' dropdown with categories (Restaurants, Attractions, Hotels) 
+   that searches within 1km radius
+6) Show user's current location as blue pulsing dot
+TypeScript + Tailwind + dnd-kit for drag-drop."
 ```
 
-**Integration (2 hours):**
-- [ ] Add routes to planner:
-  - `/planner/manual` - Type 1: Manual day planning
-  - `/itinerary/[id]/edit` - Type 2: Edit existing itinerary
-- [ ] Update existing planner page:
-  - Add "Manual Planning" button → /planner/manual
-  - Add "Edit" button on itinerary cards → /itinerary/[id]/edit
-- [ ] Test Type 1 workflow:
-  - Search → Add to destinations → Organize by day → Generate routes → Save
-- [ ] Test Type 2 workflow:
-  - Open AI-generated itinerary → Edit mode → Drag places → Map updates → Save
-- [ ] Test AI optimization:
-  - Manual itinerary → "Ask AI to Optimize" → Shows suggestions
-- [ ] Handle edge cases:
-  - Empty day (no places)
-  - Single place (no route needed)
-  - Remove last place from day
-- [ ] Mock Google API if quota exceeded
+**Integration (1.5 hours):**
+
+- [ ] Add "Map Builder" as PRIMARY tab in planner page
+- [ ] Create new route: `/planner/map-builder`
+- [ ] Test: Search → Select places → Reorder → Create itinerary → View route
+- [ ] Mock Google API if quota exceeded (use sample data)
+- [ ] Connect to existing itinerary system (save to database)
 
 **Deliverables:**
 ✅ Google Places search integration working
 ✅ Search results display as map markers
 ✅ Place details modal with full info
-✅ **Type 1:** Manual day-by-day planning interface
-✅ **Type 1:** Drag-and-drop from destinations to day columns
-✅ **Type 1:** Route generation for organized days
-✅ **Type 2:** Itinerary editor for existing itineraries
-✅ **Type 2:** Real-time route updates on drag
-✅ **Type 2:** Add/remove places in existing itinerary
-✅ Both types save to database with proper metadata
+✅ Manual itinerary builder with drag-to-reorder
+✅ "Add to Itinerary" functionality
+✅ Route generation for selected places
+✅ Database stores manually-created itineraries
 ✅ Nearby places discovery
 ✅ User location visible
-✅ Multi-day route visualization
 
 ---
 
@@ -1916,6 +1926,7 @@ Include loading states, error handling, animations with Framer Motion."
 **Scope:** Track when user visits places, manual check-in/out, visit logs
 
 **Database (30 min):**
+
 ```sql
 -- server/sql/visit_tracking_schema.sql
 CREATE TABLE IF NOT EXISTS visit_logs (
@@ -1936,7 +1947,9 @@ CREATE INDEX idx_visit_logs_status ON visit_logs(status);
 ```
 
 **Backend (3 hours):**
+
 - [ ] `server/src/routes/visitRoutes.js` - Visit tracking API
+
 ```javascript
 POST /api/visits/check-in
 POST /api/visits/check-out
@@ -1944,10 +1957,12 @@ GET /api/visits/logs/:itineraryId
 GET /api/visits/current/:itineraryId
 DELETE /api/visits/:visitId (skip place)
 ```
+
 - [ ] `server/src/models/VisitLog.js` - Database operations
 - [ ] `server/src/services/visitTracker.js` - Visit timing logic
 
 **Agent prompt:**
+
 ```
 "Create Express API for visit tracking with check-in endpoint that 
 creates visit_log record with entered_at timestamp and status 
@@ -1957,6 +1972,7 @@ an itinerary. Include Supabase queries."
 ```
 
 **Frontend (4 hours):**
+
 - [ ] `client/odyssey/app/trip/[id]/page.tsx` - Active trip view
 - [ ] `client/odyssey/components/PlaceVisitCard.tsx` - Card with check-in button
 - [ ] `client/odyssey/services/visitService.ts` - API calls
@@ -1965,6 +1981,7 @@ an itinerary. Include Supabase queries."
 - [ ] Visual status: Pending → In Progress → Completed
 
 **Agent prompt:**
+
 ```
 "Create React component that displays itinerary places as cards, shows 
 visit status with color coding (gray=pending, blue=in-progress, 
@@ -1974,6 +1991,7 @@ TypeScript + Tailwind."
 ```
 
 **Integration (1 hour):**
+
 - [ ] Add "Active Trip" tab to planner
 - [ ] Test: Check in → Timer starts → Check out → Status updates
 - [ ] Handle edge cases (check-in twice, check-out without check-in)
@@ -1992,6 +2010,7 @@ TypeScript + Tailwind."
 **Scope:** Show trip progress, send notifications, trip summary
 
 **Database (30 min):**
+
 ```sql
 -- server/sql/progress_schema.sql
 CREATE TABLE IF NOT EXISTS notification_preferences (
@@ -2012,7 +2031,9 @@ CREATE TABLE IF NOT EXISTS notification_logs (
 ```
 
 **Backend (3 hours):**
+
 - [ ] `server/src/routes/progressRoutes.js` - Progress API
+
 ```javascript
 GET /api/progress/:itineraryId (completion %, time stats)
 GET /api/progress/summary/:itineraryId (final summary)
@@ -2020,10 +2041,12 @@ POST /api/notifications/send (trigger notification)
 GET /api/notifications/preferences/:userId
 PUT /api/notifications/preferences/:userId
 ```
+
 - [ ] `server/src/services/progressCalculator.js` - Stats calculation
 - [ ] Calculate: places visited, distance traveled, time spent
 
 **Agent prompt:**
+
 ```
 "Create Express endpoint /api/progress/:itineraryId that fetches visit 
 logs from database, calculates percentage completed (visited/total places), 
@@ -2032,6 +2055,7 @@ endpoint for trip summary with total distance from map_routes."
 ```
 
 **Frontend (4 hours):**
+
 - [ ] `client/odyssey/components/ProgressBar.tsx` - Visual progress
 - [ ] `client/odyssey/components/TripSummary.tsx` - Stats card
 - [ ] `client/odyssey/services/notificationService.ts` - Browser notifications
@@ -2040,6 +2064,7 @@ endpoint for trip summary with total distance from map_routes."
 - [ ] Confetti animation on trip completion
 
 **Agent prompt:**
+
 ```
 "Create React dashboard with circular progress bar showing X/Y places 
 visited, stats cards for total time and distance, Browser Notification 
@@ -2049,6 +2074,7 @@ Tailwind + Framer Motion."
 ```
 
 **Integration (1 hour):**
+
 - [ ] Add "Progress" tab to planner
 - [ ] Listen to check-in events → trigger notification
 - [ ] Test: Complete all visits → Summary appears with confetti
@@ -2067,11 +2093,13 @@ Tailwind + Framer Motion."
 ### Day 1 Evening: Quick Integration (1 hour)
 
 **Integration Points:**
+
 1. **Group 2 → Group 3**: Visit check-in triggers progress update and notification
 2. **Group 1 → Group 2**: Map highlights currently visited place
 3. **All Groups**: Test full flow end-to-end
 
 **Merge Strategy:**
+
 ```bash
 # Evening merge order
 git checkout develop
@@ -2091,19 +2119,23 @@ git merge feature/progress-notifications # Group 3 (depends on visit_logs)
 **All Groups Together:**
 
 **Integration Task 1: Connect Map ↔ Visit Tracking**
+
 - [ ] Map highlights current place being visited (blue border)
 - [ ] Map shows checkmarks on completed places
 - [ ] Click marker → shows visit status
 
 **Integration Task 2: Connect Visits ↔ Notifications**
+
 - [ ] Check-in triggers notification immediately
 - [ ] Progress bar updates on status change
 - [ ] Notification shows next place info
 
 **Integration Task 3: Complete User Flow**
+
 - [ ] Create itinerary → Generate route → Start trip → Check in → Progress updates → Complete all → Summary
 
 **Agent prompt (all groups):**
+
 ```
 "Add event listener that detects when check-in API succeeds, then 
 triggers both map marker highlight and browser notification. Update 
@@ -2112,6 +2144,7 @@ Context or Zustand."
 ```
 
 **Conflict Resolution:**
+
 - [ ] Test all features together
 - [ ] Fix any API response mismatches
 - [ ] Ensure consistent state across tabs
@@ -2121,6 +2154,7 @@ Context or Zustand."
 #### Afternoon (4 hours): Demo Polish
 
 **Group 1 (Map):**
+
 - [ ] Add "Start Trip" button that enables tracking mode
 - [ ] Auto-center on user location
 - [ ] Add distance/time labels on route
@@ -2128,6 +2162,7 @@ Context or Zustand."
 - [ ] Loading states and smooth animations
 
 **Agent prompt:**
+
 ```
 "Add demo mode toggle that simulates GPS location moving along route 
 polyline from place to place at 5-second intervals, triggering check-in 
@@ -2135,6 +2170,7 @@ automatically when reaching each place. Include speed control slider."
 ```
 
 **Group 2 (Tracking):**
+
 - [ ] Add "Skip Place" option
 - [ ] Time spent displays as "2h 15m" format
 - [ ] Add place photos/images to cards
@@ -2142,6 +2178,7 @@ automatically when reaching each place. Include speed control slider."
 - [ ] Empty state: "Start your trip!"
 
 **Agent prompt:**
+
 ```
 "Add skip functionality that marks place as 'skipped' status with gray 
 strikethrough styling, formats time_spent as human-readable (e.g., 
@@ -2149,6 +2186,7 @@ strikethrough styling, formats time_spent as human-readable (e.g.,
 ```
 
 **Group 3 (Progress):**
+
 - [ ] Enhanced trip summary card (beautiful design)
 - [ ] Export summary as image (html2canvas)
 - [ ] Share button (copy link, social media)
@@ -2156,6 +2194,7 @@ strikethrough styling, formats time_spent as human-readable (e.g.,
 - [ ] Smooth number counting animations
 
 **Agent prompt:**
+
 ```
 "Create stunning trip summary card with gradient background, stats 
 with counting animation using react-countup, export to image using 
@@ -2167,42 +2206,34 @@ text. Make it Instagram-worthy."
 
 #### Evening (2 hours): Demo Rehearsal & Backup Plan
 
-**Demo Script (12 minutes):**
+**Demo Script (10 minutes):**
 
 **1. Intro (30 sec):**
+
 - "Project Odyssey: AI-powered AND manual trip planning with real-time tracking"
-- "Today we'll show TWO ways to plan manually"
 
-**2A. Manual Day Planning - Build from Scratch (3 min):**
-- Click "Manual Planning" button
-- Search for "Eiffel Tower" → Add to Destinations
-- Search "Louvre Museum" → Add to Destinations
-- Search "Arc de Triomphe" → Add to Destinations
-- Search "Sacré-Cœur" → Add to Destinations
-- Search "Notre-Dame" → Add to Destinations
-- Now organize by day:
-  - Drag Eiffel Tower + Louvre to "Day 1"
-  - Drag Arc de Triomphe + Sacré-Cœur to "Day 2"
-  - Drag Notre-Dame to "Day 3"
-- Reorder within Day 1 (Louvre before Eiffel)
-- Click "Generate Routes"
-- Map shows separate routes for each day with distances
-- Click "Save Itinerary" → "My Paris Adventure" created
+**2. Manual Itinerary Creation (2.5 min):**
 
-**2B. Post-Generation Editing - Modify Existing (2.5 min):**
-- Show AI-generated itinerary: "Rome 2-Day Tour"
-- Click "Edit" button → Edit mode
-- Map shows current routes
-- User decides: "I want Colosseum on Day 2, not Day 1"
-- Drag Colosseum from Day 1 to Day 2
-- Map instantly recalculates routes
-- Shows new distance: Day 1 now 6km, Day 2 now 9km
-- Add new place: Click "Add Place" → Search "Trevi Fountain"
-- Add to Day 1 → Map updates again
-- Remove "Spanish Steps" from Day 2
-- Click "Save Changes" → Updated itinerary stored
+- Click "Map Builder" tab
+- Search for "Eiffel Tower, Paris" → Shows on map
+- Click marker → Details modal appears with photos
+- Click "Add to Itinerary" → Appears in sidebar
+- Search "Louvre Museum" → Add to itinerary
+- Search "Arc de Triomphe" → Add to itinerary
+- Use "Nearby Restaurants" → Find lunch spot near Louvre
+- Add restaurant to itinerary
+- Drag places to reorder in sidebar
+- Route automatically draws between places
+- Click "Create Itinerary" → Saves as "My Paris Adventure"
+
+**3. View Generated Route (1 min):**
+
+- Route displayed with walking distances and times
+- Total: 8.5km, 6-7 hours
+- All 5 places marked on map
 
 **4. Start Trip (3 min):**
+
 - Click "Start Trip" → Goes to Active Trip view
 - Enable demo mode (simulated GPS)
 - Watch as location moves to first place
@@ -2211,12 +2242,14 @@ text. Make it Instagram-worthy."
 - Timer starts counting
 
 **5. Progress Through Places (2 min):**
+
 - Fast-forward simulation (speed slider)
 - Visit 3 more places rapidly
 - Show notifications appearing
 - Show map markers turning green
 
 **6. Trip Summary (1 min):**
+
 - Complete last place → Confetti! 🎉
 - Trip summary appears with stats:
   - Distance: 8.5km
@@ -2225,11 +2258,13 @@ text. Make it Instagram-worthy."
 - Click "Share Trip" → Copy link
 
 **7. Closing (30 sec):**
+
 - "Future: Auto GPS tracking, mobile app, offline mode"
 
 ---
 
 **Backup Plans:**
+
 - [ ] Record full demo video (if live fails)
 - [ ] Screenshots of each step
 - [ ] Prepared dataset (pre-generated route)
@@ -2240,6 +2275,7 @@ text. Make it Instagram-worthy."
 ### File Ownership (Prevent Conflicts)
 
 #### Group 1 Files (Map & Routes)
+
 ```
 server/src/
   ├── routes/mapRoutes.js          # Group 1 only
@@ -2256,6 +2292,7 @@ database/
 ```
 
 #### Group 2 Files (Visit Tracking)
+
 ```
 server/src/
   ├── routes/visitRoutes.js         # Group 2 only
@@ -2274,6 +2311,7 @@ database/
 ```
 
 #### Group 3 Files (Progress & Notifications)
+
 ```
 server/src/
   ├── routes/progressRoutes.js      # Group 3 only
@@ -2292,6 +2330,7 @@ database/
 ```
 
 #### Shared Files (Coordinate in Slack)
+
 ```
 server/src/server.js              # Import routes - coordinate merge
 client/odyssey/app/planner/page.tsx # Add tabs - coordinate merge
@@ -2303,18 +2342,22 @@ types/shared.types.ts             # Add types - coordinate
 ### Communication Protocol
 
 #### Slack Channels
+
 - `#2day-sprint-general` - General coordination
 - `#group1-map` - Group 1 internal
 - `#group2-tracking` - Group 2 internal  
 - `#group3-progress` - Group 3 internal
 
 #### Stand-ups (15 min each)
+
 - **9 AM:** What you'll build today
 - **2 PM:** Progress check, blockers
 - **6 PM:** Demo prep, integration issues
 
 #### Integration Alerts
+
 When your API is ready, post to #general:
+
 ```
 ✅ Group 1: /api/map/generate-route is LIVE
 📋 Response format: { routeId, polyline, waypoints[], totalDistance }
@@ -2328,6 +2371,7 @@ When your API is ready, post to #general:
 #### Step-by-Step Agent Usage
 
 **1. Database Schema (15 min):**
+
 ```
 Agent Prompt: "Create PostgreSQL schema for [feature] with tables 
 [table_names]. Include indexes, foreign keys, and sample INSERT 
@@ -2337,23 +2381,27 @@ statements. Use Supabase-compatible syntax."
 **Group 1 Specific Workflow:**
 
 **Phase 1 (Morning - 4 hours): Map Search Foundation**
+
 - Search bar with Google Places Autocomplete
 - Display search results as markers
 - Place details modal
 - Basic "Add to Itinerary" functionality
 
 **Phase 2 (Afternoon - 3 hours): Manual Builder**
+
 - Selected places sidebar with drag-to-reorder
 - Route visualization between places
 - "Create Itinerary" saves to database
 - Nearby places discovery
 
 **Phase 3 (Evening - 1 hour): Integration**
+
 - Connect to Groups 2 & 3 APIs
 - Test with visit tracking
 - Ensure manual itineraries work with progress tracking
 
 **2. Backend API (2 hours):**
+
 ```
 Agent Prompt: "Create Express.js REST API for [feature] with routes 
 [list routes], Supabase database integration, error handling, JWT 
@@ -2362,6 +2410,7 @@ validation using express-validator."
 ```
 
 **3. Frontend Components (3 hours):**
+
 ```
 Agent Prompt: "Create React component for [feature] that calls API 
 endpoints [list], handles loading/error states, uses TypeScript, 
@@ -2370,6 +2419,7 @@ and follows our existing design system."
 ```
 
 **4. Integration (1 hour):**
+
 ```
 Agent Prompt: "Integrate [component] into existing planner page at 
 [location], add state management, handle API errors, show toast 
@@ -2377,6 +2427,7 @@ notifications on success/failure."
 ```
 
 #### Agent Best Practices
+
 - ✅ Always specify: "TypeScript + Tailwind CSS + Supabase"
 - ✅ Include: "Error handling and loading states"
 - ✅ Request: "Follow REST API conventions"
@@ -2402,6 +2453,7 @@ notifications on success/failure."
 ### Success Metrics
 
 **Minimum Viable Demo:**
+
 - ✅ Map shows itinerary with route
 - ✅ Manual check-in/out works
 - ✅ Progress bar updates
@@ -2409,6 +2461,7 @@ notifications on success/failure."
 - ✅ Basic trip summary
 
 **Impressive Demo:**
+
 - ✅ Demo mode simulates GPS movement
 - ✅ Smooth animations throughout
 - ✅ Beautiful trip summary card
@@ -2420,13 +2473,16 @@ notifications on success/failure."
 ### Timeline Summary
 
 **Pre-Sprint: 1 hour**
+
 - Setup, define contracts, create branches
 
 **Day 1: 10 hours**
+
 - Full-stack development per feature
 - Evening: Quick integration test
 
 **Day 2: 10 hours**
+
 - Morning: Cross-feature integration
 - Afternoon: Polish and demo mode
 - Evening: Rehearsal
