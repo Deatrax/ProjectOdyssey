@@ -69,7 +69,7 @@ export default function SinglePostPage() {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
         <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600" />
         </div>
       </div>
     );
@@ -85,7 +85,7 @@ export default function SinglePostPage() {
             <p className="text-gray-600 mb-6">{error || 'The post you are looking for does not exist.'}</p>
             <button
               onClick={() => router.push('/feed')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-3 bg-[#4A9B7F] text-white rounded-lg hover:bg-[#3d8268] transition-colors"
             >
               Back to Feed
             </button>
@@ -112,10 +112,10 @@ export default function SinglePostPage() {
         {/* Post Container */}
         <article className="bg-white rounded-3xl shadow-lg overflow-hidden">
           {/* Header - Author Info */}
-          <div className="relative bg-gradient-to-r from-blue-50 to-purple-50 px-8 py-12 border-b border-gray-200">
+          <div className="relative bg-gradient-to-r from-teal-50 to-purple-50 px-8 py-12 border-b border-gray-200">
             <div className="flex items-start justify-between mb-8">
               <div className="flex items-start gap-5">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-2xl shadow-lg">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#4A9B7F] to-purple-500 flex items-center justify-center text-white font-semibold text-2xl shadow-lg">
                   {post.authorId.username?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="flex-1 pt-2">
@@ -126,7 +126,7 @@ export default function SinglePostPage() {
                       <span>{formatDate(post.createdAt)}</span>
                     </div>
                     {post.type === 'auto' && (
-                      <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-200">
+                      <span className="px-3 py-1 bg-gradient-to-r from-teal-100 to-teal-50 text-teal-700 rounded-full text-xs font-semibold border border-teal-200">
                         ✨ Trip Complete
                       </span>
                     )}
@@ -139,7 +139,7 @@ export default function SinglePostPage() {
                 <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm p-1">
                   <button
                     onClick={handleEdit}
-                    className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                    className="p-2.5 text-gray-600 hover:text-[#4A9B7F] hover:bg-teal-50 rounded-lg transition-all duration-200"
                     title="Edit post"
                   >
                     <Edit2 className="w-5 h-5" />
@@ -158,7 +158,7 @@ export default function SinglePostPage() {
             {/* Trip Badge */}
             {post.tripName && (
               <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl shadow-sm inline-flex border border-gray-100">
-                <MapPin className="w-5 h-5 text-blue-600" />
+                <MapPin className="w-5 h-5 text-[#4A9B7F]" />
                 <span className="font-semibold text-gray-900">{post.tripName}</span>
               </div>
             )}
@@ -170,7 +170,7 @@ export default function SinglePostPage() {
           </div>
 
           {/* Interaction Bar */}
-          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 flex items-center justify-between">
+          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-teal-50 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div onClick={(e) => e.stopPropagation()}>
                 <LikeButton

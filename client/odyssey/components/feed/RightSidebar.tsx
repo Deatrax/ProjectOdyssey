@@ -72,7 +72,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
               <div className="flex items-center gap-2 mb-1">
-                <FileText className="w-4 h-4 text-blue-600" />
+                <FileText className="w-4 h-4 text-[#4A9B7F]" />
                 <span className="text-xs text-gray-600">Posts</span>
               </div>
               <p className="text-2xl font-bold text-gray-900">{userStats.totalPosts}</p>
@@ -108,7 +108,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         <p className="text-sm text-gray-600 mb-4">Write about your latest adventure and inspire others!</p>
         <button
           onClick={() => router.push('/feed/create')}
-          className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full bg-[#4A9B7F] text-white font-semibold py-3 rounded-xl hover:bg-[#3d8268] transition-all duration-200 flex items-center justify-center gap-2"
         >
           <PenSquare className="w-5 h-5" />
           Create Post
@@ -119,7 +119,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       {popularDestinations.length > 0 && (
         <div className="bg-white rounded-2xl shadow-md p-5">
           <div className="flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-blue-600" />
+            <MapPin className="w-5 h-5 text-[#4A9B7F]" />
             <h3 className="text-lg font-bold text-gray-900">Popular Destinations</h3>
           </div>
           <div className="space-y-2">
@@ -169,7 +169,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
                 <div
                   key={post._id}
                   onClick={() => router.push(`/feed/${post._id}`)}
-                  className="p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all cursor-pointer"
+                  className="p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all cursor-pointer"
                 >
                   <p className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
                     {getTitle()}
@@ -196,13 +196,13 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       {/* Footer Info */}
       <div className="bg-gray-50 rounded-2xl shadow-sm p-4 text-xs text-gray-600">
         <div className="flex flex-wrap gap-2 mb-2">
-          <a href="#" className="hover:text-blue-600">About</a>
+          <a href="#" className="hover:text-[#4A9B7F]">About</a>
           <span>•</span>
-          <a href="#" className="hover:text-blue-600">Help</a>
+          <a href="#" className="hover:text-[#4A9B7F]">Help</a>
           <span>•</span>
-          <a href="#" className="hover:text-blue-600">Terms</a>
+          <a href="#" className="hover:text-[#4A9B7F]">Terms</a>
           <span>•</span>
-          <a href="#" className="hover:text-blue-600">Privacy</a>
+          <a href="#" className="hover:text-[#4A9B7F]">Privacy</a>
         </div>
         <p className="text-gray-500">© 2026 Odyssey Travel</p>
       </div>

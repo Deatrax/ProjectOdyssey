@@ -105,7 +105,7 @@ export default function FeedPage() {
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-center h-[60vh]">
-            <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+            <Loader2 className="w-12 h-12 animate-spin text-teal-600" />
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function FeedPage() {
             <p className="text-red-600 text-lg">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="mt-4 px-6 py-2 bg-[#4A9B7F] text-white rounded-lg hover:bg-[#3d8268] transition-colors"
             >
               Retry
             </button>
@@ -141,7 +141,7 @@ export default function FeedPage() {
           </div>
           <button
             onClick={handleCreatePost}
-            className="hidden lg:flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="hidden lg:flex items-center gap-2 px-6 py-3 bg-[#4A9B7F] text-white rounded-xl hover:bg-[#3d8268] transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <PenSquare className="w-5 h-5" />
             <span className="font-medium">Write Story</span>
@@ -177,7 +177,7 @@ export default function FeedPage() {
                 {activeFilter === 'my-posts' && (
                   <button
                     onClick={handleCreatePost}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                    className="px-8 py-3 bg-[#4A9B7F] text-white rounded-xl hover:bg-[#3d8268] transition-colors"
                   >
                     Create First Post
                   </button>
@@ -194,7 +194,7 @@ export default function FeedPage() {
             {/* Loading More Indicator */}
             {loading && posts.length > 0 && (
               <div className="flex justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
               </div>
             )}
 
@@ -223,7 +223,7 @@ export default function FeedPage() {
         {/* Mobile FAB for Create Post */}
         <button
           onClick={handleCreatePost}
-          className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl hover:bg-blue-700 transition-all duration-200 flex items-center justify-center z-50"
+          className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-[#4A9B7F] text-white rounded-full shadow-2xl hover:bg-[#3d8268] transition-all duration-200 flex items-center justify-center z-50"
         >
           <PenSquare className="w-6 h-6" />
         </button>

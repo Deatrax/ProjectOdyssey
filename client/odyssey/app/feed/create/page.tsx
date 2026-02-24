@@ -105,7 +105,7 @@ export default function CreatePostPage() {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
         <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600" />
         </div>
       </div>
     );
@@ -146,7 +146,7 @@ export default function CreatePostPage() {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#4A9B7F] text-white rounded-lg hover:bg-[#3d8268] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
@@ -185,9 +185,9 @@ export default function CreatePostPage() {
         </div>
 
         {/* Tips */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">✍️ Writing Tips</h3>
-          <ul className="space-y-2 text-sm text-blue-800">
+        <div className="mt-8 bg-teal-50 border border-teal-200 rounded-lg p-6">
+          <h3 className="font-semibold text-teal-900 mb-3">✍️ Writing Tips</h3>
+          <ul className="space-y-2 text-sm text-teal-800">
             <li>• Start with an engaging title (Heading 1)</li>
             <li>• Share your personal experiences and emotions</li>
             <li>• Include specific details about places, food, and people</li>

@@ -48,14 +48,14 @@ export default function LeftSidebar({
                 onClick={() => router.push(item.path)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive(item.path)
-                    ? 'bg-blue-50 text-blue-600 font-medium'
+                    ? 'bg-teal-50 text-[#4A9B7F] font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.badge && (
-                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="bg-[#4A9B7F] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {item.badge}
                   </span>
                 )}
@@ -75,7 +75,7 @@ export default function LeftSidebar({
             onClick={() => onFilterChange('all')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'all'
-                ? 'bg-blue-50 text-blue-600 font-medium'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -85,7 +85,7 @@ export default function LeftSidebar({
             onClick={() => onFilterChange('blog')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'blog'
-                ? 'bg-blue-50 text-blue-600 font-medium'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -95,7 +95,7 @@ export default function LeftSidebar({
             onClick={() => onFilterChange('auto')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'auto'
-                ? 'bg-blue-50 text-blue-600 font-medium'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -105,7 +105,7 @@ export default function LeftSidebar({
             onClick={() => onFilterChange('my-posts')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'my-posts'
-                ? 'bg-blue-50 text-blue-600 font-medium'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -123,7 +123,7 @@ export default function LeftSidebar({
         <select
           value={timelineFilter}
           onChange={(e) => onTimelineChange(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4A9B7F] bg-gray-50"
         >
           <option value="all">All Time</option>
           <option value="today">Today</option>
@@ -141,11 +141,11 @@ export default function LeftSidebar({
         <div className="space-y-1 text-sm">
           <p className="flex items-center justify-between text-gray-700">
             <span>Active Today</span>
-            <span className="font-bold text-blue-600">2.4K</span>
+            <span className="font-bold text-[#4A9B7F]">2.4K</span>
           </p>
           <p className="flex items-center justify-between text-gray-700">
             <span>Posts This Week</span>
-            <span className="font-bold text-blue-600">8.1K</span>
+            <span className="font-bold text-[#4A9B7F]">8.1K</span>
           </p>
         </div>
       </div>
