@@ -308,7 +308,7 @@ const ProfilePage: React.FC = () => {
         return;
       }
 
-      const res = await fetch(`${getApiBase()}/api/user/profile`, {
+      const res = await fetch("http://localhost:4000/api/user/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -418,7 +418,7 @@ const ProfilePage: React.FC = () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) { setReviewsLoading(false); return; }
-        const res = await fetch(`${getApiBase()}/api/reviews`, {
+        const res = await fetch("http://localhost:4000/api/reviews", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -505,7 +505,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${getApiBase()}/api/upload`, {
+      const res = await fetch("http://localhost:4000/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }, // Content-Type is auto-set for FormData
         body: formData,
@@ -538,7 +538,7 @@ const ProfilePage: React.FC = () => {
     if (!confirm("Are you sure you want to delete this review?")) return;
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${getApiBase()}/api/reviews/${reviewId}`, {
+      const res = await fetch(`http://localhost:4000/api/reviews/${reviewId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -890,8 +890,8 @@ const ProfilePage: React.FC = () => {
               <div className="space-y-6">
                 {/* Travel Stats Card (Gamification) */}
                 <TravelStatsCard
-                  xp={userData?.xp || 0}
-                  level={userData?.level || 1}
+                  xp={userData.xp || 0}
+                  level={userData.level || 1}
                 />
 
                 {/* Recent Activity */}
