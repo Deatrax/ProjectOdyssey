@@ -91,6 +91,76 @@ CREATE TABLE public.geofence_settings (
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT geofence_settings_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.group_activities (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  group_trip_id uuid NOT NULL,
+  title character varying NOT NULL,
+  description text,
+  assigned_to character varying,
+  created_by character varying NOT NULL,
+  status character varying DEFAULT 'todo'::character varying,
+  priority character varying DEFAULT 'medium'::character varying,
+  due_date date,
+  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT group_activities_pkey PRIMARY KEY (id),
+  CONSTRAINT group_activities_group_trip_id_fkey FOREIGN KEY (group_trip_id) REFERENCES public.group_trips(id)
+);
+CREATE TABLE public.group_expenses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  group_trip_id uuid NOT NULL,
+  paid_by character varying NOT NULL,
+  title character varying NOT NULL,
+  amount numeric NOT NULL,
+  currency character varying DEFAULT 'BDT'::character varying,
+  category character varying DEFAULT 'other'::character varying,
+  split_type character varying DEFAULT 'equal'::character varying,
+  split_among jsonb DEFAULT '[]'::jsonb,
+  custom_splits jsonb DEFAULT '{}'::jsonb,
+  receipt_url text,
+  notes text,
+  expense_date date DEFAULT CURRENT_DATE,
+  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT group_expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT group_expenses_group_trip_id_fkey FOREIGN KEY (group_trip_id) REFERENCES public.group_trips(id)
+);
+CREATE TABLE public.group_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  group_trip_id uuid NOT NULL,
+  user_id character varying NOT NULL,
+  role character varying DEFAULT 'member'::character varying,
+  status character varying DEFAULT 'pending'::character varying,
+  joined_via character varying DEFAULT 'discovery'::character varying,
+  joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  party_size integer DEFAULT 1,
+  CONSTRAINT group_members_pkey PRIMARY KEY (id),
+  CONSTRAINT group_members_group_trip_id_fkey FOREIGN KEY (group_trip_id) REFERENCES public.group_trips(id)
+);
+CREATE TABLE public.group_trips (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organizer_id character varying NOT NULL,
+  itinerary_id uuid,
+  title character varying NOT NULL,
+  description text,
+  cover_image text,
+  destination_tags jsonb DEFAULT '[]'::jsonb,
+  date_range_start date,
+  date_range_end date,
+  activity_type character varying,
+  max_participants integer DEFAULT 10,
+  cost_per_person numeric DEFAULT 0,
+  currency character varying DEFAULT 'BDT'::character varying,
+  is_public boolean DEFAULT true,
+  auto_approve boolean DEFAULT false,
+  invite_code character varying NOT NULL UNIQUE,
+  status character varying DEFAULT 'open'::character varying,
+  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT group_trips_pkey PRIMARY KEY (id),
+  CONSTRAINT group_trips_itinerary_id_fkey FOREIGN KEY (itinerary_id) REFERENCES public.itineraries(id)
+);
 CREATE TABLE public.itineraries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id character varying NOT NULL,
