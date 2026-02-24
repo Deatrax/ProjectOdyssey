@@ -46,7 +46,7 @@ router.post("/", authMiddleware, async (req, res) => {
     });
 
     // Populate user details
-    await comment.populate("user", "username email");
+    await comment.populate("userId", "username email");
 
     return res.status(201).json({
       success: true,
@@ -81,7 +81,7 @@ router.get("/:postId", async (req, res) => {
       .sort({ createdAt: 1 }) // Oldest first
       .skip(parsedSkip)
       .limit(parsedLimit)
-      .populate("user", "username email");
+      .populate("userId", "username email");
 
     // Get total count
     const totalCount = await Comment.countDocuments({ postId });
@@ -136,7 +136,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     // Update comment
     comment.text = text.trim();
     await comment.save();
-    await comment.populate("user", "username email");
+    await comment.populate("userId", "username email");
 
     return res.json({
       success: true,

@@ -40,7 +40,7 @@ router.post("/", authMiddleware, async (req, res) => {
     });
 
     // Populate author details
-    await post.populate("author", "username email");
+    await post.populate("authorId", "username email");
 
     return res.status(201).json({
       success: true,
@@ -86,7 +86,7 @@ router.get("/", async (req, res) => {
     const posts = await Post.find(query)
       .sort({ createdAt: -1 })
       .limit(parsedLimit)
-      .populate("author", "username email");
+      .populate("authorId", "username email");
 
     // Check if there are more posts
     const hasMore = posts.length === parsedLimit;
@@ -114,7 +114,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate("author", "username email");
+      .populate("authorId", "username email");
 
     if (!post) {
       return res.status(404).json({ error: "Post not found" });
@@ -163,7 +163,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     if (tripName !== undefined) post.tripName = tripName;
 
     await post.save();
-    await post.populate("author", "username email");
+    await post.populate("authorId", "username email");
 
     return res.json({
       success: true,
@@ -223,7 +223,7 @@ router.get("/user/:userId", async (req, res) => {
   try {
     const posts = await Post.find({ authorId: req.params.userId })
       .sort({ createdAt: -1 })
-      .populate("author", "username email");
+      .populate("authorId", "username email");
 
     return res.json({
       success: true,
