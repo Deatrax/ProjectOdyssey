@@ -34,7 +34,7 @@ export default function ItinerarySidebar({
     const completedItineraries = itineraries.filter((i) => i.status === "completed");
 
     return (
-        <div className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
+        <div className="w-64 bg-white/40 backdrop-blur-md border-r border-white/20 h-full flex flex-col rounded-l-2xl">
             <div className="p-4 border-b border-gray-100">
                 <button
                     onClick={onNewTrip}

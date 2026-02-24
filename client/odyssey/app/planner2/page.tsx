@@ -1035,8 +1035,8 @@ export default function PlannerPage() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-[calc(100vh-110px)] w-full max-w-[1800px] mx-auto bg-[#FFF5E9] overflow-hidden px-4 md:px-8 pb-6 pt-2">
-        <div className="flex w-full h-full bg-white rounded-3xl shadow-xl border border-orange-100 overflow-hidden relative">
+      <div className="flex h-[calc(100vh-110px)] w-full max-w-[1800px] mx-auto overflow-hidden px-4 md:px-8 pb-6 pt-2">
+        <div className="flex w-full h-full overflow-hidden relative">
 
           {/* Sidebar */}
           {sidebarOpen ? (
@@ -1048,7 +1048,7 @@ export default function PlannerPage() {
               onDeleteTrip={handleDeleteTrip}
             />
           ) : (
-            <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">
+            <div className="w-12 border-r border-white/20 bg-white/30 backdrop-blur-md pt-4 flex flex-col items-center rounded-l-2xl">
               <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <Menu size={20} />
               </button>
@@ -1059,7 +1059,7 @@ export default function PlannerPage() {
           <div className="flex-1 flex flex-col min-w-0">
 
             {/* Top Bar */}
-            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm z-20">
+            <div className="h-16 bg-white/40 backdrop-blur-md border-b border-white/20 flex items-center justify-between px-6 z-20">
               <div className="flex items-center gap-4">
                 {!sidebarOpen && (
                   <div className="font-bold text-lg">{activeTrip?.tripName}</div>
@@ -1108,7 +1108,7 @@ export default function PlannerPage() {
                         onDaySelect={setCurrentDay}
                       />
                     </div>
-                    <div className="flex-1 overflow-hidden rounded-2xl shadow-sm border border-gray-200 bg-white">
+                    <div className="flex-1 overflow-hidden rounded-2xl bg-white/50 backdrop-blur-sm border border-white/30">
                       <TimelineView
                         day={currentDay}
                         items={getDayItems(activeTrip.schedule, currentDay)}
@@ -1120,7 +1120,7 @@ export default function PlannerPage() {
                     </div>
                   </>
                 ) : activeMainTab === "map" && activeTrip ? (
-                  <div className="h-full w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
+                  <div className="h-full w-full rounded-2xl overflow-hidden border border-white/30 relative">
                     <MapComponent
                       items={allTripItems.filter(i => !i.isBreak)}
                       userLocation={mockLocation || userLocation}
@@ -1157,7 +1157,7 @@ export default function PlannerPage() {
               </div>
 
               {/* Right Panel (Resource Panel) */}
-              <div className="w-[400px] border-l border-gray-200 bg-white h-full">
+              <div className="w-[400px] border-l border-white/20 bg-white/40 backdrop-blur-md h-full">
                 <ResourcePanel
                   activeTab={activeRightTab}
                   onTabChange={setActiveRightTab}
