@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PenSquare, Loader2 } from 'lucide-react';
 import { usePosts } from '@/hooks/usePosts';
 import PostCard from '@/components/PostCard';
+import LeftSidebar from '@/components/feed/LeftSidebar';
+import RightSidebar from '@/components/feed/RightSidebar';
 
 export default function FeedPage() {
   const router = useRouter();
   const { posts, loading, error, hasMore, loadMore } = usePosts(10);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts'>('all');
+  const [timelineFilter, setTimelineFilter] = useState<string>('all');
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check authentication
     const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
     setIsAuthenticated(!!token);
+    setCurrentUserId(userId);
   }, []);
 
   // Infinite scroll observer
@@ -41,6 +48,50 @@ export default function FeedPage() {
     };
   }, [hasMore, loading, loadMore]);
 
+  // Filter posts based on active filters
+  const filteredPosts = useMemo(() => {
+    let filtered = [...posts];
+
+    // Filter by post type
+    if (activeFilter === 'blog') {
+      filtered = filtered.filter(post => post.type === 'blog');
+    } else if (activeFilter === 'auto') {
+      filtered = filtered.filter(post => post.type === 'auto');
+    } else if (activeFilter === 'my-posts' && currentUserId) {
+      filtered = filtered.filter(post => post.authorId._id === currentUserId);
+    }
+
+    // Filter by timeline
+    if (timelineFilter !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(post => {
+        const postDate = new Date(post.createdAt);
+        
+        switch (timelineFilter) {
+          case 'today':
+            return postDate.toDateString() === now.toDateString();
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            return postDate >= weekAgo;
+          case 'month':
+            return postDate.getMonth() === now.getMonth() && postDate.getFullYear() === now.getFullYear();
+          case 'year':
+            return postDate.getFullYear() === now.getFullYear();
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [posts, activeFilter, timelineFilter, currentUserId]);
+
+  // Get user's posts for stats
+  const userPosts = useMemo(() => {
+    if (!currentUserId) return [];
+    return posts.filter(post => post.authorId._id === currentUserId);
+  }, [posts, currentUserId]);
+
   const handleCreatePost = () => {
     if (!isAuthenticated) {
       router.push('/login');
@@ -52,7 +103,7 @@ export default function FeedPage() {
   if (loading && posts.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-center h-[60vh]">
             <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
           </div>
@@ -64,7 +115,7 @@ export default function FeedPage() {
   if (error && posts.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="text-center py-12">
             <p className="text-red-600 text-lg">{error}</p>
             <button
@@ -81,7 +132,7 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-[#FFF5E9] pt-8 pb-20">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -90,50 +141,92 @@ export default function FeedPage() {
           </div>
           <button
             onClick={handleCreatePost}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="hidden lg:flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <PenSquare className="w-5 h-5" />
             <span className="font-medium">Write Story</span>
           </button>
         </div>
 
-        {/* Posts Grid */}
-        {posts.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">✈️</div>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">No posts yet</h2>
-            <p className="text-gray-600 mb-6">Be the first to share your travel story!</p>
-            <button
-              onClick={handleCreatePost}
-              className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              Create First Post
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <PostCard key={post._id} post={post} />
-            ))}
-          </div>
-        )}
+        {/* 3-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6">
+          {/* Left Sidebar - Hidden on mobile */}
+          <aside className="hidden lg:block">
+            <LeftSidebar
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              timelineFilter={timelineFilter}
+              onTimelineChange={setTimelineFilter}
+              savedPostsCount={0}
+            />
+          </aside>
 
-        {/* Loading More Indicator */}
-        {loading && posts.length > 0 && (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        )}
+          {/* Main Feed */}
+          <main className="min-w-0">
+            {filteredPosts.length === 0 && !loading ? (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">✈️</div>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+                  {activeFilter === 'my-posts' ? 'No posts yet' : 'No posts found'}
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  {activeFilter === 'my-posts' 
+                    ? 'Be the first to share your travel story!'
+                    : 'Try adjusting your filters'}
+                </p>
+                {activeFilter === 'my-posts' && (
+                  <button
+                    onClick={handleCreatePost}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Create First Post
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredPosts.map((post) => (
+                  <PostCard key={post._id} post={post} />
+                ))}
+              </div>
+            )}
 
-        {/* Infinite Scroll Trigger */}
-        {hasMore && <div ref={observerTarget} className="h-20" />}
+            {/* Loading More Indicator */}
+            {loading && posts.length > 0 && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              </div>
+            )}
 
-        {/* End of Feed */}
-        {!hasMore && posts.length > 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>You've reached the end of the feed! 🎉</p>
-          </div>
-        )}
+            {/* Infinite Scroll Trigger */}
+            {hasMore && <div ref={observerTarget} className="h-20" />}
+
+            {/* End of Feed */}
+            {!hasMore && filteredPosts.length > 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <p>You've reached the end of the feed! 🎉</p>
+              </div>
+            )}
+          </main>
+
+          {/* Right Sidebar - Hidden on mobile */}
+          <aside className="hidden lg:block">
+            <RightSidebar
+              userPosts={userPosts}
+              allPosts={posts}
+              isAuthenticated={isAuthenticated}
+              currentUserId={currentUserId || undefined}
+            />
+          </aside>
+        </div>
+
+        {/* Mobile FAB for Create Post */}
+        <button
+          onClick={handleCreatePost}
+          className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl hover:bg-blue-700 transition-all duration-200 flex items-center justify-center z-50"
+        >
+          <PenSquare className="w-6 h-6" />
+        </button>
       </div>
     </div>
   );

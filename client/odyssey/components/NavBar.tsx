@@ -55,9 +55,8 @@ const NavBar = () => {
                     { name: "Home", path: "/dashboard" },
                     { name: "Planner", path: "/planner2" },
                     { name: "Trip Mode", path: "/trip" },
-                    { name: "Feed", path: "/feed" },
                     { name: "Destinations", path: "/destinations" },
-                    { name: "Co-travellers", path: "/co-travellers" },
+                    { name: "Co-travellers", path: "/feed" },
                 ].map((link) => (
                     <Link
                         key={link.name}
