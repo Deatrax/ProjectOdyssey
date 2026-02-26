@@ -10,6 +10,8 @@ interface LeftSidebarProps {
   timelineFilter: string;
   onTimelineChange: (timeline: string) => void;
   savedPostsCount?: number;
+  activeUsersToday?: number;
+  postsThisWeek?: number;
 }
 
 export default function LeftSidebar({
@@ -17,7 +19,9 @@ export default function LeftSidebar({
   onFilterChange,
   timelineFilter,
   onTimelineChange,
-  savedPostsCount = 0
+  savedPostsCount = 0,
+  activeUsersToday = 0,
+  postsThisWeek = 0
 }: LeftSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -141,11 +145,11 @@ export default function LeftSidebar({
         <div className="space-y-1 text-sm">
           <p className="flex items-center justify-between text-gray-700">
             <span>Active Today</span>
-            <span className="font-bold text-[#4A9B7F]">2.4K</span>
+            <span className="font-bold text-[#4A9B7F]">{activeUsersToday}</span>
           </p>
           <p className="flex items-center justify-between text-gray-700">
             <span>Posts This Week</span>
-            <span className="font-bold text-[#4A9B7F]">8.1K</span>
+            <span className="font-bold text-[#4A9B7F]">{postsThisWeek}</span>
           </p>
         </div>
       </div>

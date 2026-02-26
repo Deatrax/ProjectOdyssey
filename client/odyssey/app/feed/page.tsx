@@ -92,6 +92,33 @@ export default function FeedPage() {
     return posts.filter(post => post.authorId._id === currentUserId);
   }, [posts, currentUserId]);
 
+  // Calculate community stats
+  const communityStats = useMemo(() => {
+    const now = new Date();
+    const today = now.toDateString();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Count unique authors who posted today
+    const authorsToday = new Set<string>();
+    posts.forEach(post => {
+      const postDate = new Date(post.createdAt);
+      if (postDate.toDateString() === today) {
+        authorsToday.add(post.authorId._id);
+      }
+    });
+
+    // Count posts this week
+    const postsThisWeek = posts.filter(post => {
+      const postDate = new Date(post.createdAt);
+      return postDate >= weekAgo;
+    }).length;
+
+    return {
+      activeUsersToday: authorsToday.size,
+      postsThisWeek
+    };
+  }, [posts]);
+
   const handleCreatePost = () => {
     if (!isAuthenticated) {
       router.push('/login');
@@ -158,6 +185,8 @@ export default function FeedPage() {
               timelineFilter={timelineFilter}
               onTimelineChange={setTimelineFilter}
               savedPostsCount={0}
+              activeUsersToday={communityStats.activeUsersToday}
+              postsThisWeek={communityStats.postsThisWeek}
             />
           </aside>
 
