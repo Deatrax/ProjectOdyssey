@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import VisitMap from "./VisitMap";
 import TravelStatsCard from "./TravelStatsCard";
+import TravelActivityChart from "@/components/TravelActivityChart";
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -137,7 +138,7 @@ const getApiBase = () => {
 const ProfilePage: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "analytics" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [trips, setTrips] = useState<any[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
@@ -895,6 +896,15 @@ const ProfilePage: React.FC = () => {
             Collections
           </button>
           <button
+            onClick={() => setActiveTab("analytics")}
+            className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "analytics"
+              ? "bg-[#4A9B7F] text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+          >
+            Analytics
+          </button>
+          <button
             onClick={() => setActiveTab("settings")}
             className={`px-6 py-3 rounded-full font-semibold transition whitespace-nowrap ${activeTab === "settings"
               ? "bg-[#4A9B7F] text-white shadow-lg"
@@ -1414,6 +1424,15 @@ const ProfilePage: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )
+          }
+
+          {/* ANALYTICS TAB */}
+          {
+            activeTab === "analytics" && (
+              <div className="space-y-6">
+                <TravelActivityChart />
               </div>
             )
           }
