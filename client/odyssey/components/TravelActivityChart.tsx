@@ -130,7 +130,7 @@ const TravelActivityChart: React.FC<TravelActivityChartProps> = () => {
               borderRadius: "8px",
               boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
             }}
-            formatter={(value: number) => [value, "Completed Visits"]}
+            formatter={(value: number | undefined) => [value ?? 0, "Completed Visits"]}
             labelStyle={{ color: "#1f2937" }}
           />
           <Legend wrapperStyle={{ paddingTop: "20px" }} />
