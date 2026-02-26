@@ -26,7 +26,7 @@ export default function LeftSidebar({
 
   const navigationItems = [
     { icon: Home, label: 'Home Feed', path: '/feed', badge: null },
-    { icon: TrendingUp, label: 'Trending', path: '/feed?filter=trending', badge: null },
+    { icon: TrendingUp, label: 'Trending', path: '/destinations', badge: null },
     { icon: Bookmark, label: 'Saved Posts', path: '/feed?filter=saved', badge: savedPostsCount > 0 ? savedPostsCount : null },
     { icon: User, label: 'My Profile', path: '/profile', badge: null },
     { icon: Settings, label: 'Settings', path: '/profile?tab=settings', badge: null },

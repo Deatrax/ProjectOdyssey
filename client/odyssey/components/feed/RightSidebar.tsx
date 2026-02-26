@@ -1,9 +1,18 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Heart, MessageCircle, FileText, MapPin, TrendingUp, PenSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Post } from '@/hooks/usePosts';
+
+interface TrendingDestination {
+  id: string;
+  name: string;
+  type: string;
+  country: string;
+  slug?: string;
+  popularity?: number;
+}
 
 interface RightSidebarProps {
   userPosts: Post[];
@@ -14,6 +23,19 @@ interface RightSidebarProps {
 
 export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId }: RightSidebarProps) {
   const router = useRouter();
+  const [trendingDestinations, setTrendingDestinations] = useState<TrendingDestination[]>([]);
+
+  // Fetch trending destinations from API
+  useEffect(() => {
+    fetch('http://localhost:4000/api/places/trending')
+      .then(res => res.json())
+      .then(data => {
+        if (data.places) {
+          setTrendingDestinations(data.places.slice(0, 3)); // Only get top 3
+        }
+      })
+      .catch(err => console.error('Failed to fetch trending destinations', err));
+  }, []);
 
   // Calculate user activity stats
   const userStats = useMemo(() => {
@@ -31,23 +53,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       }).length
     };
   }, [userPosts]);
-
-  // Get popular destinations from posts
-  const popularDestinations = useMemo(() => {
-    const destinationMap = new Map<string, number>();
-    
-    allPosts.forEach(post => {
-      if (post.tripName) {
-        const current = destinationMap.get(post.tripName) || 0;
-        destinationMap.set(post.tripName, current + 1);
-      }
-    });
-
-    return Array.from(destinationMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [allPosts]);
 
   // Get most liked posts this week
   const popularPosts = useMemo(() => {
@@ -116,29 +121,29 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       </div>
 
       {/* Popular Destinations */}
-      {popularDestinations.length > 0 && (
+      {trendingDestinations.length > 0 && (
         <div className="bg-white rounded-2xl shadow-md p-5">
           <div className="flex items-center gap-2 mb-4">
             <MapPin className="w-5 h-5 text-[#4A9B7F]" />
             <h3 className="text-lg font-bold text-gray-900">Popular Destinations</h3>
           </div>
           <div className="space-y-2">
-            {popularDestinations.map((dest, index) => (
+            {trendingDestinations.map((dest, index) => (
               <div
-                key={dest.name}
+                key={dest.id}
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => {
-                  // Could add filter by destination functionality
+                  router.push('/destinations');
                 }}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
                   <div>
                     <p className="font-semibold text-gray-900">{dest.name}</p>
-                    <p className="text-xs text-gray-500">{dest.count} posts</p>
+                    <p className="text-xs text-gray-500">{dest.country}</p>
                   </div>
                 </div>
-                <TrendingUp className="w-4 h-4 text-green-500" />
+                <TrendingUp className="w-4 h-4 text-[#4A9B7F]" />
               </div>
             ))}
           </div>
