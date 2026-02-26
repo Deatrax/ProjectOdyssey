@@ -87,9 +87,9 @@ const RecommendedPlaces: React.FC = () => {
         <div className="mb-12">
             <h2 className="text-xl font-bold mb-6 text-center text-gray-900">Recommended For You:</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                {recommendations.map((item) => (
+                {recommendations.map((item, index) => (
                     <div
-                        key={item.id}
+                        key={item.id ?? index}
                         onClick={() => handleCardClick(item)}
                         className="relative h-36 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg group"
                     >
