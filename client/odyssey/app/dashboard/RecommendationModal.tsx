@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 
 interface SubPlace {
     id: string;
@@ -24,6 +25,18 @@ interface ModalProps {
 }
 
 const RecommendationModal: React.FC<ModalProps> = ({ recommendation, isOpen, onClose }) => {
+    const router = useRouter();
+
+    const handleReviewPlace = (placeName: string, place: SubPlace) => {
+        // Navigate to profile page with review parameters
+        const params = new URLSearchParams({
+            openReview: "true",
+            placeName: placeName,
+            location: recommendation?.destination_name || "",
+        });
+        router.push(`/profile?${params.toString()}`);
+        onClose();
+    };
     if (!isOpen || !recommendation) return null;
 
     return (
@@ -75,9 +88,15 @@ const RecommendationModal: React.FC<ModalProps> = ({ recommendation, isOpen, onC
                                         className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                                     />
                                 </div>
-                                <div className="p-4">
+                                <div className="p-4 flex flex-col flex-grow">
                                     <h4 className="font-bold text-gray-900 mb-2">{place.place_name}</h4>
-                                    <p className="text-gray-600 text-sm leading-relaxed">{place.description}</p>
+                                    <p className="text-gray-600 text-sm leading-relaxed flex-grow">{place.description}</p>
+                                    <button
+                                        onClick={() => handleReviewPlace(place.place_name, place)}
+                                        className="mt-4 w-full bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white py-2 rounded-lg font-semibold transition text-sm"
+                                    >
+                                        Review This Place
+                                    </button>
                                 </div>
                             </div>
                         ))}

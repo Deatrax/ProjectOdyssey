@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import VisitMap from "./VisitMap";
 import TravelStatsCard from "./TravelStatsCard";
@@ -136,6 +136,7 @@ const getApiBase = () => {
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "reviews" | "collections" | "settings">("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [trips, setTrips] = useState<any[]>([]);
@@ -228,6 +229,29 @@ const ProfilePage: React.FC = () => {
 
     fetchVisitStats();
   }, []);
+
+  // Handle opening review modal from query parameters
+  useEffect(() => {
+    const openReview = searchParams.get("openReview");
+    const placeName = searchParams.get("placeName");
+    const location = searchParams.get("location");
+    const tab = searchParams.get("tab");
+
+    // If tab parameter is set, switch to that tab
+    if (tab === "reviews") {
+      setActiveTab("reviews");
+    }
+
+    if (openReview === "true" && placeName) {
+      setActiveTab("reviews");
+      setNewReview((prev) => ({
+        ...prev,
+        placeName: placeName || "",
+        location: location || "",
+      }));
+      setShowReviewModal(true);
+    }
+  }, [searchParams]);
 
   // Fetch user profile and trips on mount
   useEffect(() => {

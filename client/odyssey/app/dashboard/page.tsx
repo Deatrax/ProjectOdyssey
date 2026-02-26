@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react"; // Import useEffect
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import ReviewModal from "@/components/ReviewModal";
 
 // --- Types & Interfaces ---
 interface Itinerary {
@@ -27,6 +28,7 @@ const DashboardPage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [trips, setTrips] = useState<Itinerary[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // --- PROTECTION LOGIC ---
   useEffect(() => {
@@ -253,7 +255,10 @@ const DashboardPage: React.FC = () => {
             <div className="bg-[#ADC4CE] text-gray-900 rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full">
               <h3 className="text-4xl font-bold">Share Pictures</h3>
             </div>
-            <div className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full">
+            <div
+              onClick={() => setShowReviewModal(true)}
+              className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full cursor-pointer hover:bg-gray-800 transition"
+            >
               <h3 className="text-4xl font-bold">Review a place</h3>
             </div>
           </div>
@@ -264,6 +269,12 @@ const DashboardPage: React.FC = () => {
           <h2 className="text-4xl font-bold text-gray-700">Your Timeline</h2>
         </div>
       </div>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+      />
 
       {/* Footer */}
       <footer className="bg-gray-300 py-6 text-center mt-16">
