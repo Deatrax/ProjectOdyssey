@@ -580,7 +580,7 @@ router.get("/activity/last-6-months", async (req, res) => {
 
     // Group visits by month
     const monthlyData = {};
-    
+
     // Initialize all months in the last 6 months with 0 visits
     for (let i = 5; i >= 0; i--) {
       const date = new Date();

@@ -19,10 +19,19 @@ interface PlaceDetailsModalProps {
     onAddToCollection?: (place: Place) => void;
 }
 
-const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, onClose, onAddToCollection }) => {
+const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, onClose }) => {
     const [activeTab, setActiveTab] = useState<"overview" | "photos" | "related">("overview");
     const [relatedPlaces, setRelatedPlaces] = useState<Place[]>([]);
     const [loadingRelated, setLoadingRelated] = useState(false);
+    const [itemsInCollection, setItemsInCollection] = useState<string[]>([]);
+
+    // Check collection status on mount/open
+    useEffect(() => {
+        if (isOpen) {
+            const collections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
+            setItemsInCollection(collections.map((c: any) => c.name));
+        }
+    }, [isOpen]);
 
     // Fetch related cities if this is a country
     useEffect(() => {
@@ -39,11 +48,26 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
     if (!isOpen) return null;
 
     const bgImage = place.img_url || `https://source.unsplash.com/800x600/?${place.name},travel`;
+    const isInCollection = itemsInCollection.includes(place.name);
 
     const handleAddToCollection = () => {
-        if (onAddToCollection) {
-            onAddToCollection(place);
-        }
+        if (isInCollection) return;
+        const collections = JSON.parse(localStorage.getItem('odyssey_collections') || '[]');
+
+        const newItem = {
+            id: `col-${Date.now()}`,
+            placeId: place.id,
+            name: place.name,
+            text: place.name,
+            description: place.short_desc,
+            category: place.type,
+            coordinates: { lat: 0, lng: 0 }, // Would need actual coords if available
+            source: 'modal'
+        };
+
+        const newCollections = [...collections, newItem];
+        localStorage.setItem('odyssey_collections', JSON.stringify(newCollections));
+        setItemsInCollection([...itemsInCollection, place.name]);
     };
 
     const handlePopOut = () => {
@@ -141,9 +165,15 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                                     {place.type !== 'COUNTRY' && (
                                         <button
                                             onClick={handleAddToCollection}
-                                            className="flex-1 px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white"
+                                            disabled={isInCollection}
+                                            className={`flex-1 px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2
+                                                ${isInCollection ? 'bg-green-100 text-green-700 cursor-default' : 'bg-[#4A9B7F] hover:bg-[#3d8a6d] text-white'}`}
                                         >
-                                            <span>+</span> Add to Collection
+                                            {isInCollection ? (
+                                                <><span>✓</span> Saved to Trip</>
+                                            ) : (
+                                                <><span>+</span> Add to Collection</>
+                                            )}
                                         </button>
                                     )}
                                     <button

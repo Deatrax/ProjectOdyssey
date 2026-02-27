@@ -34,6 +34,8 @@ interface ResourcePanelProps {
     searchQuery: string;
     setSearchQuery: (val: string) => void;
     onSearch: () => void;
+    searchSource?: "google" | "db";
+    onSearchSourceChange?: (source: "google" | "db") => void;
     // Collections props
     collections?: Item[];
     onRemoveFromCollections?: (id: string) => void;
@@ -139,6 +141,8 @@ export default function ResourcePanel({
     searchQuery,
     setSearchQuery,
     onSearch,
+    searchSource,
+    onSearchSourceChange,
     collections = [],
     onRemoveFromCollections,
     tripInfo,
@@ -350,6 +354,15 @@ export default function ResourcePanel({
                         {destinationsView === "search" ? (
                             <>
                                 <div className="p-4 border-b border-gray-100 space-y-3 bg-white z-10">
+                                    {searchSource && onSearchSourceChange && (
+                                        <div className="flex items-center justify-between bg-purple-50 p-2 rounded-lg border border-purple-100 mb-2">
+                                            <span className="text-xs font-semibold text-purple-700 font-mono tracking-tight">DEV: SOURCE</span>
+                                            <div className="flex bg-white rounded flex-1 ml-3 shadow-sm overflow-hidden text-xs font-medium border border-purple-200">
+                                                <button onClick={() => onSearchSourceChange('google')} className={`flex-1 py-1 ${searchSource === 'google' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Google</button>
+                                                <button onClick={() => onSearchSourceChange('db')} className={`flex-1 py-1 ${searchSource === 'db' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Database</button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="relative">
                                         <input
                                             value={searchQuery}
