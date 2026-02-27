@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react"; // Import useEffect
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import ReviewModal from "@/components/ReviewModal";
 
 // --- Types & Interfaces ---
 interface Itinerary {
@@ -16,29 +17,9 @@ interface Itinerary {
   updated_at: string;
 }
 
-interface RecommendationProps {
-  title: string;
-  image: string;
-}
+import RecommendedPlaces from "./RecommendedPlaces";
 
-const recommendations: RecommendationProps[] = [
-  {
-    title: "Summer Vibes",
-    image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Winter Trips near you",
-    image: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Shopping this season",
-    image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop"
-  },
-  {
-    title: "Safari",
-    image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=300&fit=crop"
-  }
-];
+// --- Types & Interfaces ---
 
 const DashboardPage: React.FC = () => {
   const router = useRouter();
@@ -47,6 +28,7 @@ const DashboardPage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [trips, setTrips] = useState<Itinerary[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // --- PROTECTION LOGIC ---
   useEffect(() => {
@@ -261,18 +243,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Recommended Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-bold mb-6 text-center text-gray-900">Recommended For You:</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {recommendations.map((item, index) => (
-              <div key={index} className="relative h-36 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg">
-                <img src={item.image} alt={item.title} className="w-full h-full object-cover brightness-75" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <span className="absolute bottom-3 left-3 text-white text-sm font-semibold">{item.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RecommendedPlaces />
 
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -289,7 +260,10 @@ const DashboardPage: React.FC = () => {
             <div className="bg-[#ADC4CE] text-gray-900 rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full">
               <h3 className="text-4xl font-bold">Share Pictures</h3>
             </div>
-            <div className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full">
+            <div
+              onClick={() => setShowReviewModal(true)}
+              className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full cursor-pointer hover:bg-gray-800 transition"
+            >
               <h3 className="text-4xl font-bold">Review a place</h3>
             </div>
           </div>
@@ -300,6 +274,12 @@ const DashboardPage: React.FC = () => {
           <h2 className="text-4xl font-bold text-gray-700">Your Timeline</h2>
         </div>
       </div>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+      />
 
       {/* Footer */}
       <footer className="bg-gray-300 py-6 text-center mt-16">
