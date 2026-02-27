@@ -9,6 +9,7 @@ import PostCard from '@/components/PostCard';
 import LeftSidebar from '@/components/feed/LeftSidebar';
 import RightSidebar from '@/components/feed/RightSidebar';
 import PostDetailModal from '@/components/PostDetailModal';
+import CreatePostModal from '@/components/CreatePostModal';
 
 export default function FeedPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function FeedPage() {
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -227,7 +229,7 @@ export default function FeedPage() {
       router.push('/login');
       return;
     }
-    router.push('/feed/create');
+    setCreateModalOpen(true);
   };
 
   const handleOpenPostModal = (postId: string) => {
@@ -375,6 +377,7 @@ export default function FeedPage() {
               allPosts={posts}
               isAuthenticated={isAuthenticated}
               currentUserId={currentUserId || undefined}
+              onCreatePost={handleCreatePost}
             />
           </aside>
         </div>
@@ -397,6 +400,16 @@ export default function FeedPage() {
           onDeleted={handlePostDeleted}
         />
       )}
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onPostCreated={() => {
+          setCreateModalOpen(false);
+          refresh();
+        }}
+      />
     </div>
   );
 }

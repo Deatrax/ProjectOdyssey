@@ -19,9 +19,10 @@ interface RightSidebarProps {
   allPosts: Post[];
   isAuthenticated: boolean;
   currentUserId?: string;
+  onCreatePost?: () => void;
 }
 
-export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId }: RightSidebarProps) {
+export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId, onCreatePost }: RightSidebarProps) {
   const router = useRouter();
   const [trendingDestinations, setTrendingDestinations] = useState<TrendingDestination[]>([]);
   const [userActivityStats, setUserActivityStats] = useState({
@@ -193,7 +194,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         <h3 className="text-lg font-bold mb-2 text-gray-900">Share Your Journey</h3>
         <p className="text-sm text-gray-600 mb-4">Write about your latest adventure and inspire others!</p>
         <button
-          onClick={() => router.push('/feed/create')}
+          onClick={() => onCreatePost ? onCreatePost() : router.push('/feed/create')}
           className="w-full bg-[#4A9B7F] text-white font-semibold py-3 rounded-xl hover:bg-[#3d8268] transition-all duration-200 flex items-center justify-center gap-2"
         >
           <PenSquare className="w-5 h-5" />
