@@ -16,11 +16,59 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
   const [tripName, setTripName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Function to check if there are unsaved changes
+  const checkUnsavedChanges = () => {
+    if (!content && !tripName.trim()) {
+      return false;
+    }
+    
+    // Check if content has actual text
+    if (content && content.content && Array.isArray(content.content)) {
+      for (const block of content.content) {
+        if (block.content && Array.isArray(block.content)) {
+          for (const node of block.content) {
+            if (node.type === 'text' && node.text?.trim()) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    
+    // Check if trip name has content
+    if (tripName.trim()) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Handle close with unsaved changes check
+  const handleClose = () => {
+    if (isSubmitting) return;
+    
+    const hasChanges = checkUnsavedChanges();
+    
+    if (hasChanges) {
+      const confirmExit = window.confirm(
+        'Your changes are not saved. Do you want to exit the post creation?'
+      );
+      
+      if (confirmExit) {
+        onClose();
+      }
+      // If user clicks cancel, do nothing (stay in modal)
+    } else {
+      onClose();
+    }
+  };
 
   // Close on Escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) onClose();
+      if (e.key === 'Escape') handleClose();
     };
     
     if (isOpen) {
@@ -32,7 +80,12 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, isSubmitting, onClose]);
+  }, [isOpen, isSubmitting]);
+
+  // Track changes to content and trip name
+  React.useEffect(() => {
+    setHasUnsavedChanges(checkUnsavedChanges());
+  }, [content, tripName]);
 
   // Reset form when modal closes
   React.useEffect(() => {
@@ -40,6 +93,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
       setContent(null);
       setTripName('');
       setShowInstructions(true);
+      setHasUnsavedChanges(false);
     }
   }, [isOpen]);
 
@@ -131,7 +185,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={isSubmitting ? undefined : onClose}
+        onClick={handleClose}
       />
 
       {/* Modal */}
@@ -148,7 +202,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50"
           >
