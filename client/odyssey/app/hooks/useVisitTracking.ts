@@ -82,8 +82,14 @@ interface UseVisitTrackingReturn {
 /**
  * Custom Hook for Visit Tracking
  * Manages all visit tracking operations and state
+ *
+ * @param itineraryId  - The shared itinerary ID (group members all use the same one)
+ * @param token        - JWT auth token
+ * @param userId       - (optional) current user's ID — used to isolate THIS user's
+ *                       active check-in from other group members' in-progress logs.
+ *                       All completed visits from all members are still shown in visitHistory.
  */
-export const useVisitTracking = (itineraryId: string, token: string): UseVisitTrackingReturn => {
+export const useVisitTracking = (itineraryId: string, token: string, userId?: string): UseVisitTrackingReturn => {
   const [currentVisit, setCurrentVisit] = useState<VisitLog | null>(null);
   const [visitHistory, setVisitHistory] = useState<VisitLog[]>([]);
   const [progress, setProgress] = useState<ProgressStats | null>(null);
@@ -200,11 +206,11 @@ export const useVisitTracking = (itineraryId: string, token: string): UseVisitTr
 
         const result = await response.json();
         setCurrentVisit(null);
-        
+
         // Refresh history and progress
         await fetchVisitHistory();
         await fetchProgress();
-        
+
         return result.data.visit;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Check-out failed';
@@ -243,7 +249,7 @@ export const useVisitTracking = (itineraryId: string, token: string): UseVisitTr
         }
 
         const result = await response.json();
-        
+
         // Update in history
         setVisitHistory((prev) =>
           prev.map((v) => (v.id === visitId ? result.data.visit : v))
@@ -351,8 +357,13 @@ export const useVisitTracking = (itineraryId: string, token: string): UseVisitTr
         const result = await response.json();
         setVisitHistory(result.data);
 
-        // Find current active visit
-        const active = result.data.find((v: VisitLog) => v.status === 'in_progress');
+        // In group mode multiple members can be in_progress simultaneously.
+        // Only treat THIS user's in_progress log as the active visit so that
+        // another member's check-in doesn't hijack the local check-in/check-out UI.
+        const active = result.data.find(
+          (v: VisitLog) =>
+            v.status === 'in_progress' && (!userId || v.user_id === userId)
+        );
         setCurrentVisit(active || null);
       }
     } catch (err) {

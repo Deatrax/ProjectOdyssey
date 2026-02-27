@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Project Materials/LOCATION_TRACKING_IMPLEMENTATION_PLAN.md",
+                "file": "GROUP_PLANNING_FEATURE_PLAN.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "LOCATION_TRACKING_IMPLEMENTATION_PLAN"
+              "title": "GROUP_PLANNING_FEATURE_PLAN"
             }
           }
         ]
@@ -185,21 +185,33 @@
   },
   "active": "e66302d31d161bd4",
   "lastOpenFiles": [
+    "server/node_modules/nanoid/index.d.ts",
+    "project_context.md",
+    "dashboard/page.tsx",
+    "dashboard/dbnew.css",
+    "dashboard",
     "MAP_SEARCH_SETUP.md",
-    "client/odyssey/components/map/PlaceDetailsModal.tsx",
-    "client/odyssey/components/map/MapSearch.tsx",
-    "client/odyssey/components/map",
-    "client/odyssey/components",
-    "server/sql/map_routes_schema.sql",
-    "server/src/routes/mapRoutes.js",
-    "server/src/services/googleMapsService.js",
+    "LOCATION_TRACKING_IMPLEMENTATION_PLAN.md",
+    "CONVERSATIONAL_AI_SETUP.md",
+    "client/odyssey/app/planner2/components/TimelineView.tsx",
+    "client/odyssey/app/planner2/components/ItinerarySidebar.tsx",
+    "client/odyssey/app/planner2/components/ResourcePanel.tsx",
+    "client/odyssey/app/planner2/components/ItinerarySetup.tsx",
+    "client/odyssey/app/planner2/components/DayTabs.tsx",
+    "client/odyssey/app/planner2/page.tsx",
+    "client/odyssey/app/planner2/components",
+    "Project Materials/context_progress.md",
+    "Project Materials/VISIT_TRACKING_SETUP_COMPLETE.md",
+    "Project Materials/MAP_SEARCH_SETUP.md",
+    "Project Materials/CONVERSATIONAL_AI_SETUP.md",
+    "Project Materials/team_assignments.md",
+    "Project Materials/super prompt.md",
+    "Project Materials/STAGE1_BACKEND_SETUP.md",
+    "Project Materials/STAGE1_3_FRONTEND_SETUP.md",
+    "Project Materials/LOCATION_TRACKING_IMPLEMENTATION_PLAN.md",
     "Project Materials/full_implementation_plan/super-prompt.md",
     "Project Materials/full_implementation_plan/team_assignments.md",
     "Project Materials/implementation_plan_forAll.md",
-    "Project Materials/full_implementation_plan/implementation_plan_forAll.md",
-    "Project Materials/full_implementation_plan",
-    "Project Materials/New folder",
-    "Project Materials/LOCATION_TRACKING_IMPLEMENTATION_PLAN.md",
-    "server/sql/supabase_schema_reference.sql"
+    "Project Materials/full_implementation_plan/implementation_plan_forAll.md"
   ]
 }

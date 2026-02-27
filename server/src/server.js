@@ -13,19 +13,24 @@ const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
 const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
+const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
 
 
 const app = express();
 
 // 1. Enable CORS (Allow localhost:3000 to talk to this server)
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://113.11.100.133:55680"],
+  origin: function (origin, callback) {
+    callback(null, true);
+  },
+  // origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://113.11.100.133:55680"],
   credentials: true
 }));
 
 
 // 2. Body Parser (So we can read JSON)
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 3. Connect Database
 connectDB();
@@ -44,7 +49,8 @@ app.get("/", (req, res) => {
       ai: "/api/ai",
       chat: "/api/chat",
       map: "/api/map",
-      clustering: "/api/clustering"
+      clustering: "/api/clustering",
+      groups: "/api/groups"
     }
   });
 });
@@ -64,6 +70,7 @@ app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 app.use('/api/map', mapRoutes); // Map Search & Manual Planning
 app.use('/api/visits', visitRoutes); // Visit Tracking Routes
+app.use('/api/groups', groupRoutes); // Group Trip Planning
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;
