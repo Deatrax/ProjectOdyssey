@@ -9,9 +9,10 @@ import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
   post: Post;
+  onPostClick?: (postId: string) => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onPostClick }: PostCardProps) {
   const router = useRouter();
   // Ensure likesCount is never negative
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));
@@ -57,15 +58,23 @@ export default function PostCard({ post }: PostCardProps) {
     });
   };
 
+  const handlePostClick = () => {
+    if (onPostClick) {
+      onPostClick(post._id);
+    } else {
+      router.push(`/feed/${post._id}`);
+    }
+  };
+
   return (
     <div
-      onClick={() => router.push(`/feed/${post._id}`)}
+      onClick={handlePostClick}
       className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100"
     >
       {/* Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-lg">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4A9B7F] to-purple-500 flex items-center justify-center text-white font-semibold text-lg">
             {post.authorId.username?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1">
@@ -74,7 +83,7 @@ export default function PostCard({ post }: PostCardProps) {
               <Calendar className="w-4 h-4" />
               <span>{formatDate(post.createdAt)}</span>
               {post.type === 'auto' && (
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full text-xs font-medium">
                   Trip Complete
                 </span>
               )}
@@ -119,9 +128,9 @@ export default function PostCard({ post }: PostCardProps) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            router.push(`/feed/${post._id}`);
+            handlePostClick();
           }}
-          className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          className="text-sm font-medium text-[#4A9B7F] hover:text-[#3d8268] transition-colors"
         >
           Read More →
         </button>

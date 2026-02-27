@@ -8,6 +8,7 @@ import { fetchSavedPosts } from '@/hooks/useSavedPosts';
 import PostCard from '@/components/PostCard';
 import LeftSidebar from '@/components/feed/LeftSidebar';
 import RightSidebar from '@/components/feed/RightSidebar';
+import PostDetailModal from '@/components/PostDetailModal';
 
 export default function FeedPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function FeedPage() {
   const [timelineFilter, setTimelineFilter] = useState<string>('all');
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -209,6 +212,21 @@ export default function FeedPage() {
     router.push('/feed/create');
   };
 
+  const handleOpenPostModal = (postId: string) => {
+    setSelectedPostId(postId);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedPostId(null);
+  };
+
+  const handlePostDeleted = () => {
+    // Refresh the posts list or remove the deleted post
+    window.location.reload();
+  };
+
   if ((loading || savedPostsLoading) && posts.length === 0 && savedPosts.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
@@ -305,7 +323,11 @@ export default function FeedPage() {
             ) : (
               <div className="space-y-6">
                 {filteredPosts.map((post) => (
-                  <PostCard key={post._id} post={post} />
+                  <PostCard 
+                    key={post._id} 
+                    post={post} 
+                    onPostClick={handleOpenPostModal}
+                  />
                 ))}
               </div>
             )}
@@ -347,6 +369,16 @@ export default function FeedPage() {
           <PenSquare className="w-6 h-6" />
         </button>
       </div>
+
+      {/* Post Detail Modal */}
+      {selectedPostId && (
+        <PostDetailModal
+          postId={selectedPostId}
+          isOpen={modalOpen}
+          onClose={handleCloseModal}
+          onDeleted={handlePostDeleted}
+        />
+      )}
     </div>
   );
 }
