@@ -75,16 +75,6 @@ export default function LeftSidebar({
         </h3>
         <div className="space-y-1">
           <button
-            onClick={() => onFilterChange('all')}
-            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-              activeFilter === 'all'
-                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            All Posts
-          </button>
-          <button
             onClick={() => onFilterChange('blog')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'blog'
@@ -93,16 +83,6 @@ export default function LeftSidebar({
             }`}
           >
             ✍️ Blog Stories
-          </button>
-          <button
-            onClick={() => onFilterChange('auto')}
-            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-              activeFilter === 'auto'
-                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            🚀 Trip Completed
           </button>
           <button
             onClick={() => onFilterChange('my-posts')}

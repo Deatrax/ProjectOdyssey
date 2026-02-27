@@ -14,7 +14,7 @@ export default function FeedPage() {
   const { posts, loading, error, hasMore, loadMore } = usePosts(10);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('blog');
   const [timelineFilter, setTimelineFilter] = useState<string>('all');
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
