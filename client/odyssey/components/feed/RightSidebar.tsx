@@ -24,6 +24,13 @@ interface RightSidebarProps {
 export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId }: RightSidebarProps) {
   const router = useRouter();
   const [trendingDestinations, setTrendingDestinations] = useState<TrendingDestination[]>([]);
+  const [userActivityStats, setUserActivityStats] = useState({
+    totalPosts: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    thisMonth: 0
+  });
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   // Fetch trending destinations from API
   useEffect(() => {
@@ -37,8 +44,71 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       .catch(err => console.error('Failed to fetch trending destinations', err));
   }, []);
 
-  // Calculate user activity stats
+  // Fetch user's complete activity stats
+  useEffect(() => {
+    // Check localStorage directly to avoid timing issues with props
+    const token = localStorage.getItem('token');
+    let userId = localStorage.getItem('userId');
+    
+    // Fallback: try to get userId from user object if not found directly
+    if (!userId) {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userId = user.id;
+        } catch (e) {
+          console.error('[RightSidebar] Failed to parse user from localStorage');
+        }
+      }
+    }
+    
+    if (!token || !userId) {
+      setStatsLoaded(true);
+      return;
+    }
+    
+    fetch(`http://localhost:4000/api/posts/user/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          const posts = data.data;
+          const now = new Date();
+          
+          const stats = {
+            totalPosts: posts.length,
+            totalLikes: posts.reduce((sum: number, post: Post) => sum + (post.likesCount || 0), 0),
+            totalComments: posts.reduce((sum: number, post: Post) => sum + (post.commentsCount || 0), 0),
+            thisMonth: posts.filter((post: Post) => {
+              const postDate = new Date(post.createdAt);
+              return postDate.getMonth() === now.getMonth() && postDate.getFullYear() === now.getFullYear();
+            }).length
+          };
+          
+          setUserActivityStats(stats);
+          setStatsLoaded(true);
+        } else {
+          setStatsLoaded(true);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch user activity stats:', err);
+        setStatsLoaded(true);
+      });
+  }, []); // Empty dependency array - only run once on mount
+
+  // Calculate user activity stats (use API data if loaded, otherwise fallback to userPosts)
   const userStats = useMemo(() => {
+    // If API has loaded, always use that data (even if it's 0)
+    if (statsLoaded) {
+      return userActivityStats;
+    }
+    
+    // Otherwise calculate from provided userPosts as temporary display
     const totalLikes = userPosts.reduce((sum, post) => sum + (post.likesCount || 0), 0);
     const totalComments = userPosts.reduce((sum, post) => sum + (post.commentsCount || 0), 0);
     
@@ -52,7 +122,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         return postDate.getMonth() === now.getMonth() && postDate.getFullYear() === now.getFullYear();
       }).length
     };
-  }, [userPosts]);
+  }, [userPosts, userActivityStats, statsLoaded]);
 
   // Get most liked posts this week
   const popularPosts = useMemo(() => {
@@ -130,7 +200,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
           <div className="space-y-2">
             {trendingDestinations.map((dest, index) => (
               <div
-                key={dest.id}
+                key={`trending-${dest.id}-${index}`}
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => {
                   router.push('/destinations');

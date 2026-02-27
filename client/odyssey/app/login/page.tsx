@@ -44,9 +44,10 @@ const LoginPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
-      // Store Token
+      // Store Token and User Data
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("userId", data.user.id); // Store userId separately for easy access
 
       // Redirect
       router.push("/dashboard");
