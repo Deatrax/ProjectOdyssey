@@ -279,20 +279,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
           </div>
         </div>
       )}
-
-      {/* Footer Info */}
-      <div className="bg-gray-50 rounded-2xl shadow-sm p-4 text-xs text-gray-600">
-        <div className="flex flex-wrap gap-2 mb-2">
-          <a href="#" className="hover:text-[#4A9B7F]">About</a>
-          <span>•</span>
-          <a href="#" className="hover:text-[#4A9B7F]">Help</a>
-          <span>•</span>
-          <a href="#" className="hover:text-[#4A9B7F]">Terms</a>
-          <span>•</span>
-          <a href="#" className="hover:text-[#4A9B7F]">Privacy</a>
-        </div>
-        <p className="text-gray-500">© 2026 Odyssey Travel</p>
-      </div>
     </div>
   );
 }
