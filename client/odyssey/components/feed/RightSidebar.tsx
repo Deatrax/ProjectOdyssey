@@ -225,7 +225,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         <div className="bg-white rounded-2xl shadow-md p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-bold text-gray-900">Trending This Week</h3>
+            <h3 className="text-lg font-bold text-gray-900">Trending Posts This Week</h3>
           </div>
           <div className="space-y-3">
             {popularPosts.map((post) => {
