@@ -5,8 +5,8 @@ import { Home, TrendingUp, Bookmark, User, Settings, Calendar } from 'lucide-rea
 import { useRouter, usePathname } from 'next/navigation';
 
 interface LeftSidebarProps {
-  activeFilter: 'all' | 'blog' | 'auto' | 'my-posts';
-  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'my-posts') => void;
+  activeFilter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved';
+  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved') => void;
   timelineFilter: string;
   onTimelineChange: (timeline: string) => void;
   savedPostsCount?: number;
@@ -31,7 +31,6 @@ export default function LeftSidebar({
   const navigationItems = [
     { icon: Home, label: 'Home Feed', path: '/feed', badge: null },
     { icon: TrendingUp, label: 'Trending', path: '/destinations', badge: null },
-    { icon: Bookmark, label: 'Saved Posts', path: '/feed?filter=saved', badge: savedPostsCount > 0 ? savedPostsCount : null },
     { icon: User, label: 'My Profile', path: '/profile', badge: null },
     { icon: Settings, label: 'Settings', path: '/profile?tab=settings', badge: null },
   ];
@@ -114,6 +113,23 @@ export default function LeftSidebar({
             }`}
           >
             👤 My Posts
+          </button>
+          <button
+            onClick={() => onFilterChange('saved')}
+            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+              activeFilter === 'saved'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span>🔖 Saved Posts</span>
+              {savedPostsCount > 0 && (
+                <span className="bg-[#4A9B7F] text-white text-xs font-bold rounded-full px-2 py-0.5">
+                  {savedPostsCount}
+                </span>
+              )}
+            </div>
           </button>
         </div>
       </div>

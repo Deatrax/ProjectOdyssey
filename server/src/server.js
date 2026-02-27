@@ -16,6 +16,7 @@ const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
 const postRoutes = require("./routes/postRoutes"); // Social Feed - Posts
 const commentRoutes = require("./routes/commentRoutes"); // Social Feed - Comments
 const likeRoutes = require("./routes/likeRoutes"); // Social Feed - Likes
+const savedPostRoutes = require("./routes/savedPostRoutes"); // Social Feed - Saved Posts
 
 const app = express();
 
@@ -50,7 +51,8 @@ app.get("/", (req, res) => {
       social: {
       posts: "/api/posts",
       comments: "/api/comments",
-      likes: "/api/likes/:postId"
+      likes: "/api/likes/:postId",
+      savedPosts: "/api/saved-posts"
       }
     }
   });
@@ -74,6 +76,7 @@ app.use('/api/visits', visitRoutes); // Visit Tracking Routes
 app.use('/api/posts', postRoutes); // Social Feed - Posts
 app.use('/api/comments', commentRoutes); // Social Feed - Comments
 app.use('/api/likes', likeRoutes); // Social Feed - Likes
+app.use('/api/saved-posts', savedPostRoutes); // Social Feed - Saved Posts
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;

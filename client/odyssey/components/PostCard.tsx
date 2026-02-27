@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Calendar, MapPin } from 'lucide-react';
 import LikeButton from './LikeButton';
+import SaveButton from './SaveButton';
 import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
@@ -110,6 +111,9 @@ export default function PostCard({ post }: PostCardProps) {
               {post.commentsCount}
             </span>
           </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <SaveButton postId={post._id} />
+          </div>
         </div>
 
         <button

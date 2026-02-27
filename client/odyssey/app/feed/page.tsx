@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PenSquare, Loader2 } from 'lucide-react';
 import { usePosts } from '@/hooks/usePosts';
+import { fetchSavedPosts } from '@/hooks/useSavedPosts';
 import PostCard from '@/components/PostCard';
 import LeftSidebar from '@/components/feed/LeftSidebar';
 import RightSidebar from '@/components/feed/RightSidebar';
@@ -13,8 +14,10 @@ export default function FeedPage() {
   const { posts, loading, error, hasMore, loadMore } = usePosts(10);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('all');
   const [timelineFilter, setTimelineFilter] = useState<string>('all');
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [savedPostsLoading, setSavedPostsLoading] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,6 +27,52 @@ export default function FeedPage() {
     setIsAuthenticated(!!token);
     setCurrentUserId(userId);
   }, []);
+
+  // Listen for save/unsave events to refresh saved posts list
+  useEffect(() => {
+    const handleSavedPostsChanged = () => {
+      if (activeFilter === 'saved' && isAuthenticated) {
+        console.log('[Feed] Refreshing saved posts due to save/unsave action');
+        fetchSavedPosts()
+          .then(result => {
+            if (result.success && result.data) {
+              setSavedPosts(result.data);
+            }
+          })
+          .catch(err => console.error('Failed to refresh saved posts:', err));
+      }
+    };
+
+    window.addEventListener('savedPostsChanged', handleSavedPostsChanged);
+    return () => window.removeEventListener('savedPostsChanged', handleSavedPostsChanged);
+  }, [activeFilter, isAuthenticated]);
+
+  // Fetch saved posts when filter changes to 'saved'
+  useEffect(() => {
+    if (activeFilter === 'saved' && isAuthenticated) {
+      setSavedPostsLoading(true);
+      fetchSavedPosts()
+        .then(result => {
+          if (result.success && result.data) {
+            console.log('[Feed] Fetched saved posts:', result.data.length);
+            setSavedPosts(result.data);
+          } else {
+            console.log('[Feed] No saved posts found');
+            setSavedPosts([]);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch saved posts:', err);
+          setSavedPosts([]);
+        })
+        .finally(() => {
+          setSavedPostsLoading(false);
+        });
+    } else if (activeFilter !== 'saved') {
+      // Clear saved posts when switching away from saved filter
+      setSavedPosts([]);
+    }
+  }, [activeFilter, isAuthenticated]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -50,6 +99,39 @@ export default function FeedPage() {
 
   // Filter posts based on active filters
   const filteredPosts = useMemo(() => {
+    // If showing saved posts, use ONLY savedPosts array
+    if (activeFilter === 'saved') {
+      console.log('[Feed] Filtering - Saved posts mode, count:', savedPosts.length);
+      let filtered = [...savedPosts];
+      
+      // Apply timeline filter to saved posts
+      if (timelineFilter !== 'all') {
+        const now = new Date();
+        filtered = filtered.filter(post => {
+          const postDate = new Date(post.createdAt);
+          
+          switch (timelineFilter) {
+            case 'today':
+              return postDate.toDateString() === now.toDateString();
+            case 'week':
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              return postDate >= weekAgo;
+            case 'month':
+              return postDate.getMonth() === now.getMonth() && postDate.getFullYear() === now.getFullYear();
+            case 'year':
+              return postDate.getFullYear() === now.getFullYear();
+            default:
+              return true;
+          }
+        });
+      }
+      
+      console.log('[Feed] Filtered saved posts:', filtered.length);
+      return filtered;
+    }
+    
+    // Otherwise use regular posts (NOT saved posts)
+    console.log('[Feed] Filtering - Regular posts mode, filter:', activeFilter);
     let filtered = [...posts];
 
     // Filter by post type
@@ -84,7 +166,7 @@ export default function FeedPage() {
     }
 
     return filtered;
-  }, [posts, activeFilter, timelineFilter, currentUserId]);
+  }, [posts, savedPosts, activeFilter, timelineFilter, currentUserId]);
 
   // Get user's posts for stats
   const userPosts = useMemo(() => {
@@ -127,7 +209,7 @@ export default function FeedPage() {
     router.push('/feed/create');
   };
 
-  if (loading && posts.length === 0) {
+  if ((loading || savedPostsLoading) && posts.length === 0 && savedPosts.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
         <div className="max-w-7xl mx-auto px-4">
@@ -184,7 +266,7 @@ export default function FeedPage() {
               onFilterChange={setActiveFilter}
               timelineFilter={timelineFilter}
               onTimelineChange={setTimelineFilter}
-              savedPostsCount={0}
+              savedPostsCount={savedPosts.length}
               activeUsersToday={communityStats.activeUsersToday}
               postsThisWeek={communityStats.postsThisWeek}
             />
@@ -192,14 +274,22 @@ export default function FeedPage() {
 
           {/* Main Feed */}
           <main className="min-w-0">
-            {filteredPosts.length === 0 && !loading ? (
+            {filteredPosts.length === 0 && !loading && !savedPostsLoading ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-4">✈️</div>
+                <div className="text-6xl mb-4">
+                  {activeFilter === 'saved' ? '🔖' : '✈️'}
+                </div>
                 <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-                  {activeFilter === 'my-posts' ? 'No posts yet' : 'No posts found'}
+                  {activeFilter === 'saved' 
+                    ? 'No saved posts yet'
+                    : activeFilter === 'my-posts' 
+                    ? 'No posts yet' 
+                    : 'No posts found'}
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  {activeFilter === 'my-posts' 
+                  {activeFilter === 'saved'
+                    ? 'Posts you save will appear here for easy access later!'
+                    : activeFilter === 'my-posts' 
                     ? 'Be the first to share your travel story!'
                     : 'Try adjusting your filters'}
                 </p>
@@ -221,14 +311,14 @@ export default function FeedPage() {
             )}
 
             {/* Loading More Indicator */}
-            {loading && posts.length > 0 && (
+            {(loading || savedPostsLoading) && (posts.length > 0 || savedPosts.length > 0) && (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
               </div>
             )}
 
-            {/* Infinite Scroll Trigger */}
-            {hasMore && <div ref={observerTarget} className="h-20" />}
+            {/* Infinite Scroll Trigger - only for non-saved posts */}
+            {hasMore && activeFilter !== 'saved' && <div ref={observerTarget} className="h-20" />}
 
             {/* End of Feed */}
             {!hasMore && filteredPosts.length > 0 && (
