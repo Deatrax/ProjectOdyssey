@@ -366,22 +366,24 @@ class VisitLogModel {
   }
   /**
    * Get visit statistics for a user
-   * Returns both the count of unique places visited and an aggregation by country
+   * Returns the count of completed visits
    * @param {string} userId - User ID
    * @returns {object} { count: number, countryStats: object }
    */
   static async getUserVisitStats(userId) {
     try {
-      // Fetch completed visits for the user and join with place data
+      // Fetch completed visits for the user
       const { data, error } = await supabase
         .from("visit_logs")
-        .select(`
-          place_id,
-          status,
-          places (
-            country
-          )
-        `)
+        .select("place_id, status")
+        //DEATRAX: incoming changes from fs-merging-branch kept here commented as current changes were accepted
+        // .select(`
+        //   place_id,
+        //   status,
+        //   places (
+        //     country
+        //   )
+        // `)
         .eq("user_id", userId)
         .eq("status", "completed");
 
@@ -395,6 +397,7 @@ class VisitLogModel {
       const count = uniquePlaces.size;
 
       // Aggregate counts by country
+      //DEATRAX: incoming changes from fs-merging-branch manually added that was omitted by auto merge
       const countryStats = {};
       data.forEach(log => {
         // Handle case where places might be returned as an array or object
@@ -404,10 +407,9 @@ class VisitLogModel {
           countryStats[countryName] = (countryStats[countryName] || 0) + 1;
         }
       });
-
       return {
         count,
-        countryStats
+        countryStats: {}
       };
     } catch (err) {
       console.error("VisitLogModel.getUserVisitStats error:", err);
