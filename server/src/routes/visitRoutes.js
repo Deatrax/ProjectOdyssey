@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authMiddleware");
 const VisitLogModel = require("../models/VisitLog");
 const VisitTrackerService = require("../services/visitTracker");
@@ -22,101 +21,6 @@ const supabase = require("../config/supabaseClient");
  * GET    /api/visits/summary/:itineraryId  - Get trip summary
  * GET    /api/visits/user              - Get user's all visits
  */
-
-/**
- * GET /api/visits/stream/:itineraryId
- * Server-Sent Events stream for group trip sync.
- *
- * Instead of each client polling every N seconds, this endpoint:
- *  1. Opens ONE persistent HTTP connection per client.
- *  2. Subscribes to Supabase Realtime postgres_changes on visit_logs.
- *  3. Pushes a lightweight "changed" event whenever any member checks in/out.
- *  4. Client calls fetchVisitHistory() ONLY then — zero traffic when idle.
- *
- * Auth: reads Bearer token from Authorization header OR ?token= query param.
- * EventSource (browser API) cannot set custom headers, so the query-param
- * fallback is required for browser clients.
- *
- * Prerequisite: enable Realtime on the visit_logs table in Supabase dashboard
- * (Table Editor → visit_logs → Enable Realtime), or run:
- *   ALTER TABLE visit_logs REPLICA IDENTITY FULL;
- * and add it to the Supabase Realtime publication.
- */
-router.get("/stream/:itineraryId", async (req, res) => {
-  try {
-    // ── Auth (header or query param) ─────────────────────────────────────────
-    let token = req.headers.authorization;
-    if (token && token.startsWith("Bearer ")) token = token.slice(7);
-    if (!token && req.query.token) token = String(req.query.token);
-
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-
-    try {
-      jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ error: "Token is not valid" });
-    }
-
-    const { itineraryId } = req.params;
-
-    // ── SSE headers ──────────────────────────────────────────────────────────
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no"); // disable nginx/proxy buffering
-    res.flushHeaders();
-
-    // Initial comment — confirms stream is open to the client
-    res.write(":connected\n\n");
-
-    // ── Supabase Realtime subscription ───────────────────────────────────────
-    const channel = supabase
-      .channel(`visit-stream-${itineraryId}-${Date.now()}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*", // INSERT, UPDATE, DELETE
-          schema: "public",
-          table: "visit_logs",
-          filter: `itinerary_id=eq.${itineraryId}`,
-        },
-        (payload) => {
-          // Send minimal payload — client will do a single full re-fetch.
-          // Keeping events small means virtually no bandwidth cost.
-          const data = JSON.stringify({
-            placeId: payload.new?.place_id || payload.old?.place_id,
-            status: payload.new?.status || null,
-          });
-          res.write(`event: changed\ndata: ${data}\n\n`);
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          // Tell the client the realtime channel is live
-          res.write("event: ready\ndata: {}\n\n");
-        }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          // Realtime not available — tell client to fall back to polling
-          res.write("event: unavailable\ndata: {}\n\n");
-        }
-      });
-
-    // ── Heartbeat every 25 s ─────────────────────────────────────────────────
-    // Keeps the TCP connection alive through proxies that kill idle connections.
-    const heartbeat = setInterval(() => {
-      res.write(":heartbeat\n\n");
-    }, 25_000);
-
-    // ── Cleanup on client disconnect ─────────────────────────────────────────
-    req.on("close", () => {
-      clearInterval(heartbeat);
-      supabase.removeChannel(channel);
-    });
-  } catch (err) {
-    console.error("SSE /stream/:itineraryId error:", err);
-    res.end();
-  }
-});
 
 // Middleware to protect all routes
 router.use(authMiddleware);
@@ -319,17 +223,13 @@ router.get("/logs/:itineraryId", async (req, res) => {
 
 /**
  * GET /api/visits/current/:itineraryId
- * Get currently active visit for an itinerary (scoped to the calling user)
+ * Get currently active visit for an itinerary
  */
 router.get("/current/:itineraryId", async (req, res) => {
   try {
     const { itineraryId } = req.params;
-    const userId = req.user?.id || null;
 
-    // Pass userId so only THIS user's active visit is returned.
-    // In a group trip multiple members can each be in-progress at different places;
-    // .single() would crash — the model now uses .limit(1) + user filter.
-    const currentVisit = await VisitLogModel.getCurrentVisit(itineraryId, userId);
+    const currentVisit = await VisitLogModel.getCurrentVisit(itineraryId);
 
     if (!currentVisit) {
       return res.status(200).json({
@@ -427,6 +327,8 @@ router.get("/summary/:itineraryId", async (req, res) => {
   }
 });
 
+
+
 /**
  * GET /api/visits/user
  * Get all visits for logged-in user
@@ -460,6 +362,29 @@ router.get("/user", async (req, res) => {
     });
   }
 });
+
+/**
+ * GET /api/visits/user/stats
+ * Get visit statistics aggregated by country for logged-in user
+ */
+router.get("/user/stats", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stats = await VisitLogModel.getUserVisitStats(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    console.error("GET /user/stats error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 
 /**
  * PUT /api/visits/:visitId
@@ -618,6 +543,81 @@ router.get("/settings", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Get settings error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/visits/activity/last-6-months
+ * Get count of completed VisitLogs per month for the last 6 months
+ */
+router.get("/activity/last-6-months", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log("Fetching activity for user:", userId);
+
+    // Calculate date 6 months ago
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    console.log("Fetching visits from:", sixMonthsAgo);
+
+    // Query completed visit logs for the user from the last 6 months
+    // Using exited_at (when user left location) instead of checked_out_at
+    const { data: visits, error } = await supabase
+      .from("visit_logs")
+      .select("exited_at")
+      .eq("user_id", userId)
+      .eq("status", "completed") // Only completed visits
+      .not("exited_at", "is", null) // Must have exited
+      .gte("exited_at", sixMonthsAgo.toISOString())
+      .order("exited_at", { ascending: true });
+
+    if (error) {
+      console.error("Supabase error:", error);
+      throw error;
+    }
+
+    console.log("Found visits:", visits?.length || 0);
+
+    // Group visits by month
+    const monthlyData = {};
+
+    // Initialize all months in the last 6 months with 0 visits
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = date.toLocaleString("default", { month: "short", year: "numeric" });
+      monthlyData[monthKey] = 0;
+    }
+
+    // Count visits per month
+    if (visits && visits.length > 0) {
+      visits.forEach((visit) => {
+        const visitDate = new Date(visit.exited_at);
+        const monthKey = visitDate.toLocaleString("default", { month: "short", year: "numeric" });
+        if (monthlyData.hasOwnProperty(monthKey)) {
+          monthlyData[monthKey]++;
+        }
+      });
+    }
+
+    // Convert to array format for the chart
+    const chartData = Object.entries(monthlyData).map(([month, visits]) => ({
+      month,
+      visits,
+    }));
+
+    console.log("Returning chart data:", chartData);
+
+    return res.status(200).json({
+      success: true,
+      data: chartData,
+    });
+  } catch (error) {
+    console.error("GET /activity/last-6-months error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 

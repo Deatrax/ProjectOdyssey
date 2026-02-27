@@ -13,20 +13,31 @@ const chatHistoryRoutes = require("./routes/chatHistory.routes");
 const testRoutes = require("./routes/testRoutes"); // New Test Routes
 const mapRoutes = require("./routes/mapRoutes"); // Map Search & Manual Planning
 const visitRoutes = require("./routes/visitRoutes"); // Visit Tracking Routes
+const postRoutes = require("./routes/postRoutes"); // Social Feed - Posts
+const commentRoutes = require("./routes/commentRoutes"); // Social Feed - Comments
+const likeRoutes = require("./routes/likeRoutes"); // Social Feed - Likes
+const savedPostRoutes = require("./routes/savedPostRoutes"); // Social Feed - Saved Posts
+const reviewRoutes = require("./routes/reviewRoutes"); // Review Routes
+const uploadRoutes = require("./routes/uploadRoutes"); // Upload Routes
 const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
-
+const recommendationRoutes = require("./routes/recommendationRoutes");
+const { startScheduler } = require("./services/recommendationScheduler");
 
 const app = express();
 
 // 1. Enable CORS (Allow localhost:3000 to talk to this server)
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://113.11.100.133:55680"],
+  origin: function (origin, callback) {
+    callback(null, true);
+  },
+  // origin: ["http://localhost:3000", "http://127.0.0.1:3000", "http://113.11.100.133:55680"],
   credentials: true
 }));
 
 
 // 2. Body Parser (So we can read JSON)
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 3. Connect Database
 connectDB();
@@ -46,7 +57,13 @@ app.get("/", (req, res) => {
       chat: "/api/chat",
       map: "/api/map",
       clustering: "/api/clustering",
-      groups: "/api/groups"
+      groups: "/api/groups",
+      social: {
+        posts: "/api/posts",
+        comments: "/api/comments",
+        likes: "/api/likes/:postId",
+        savedPosts: "/api/saved-posts"
+      }
     }
   });
 });
@@ -66,7 +83,17 @@ app.use('/api/test', testRoutes); // Mount Test Routes
 app.use('/api/admin', require("./routes/adminRoutes")); // Admin Routes
 app.use('/api/map', mapRoutes); // Map Search & Manual Planning
 app.use('/api/visits', visitRoutes); // Visit Tracking Routes
-app.use('/api/groups', groupRoutes); // Group Trip Planning
+app.use('/api/posts', postRoutes); // Social Feed - Posts
+app.use('/api/comments', commentRoutes); // Social Feed - Comments
+app.use('/api/likes', likeRoutes); // Social Feed - Likes
+app.use('/api/saved-posts', savedPostRoutes); // Social Feed - Saved Posts
+app.use('/api/groups', groupRoutes); //DEATRAX: From Incoming
+app.use('/api/reviews', reviewRoutes); //DEATRAX: From Current
+app.use('/api/upload', uploadRoutes); //DEATRAX: From Current
+app.use('/api/recommendations', recommendationRoutes); //DEATRAX: From Current
+
+// 5. Start Scheduler
+startScheduler();
 
 // 5. Start Server
 const PORT = process.env.PORT || 4000;

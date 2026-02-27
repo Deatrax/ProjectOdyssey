@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
-      // Store Token
+      // Store Token and User Data
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("rememberMe", rememberMe ? "true" : "false");
@@ -53,6 +53,7 @@ const LoginPage: React.FC = () => {
       // Set Cookie for Middleware
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 2 * 60 * 60; // 30 days or 2 hours
       document.cookie = `token=${data.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      localStorage.setItem("userId", data.user.id); // Store userId separately for easy access
 
       // Redirect
       router.push("/dashboard");

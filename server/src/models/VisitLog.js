@@ -177,24 +177,16 @@ class VisitLogModel {
   /**
    * Get currently active visit for an itinerary
    * @param {string} itineraryId - Itinerary UUID
-   * @param {string|null} userId  - Optional: restrict to a specific user (use for group trips to avoid multi-row .single() crash)
    * @returns {object} Current visit log or null
    */
-  static async getCurrentVisit(itineraryId, userId = null) {
+  static async getCurrentVisit(itineraryId) {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from("visit_logs")
         .select("*")
         .eq("itinerary_id", itineraryId)
         .eq("status", "in_progress")
-        .order("entered_at", { ascending: false })
-        .limit(1);
-
-      if (userId) {
-        query = query.eq("user_id", userId);
-      }
-
-      const { data, error } = await query;
+        .single();
 
       if (error && error.code !== "PGRST116") {
         // PGRST116 = no rows returned (expected for no active visit)
@@ -202,7 +194,7 @@ class VisitLogModel {
         throw new Error(`Failed to fetch current visit: ${error.message}`);
       }
 
-      return (data && data.length > 0) ? data[0] : null;
+      return data || null;
     } catch (err) {
       console.error("VisitLogModel.getCurrentVisit error:", err);
       throw err;
@@ -369,6 +361,58 @@ class VisitLogModel {
       return data !== null && data !== undefined;
     } catch (err) {
       console.error("VisitLogModel.hasActiveVisit error:", err);
+      throw err;
+    }
+  }
+  /**
+   * Get visit statistics for a user
+   * Returns the count of completed visits
+   * @param {string} userId - User ID
+   * @returns {object} { count: number, countryStats: object }
+   */
+  static async getUserVisitStats(userId) {
+    try {
+      // Fetch completed visits for the user
+      const { data, error } = await supabase
+        .from("visit_logs")
+        .select("place_id, status")
+        //DEATRAX: incoming changes from fs-merging-branch kept here commented as current changes were accepted
+        // .select(`
+        //   place_id,
+        //   status,
+        //   places (
+        //     country
+        //   )
+        // `)
+        .eq("user_id", userId)
+        .eq("status", "completed");
+
+      if (error) {
+        console.error("Error fetching user visit stats:", error);
+        throw new Error(`Failed to fetch user visit stats: ${error.message}`);
+      }
+
+      // Calculate unique places count
+      const uniquePlaces = new Set(data.map(v => v.place_id));
+      const count = uniquePlaces.size;
+
+      // Aggregate counts by country
+      //DEATRAX: incoming changes from fs-merging-branch manually added that was omitted by auto merge
+      const countryStats = {};
+      data.forEach(log => {
+        // Handle case where places might be returned as an array or object
+        const placesData = Array.isArray(log.places) ? log.places[0] : log.places;
+        const countryName = placesData?.country;
+        if (countryName) {
+          countryStats[countryName] = (countryStats[countryName] || 0) + 1;
+        }
+      });
+      return {
+        count,
+        countryStats: {}
+      };
+    } catch (err) {
+      console.error("VisitLogModel.getUserVisitStats error:", err);
       throw err;
     }
   }
