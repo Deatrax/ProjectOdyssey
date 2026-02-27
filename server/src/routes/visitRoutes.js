@@ -327,6 +327,8 @@ router.get("/summary/:itineraryId", async (req, res) => {
   }
 });
 
+
+
 /**
  * GET /api/visits/user
  * Get all visits for logged-in user
@@ -360,6 +362,29 @@ router.get("/user", async (req, res) => {
     });
   }
 });
+
+/**
+ * GET /api/visits/user/stats
+ * Get visit statistics aggregated by country for logged-in user
+ */
+router.get("/user/stats", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stats = await VisitLogModel.getUserVisitStats(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    console.error("GET /user/stats error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 
 /**
  * PUT /api/visits/:visitId
@@ -518,6 +543,81 @@ router.get("/settings", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Get settings error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/visits/activity/last-6-months
+ * Get count of completed VisitLogs per month for the last 6 months
+ */
+router.get("/activity/last-6-months", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log("Fetching activity for user:", userId);
+
+    // Calculate date 6 months ago
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    console.log("Fetching visits from:", sixMonthsAgo);
+
+    // Query completed visit logs for the user from the last 6 months
+    // Using exited_at (when user left location) instead of checked_out_at
+    const { data: visits, error } = await supabase
+      .from("visit_logs")
+      .select("exited_at")
+      .eq("user_id", userId)
+      .eq("status", "completed") // Only completed visits
+      .not("exited_at", "is", null) // Must have exited
+      .gte("exited_at", sixMonthsAgo.toISOString())
+      .order("exited_at", { ascending: true });
+
+    if (error) {
+      console.error("Supabase error:", error);
+      throw error;
+    }
+
+    console.log("Found visits:", visits?.length || 0);
+
+    // Group visits by month
+    const monthlyData = {};
+
+    // Initialize all months in the last 6 months with 0 visits
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = date.toLocaleString("default", { month: "short", year: "numeric" });
+      monthlyData[monthKey] = 0;
+    }
+
+    // Count visits per month
+    if (visits && visits.length > 0) {
+      visits.forEach((visit) => {
+        const visitDate = new Date(visit.exited_at);
+        const monthKey = visitDate.toLocaleString("default", { month: "short", year: "numeric" });
+        if (monthlyData.hasOwnProperty(monthKey)) {
+          monthlyData[monthKey]++;
+        }
+      });
+    }
+
+    // Convert to array format for the chart
+    const chartData = Object.entries(monthlyData).map(([month, visits]) => ({
+      month,
+      visits,
+    }));
+
+    console.log("Returning chart data:", chartData);
+
+    return res.status(200).json({
+      success: true,
+      data: chartData,
+    });
+  } catch (error) {
+    console.error("GET /activity/last-6-months error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 

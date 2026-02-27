@@ -13,24 +13,24 @@ const LandingPage: React.FC = () => {
       {/* Navbar */}
       <div className="navbar">
         <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center">
-              {/* Ensure this path points to your public folder */}
-              <img 
-                src="/Odyssey_Logo.png" 
-                alt="Odyssey Logo" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
-              Odyssey
-            </span>
+          <div className="w-7 h-7 flex items-center justify-center">
+            {/* Ensure this path points to your public folder */}
+            <img
+              src="/Odyssey_Logo.png"
+              alt="Odyssey Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
+          <span className="text-xl sm:text-2xl font-medium font-odyssey tracking-wider">
+            Odyssey
+          </span>
+        </div>
 
         <div className="nav-right">
           <a className="active" href="#">About</a>
-          <button 
+          <button
             onClick={() => router.push('/destinations')}
-            className="text-white hover:text-gray-200 transition-colors"
+            className="text-[#111] hover:text-gray-200 transition-colors"
           >
             Destinations
           </button>

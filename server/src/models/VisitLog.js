@@ -364,6 +364,58 @@ class VisitLogModel {
       throw err;
     }
   }
+  /**
+   * Get visit statistics for a user
+   * Returns the count of completed visits
+   * @param {string} userId - User ID
+   * @returns {object} { count: number, countryStats: object }
+   */
+  static async getUserVisitStats(userId) {
+    try {
+      // Fetch completed visits for the user
+      const { data, error } = await supabase
+        .from("visit_logs")
+        .select("place_id, status")
+        //DEATRAX: incoming changes from fs-merging-branch kept here commented as current changes were accepted
+        // .select(`
+        //   place_id,
+        //   status,
+        //   places (
+        //     country
+        //   )
+        // `)
+        .eq("user_id", userId)
+        .eq("status", "completed");
+
+      if (error) {
+        console.error("Error fetching user visit stats:", error);
+        throw new Error(`Failed to fetch user visit stats: ${error.message}`);
+      }
+
+      // Calculate unique places count
+      const uniquePlaces = new Set(data.map(v => v.place_id));
+      const count = uniquePlaces.size;
+
+      // Aggregate counts by country
+      //DEATRAX: incoming changes from fs-merging-branch manually added that was omitted by auto merge
+      const countryStats = {};
+      data.forEach(log => {
+        // Handle case where places might be returned as an array or object
+        const placesData = Array.isArray(log.places) ? log.places[0] : log.places;
+        const countryName = placesData?.country;
+        if (countryName) {
+          countryStats[countryName] = (countryStats[countryName] || 0) + 1;
+        }
+      });
+      return {
+        count,
+        countryStats: {}
+      };
+    } catch (err) {
+      console.error("VisitLogModel.getUserVisitStats error:", err);
+      throw err;
+    }
+  }
 }
 
 module.exports = VisitLogModel;

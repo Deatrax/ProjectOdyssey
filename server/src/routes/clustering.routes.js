@@ -4,30 +4,21 @@ const router = require("express").Router();
 const { callGemini } = require("../services/ai/geminiClient");
 const { makeValidator } = require("../services/ai/validate");
 const { systemPrompt: clusteringSystemPrompt, responseSchema: clusteringResponseSchema } = require("../services/ai/prompts/clustering.prompt");
+const { searchPlaces, getCachedSearch, setCachedSearch } = require("../repositories/places.repo");
+const {
+  systemPrompt: ragKeywordsSystemPrompt,
+  responseSchema: ragKeywordsResponseSchema,
+} = require("../services/ai/prompts/ragKeywords.prompt");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const validateClustering = makeValidator(clusteringResponseSchema);
+const validateRagKeywords = makeValidator(ragKeywordsResponseSchema);
 
 /**
  * POST /api/clustering/analyze
  * 
- * User Input: Trip description + preferences
- * AI Output: Geographic clusters with place recommendations
- * 
- * Request body:
- * {
- *   message: "3-day trip to Bangladesh, I like history and nature",
- *   userContext: { budget: "medium", pace: "relaxed", interests: ["history", "nature"] }
- * }
- * 
- * Response:
- * {
- *   overallReasoning: "...",
- *   recommendedDuration: 3,
- *   clusters: [
- *     { clusterName, description, suggestedDays, places: [{name, category, reasoning, estimatedVisitHours, estimatedCost}] }
- *   ]
- * }
+ * RAG-enhanced: extracts keywords, searches DB first, passes DB results
+ * to the clustering prompt so AI can prioritize real database places.
  */
 router.post("/analyze", authMiddleware, async (req, res) => {
   try {
@@ -37,19 +28,68 @@ router.post("/analyze", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "message is required (string)" });
     }
 
-    // Prepare payload for AI
+    // ── Step 1: Extract keywords ──
+    let keywords;
+    try {
+      const keywordsJson = await callGemini({
+        system: ragKeywordsSystemPrompt,
+        user: { message },
+      });
+      const v = validateRagKeywords(keywordsJson);
+      if (v.ok) {
+        keywords = keywordsJson;
+        console.log("[RAG-Clustering] Keywords:", JSON.stringify(keywords));
+      }
+    } catch (err) {
+      console.warn("[RAG-Clustering] Keyword extraction failed:", err.message);
+    }
+
+    // Fallback keywords
+    if (!keywords) {
+      keywords = {
+        searchQueries: message.toLowerCase().split(/\s+/).filter(w => w.length > 2).slice(0, 3),
+        country: null, city: null, category: null, intent: "search_places",
+      };
+    }
+
+    // ── Step 2: DB search ──
+    const cacheKey = "cluster_" + keywords.searchQueries.sort().join("|");
+    let dbResults = await getCachedSearch(cacheKey);
+
+    if (!dbResults) {
+      dbResults = await searchPlaces(keywords);
+      if (dbResults.length > 0) {
+        await setCachedSearch(cacheKey, dbResults);
+      }
+    }
+
+    // Format DB results for the AI
+    const formattedDbResults = dbResults.map(r => ({
+      placeId: r.id || r.place_id || null,
+      name: r.name,
+      category: r.category || r.primary_category || "urban",
+      country: r.country_name || r.country || "",
+      city: r.city_name || r.city || "",
+      type: r._type || "POI",
+      source: "db",
+    }));
+
+    console.log(`[RAG-Clustering] DB results: ${formattedDbResults.length}`);
+
+    // ── Step 3: Call Gemini with DB context ──
     const payload = {
       message,
       userContext: userContext ?? null,
+      dbResults: formattedDbResults,
+      dbResultCount: formattedDbResults.length,
     };
 
-    // Call Gemini with clustering prompt
     const clusteringJson = await callGemini({
       system: clusteringSystemPrompt,
       user: payload,
     });
 
-    // Validate AI output server-side
+    // Validate AI output
     const validation = validateClustering(clusteringJson);
     if (!validation.ok) {
       console.error("Invalid clustering JSON from AI:", validation.errors);
@@ -59,7 +99,7 @@ router.post("/analyze", authMiddleware, async (req, res) => {
       });
     }
 
-    // Success: return clustered recommendations
+    // Success
     return res.json({
       success: true,
       data: clusteringJson,
