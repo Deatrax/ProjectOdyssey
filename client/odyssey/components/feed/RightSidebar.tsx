@@ -131,7 +131,18 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
 
     return allPosts
       .filter(post => new Date(post.createdAt) >= oneWeekAgo)
-      .sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0))
+      .sort((a, b) => {
+        // First, sort by likes (descending)
+        const likeDiff = (b.likesCount || 0) - (a.likesCount || 0);
+        if (likeDiff !== 0) return likeDiff;
+        
+        // If likes are equal, sort by comments (descending)
+        const commentDiff = (b.commentsCount || 0) - (a.commentsCount || 0);
+        if (commentDiff !== 0) return commentDiff;
+        
+        // If both are equal, sort by date (newer first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
       .slice(0, 3);
   }, [allPosts]);
 

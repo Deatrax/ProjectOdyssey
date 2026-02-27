@@ -53,6 +53,8 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
     if (result.success) {
       setNewCommentText('');
       refresh();
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('commentAdded', { detail: { postId } }));
     } else {
       alert(result.error || 'Failed to add comment');
     }
@@ -66,6 +68,8 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
     const result = await deleteComment(commentId);
     if (result.success) {
       refresh();
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('commentDeleted', { detail: { postId } }));
     } else {
       alert(result.error || 'Failed to delete comment');
     }
@@ -128,10 +132,6 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
     <div className="space-y-6">
       {/* Comments List */}
       <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-900">
-          Comments ({comments.length})
-        </h3>
-
         {comments.length === 0 ? (
           <p className="text-gray-500 text-center py-8">
             No comments yet. Be the first to comment!

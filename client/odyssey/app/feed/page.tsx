@@ -12,7 +12,7 @@ import PostDetailModal from '@/components/PostDetailModal';
 
 export default function FeedPage() {
   const router = useRouter();
-  const { posts, loading, error, hasMore, loadMore } = usePosts(10);
+  const { posts, loading, error, hasMore, loadMore, refresh } = usePosts(10);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('blog');
@@ -99,6 +99,24 @@ export default function FeedPage() {
       }
     };
   }, [hasMore, loading, loadMore]);
+
+  // Listen for post interactions (likes, comments) to refresh trending posts
+  useEffect(() => {
+    const handlePostInteraction = () => {
+      console.log('[Feed] Post interaction detected, refreshing posts...');
+      refresh();
+    };
+
+    window.addEventListener('postLikeChanged', handlePostInteraction);
+    window.addEventListener('commentAdded', handlePostInteraction);
+    window.addEventListener('commentDeleted', handlePostInteraction);
+    
+    return () => {
+      window.removeEventListener('postLikeChanged', handlePostInteraction);
+      window.removeEventListener('commentAdded', handlePostInteraction);
+      window.removeEventListener('commentDeleted', handlePostInteraction);
+    };
+  }, [refresh]);
 
   // Filter posts based on active filters
   const filteredPosts = useMemo(() => {

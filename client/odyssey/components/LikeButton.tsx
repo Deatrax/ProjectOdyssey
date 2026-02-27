@@ -56,6 +56,9 @@ export default function LikeButton({ postId, initialLikesCount, onLikeChange }: 
       }
       // Refetch to ensure we have the latest state
       refetch();
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('postLikeChanged', { detail: { postId } }));
     } else {
       // Revert on error
       setIsLiked(!newIsLiked);
