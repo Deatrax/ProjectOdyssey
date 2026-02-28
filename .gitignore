@@ -20,3 +20,5 @@ Thumbs.db
 dist/
 build/
 server/old.env
+server/.secrets
+Project Materials/team_plan.md

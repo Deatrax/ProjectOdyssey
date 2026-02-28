@@ -2,49 +2,83 @@ const supabase = require("../config/supabaseClient");
 
 /// -- ->Note for other developers working with AI -- //
 async function searchPlacesDynamic(filters) {
+  let placesQuery = supabase.from("places").select("*");
+  let citiesQuery = supabase.from("cities").select("*");
+  let countriesQuery = supabase.from("countries").select("*");
+
+  const queryTerm = filters.search_query || "";
+
+  // 1. Places Search
+  if (queryTerm) {
+    placesQuery = placesQuery.or(`name.ilike.%${queryTerm}%,country.ilike.%${queryTerm}%,region.ilike.%${queryTerm}%`);
+  }
+  // Apply other place-specific filters
+  if (filters.category) placesQuery = placesQuery.ilike("primary_category", `%${filters.category}%`);
+  if (filters.region) placesQuery = placesQuery.ilike("region", `%${filters.region}%`);
+  if (filters.country) placesQuery = placesQuery.ilike("country", `%${filters.country}%`);
+  if (filters.min_cost) placesQuery = placesQuery.gte("est_cost_per_day", Number(filters.min_cost));
+  if (filters.max_cost) placesQuery = placesQuery.lte("est_cost_per_day", Number(filters.max_cost));
+
+  // Execute Places Query
+  const { data: places, error: placesError } = await placesQuery.limit(50);
+  if (placesError) throw placesError;
+
+  // If no search term, just return places (filtering usually applies to places)
+  if (!queryTerm) {
+    return places.map(p => ({ ...p, type: 'POI' }));
+  }
+
+  // 2. Cities Search (Only if search term exists)
+  const { data: cities, error: citiesError } = await citiesQuery
+    .or(`name.ilike.%${queryTerm}%`)
+    .limit(10);
+  if (citiesError) console.error("City search error", citiesError);
+
+  // 3. Countries Search (Only if search term exists)
+  const { data: countries, error: countriesError } = await countriesQuery
+    .or(`name.ilike.%${queryTerm}%`)
+    .limit(5);
+  if (countriesError) console.error("Country search error", countriesError);
+
+  // Combine Results
+  const formattedPlaces = places.map(p => ({ ...p, id: p.place_id, type: 'POI' }));
+  const formattedCities = (cities || []).map(c => ({
+    ...c,
+    type: 'CITY',
+    country: 'City', // Placeholder if country name not joined, or fetch it
+    short_desc: c.description
+  }));
+  const formattedCountries = (countries || []).map(c => ({
+    ...c,
+    type: 'COUNTRY',
+    country: 'Country',
+    short_desc: c.description
+  }));
+
+  return [...formattedCountries, ...formattedCities, ...formattedPlaces];
+}
+
+async function getTrendingPlaces(userCountry) {
   let query = supabase.from("places").select("*");
 
-  const orConditions = [];
+  // Localized ranking: if userCountry is provided, try to fetch from there first
+  if (userCountry) {
+    const { data: localData } = await supabase
+      .from("places")
+      .select("*")
+      .ilike('country', userCountry)
+      .limit(4);
 
-  // ->Optional not mendatory to match but if matches it will provide the matching category from the db
-  if (filters.category) {
-    orConditions.push(`primary_category.ilike.%${filters.category}%`);
+    if (localData && localData.length > 0) {
+      // Fill the rest with global trending (random/top)
+      const { data: globalData } = await supabase.from("places").select("*").limit(8 - localData.length);
+      return [...localData, ...(globalData || [])];
+    }
   }
 
-  // ->(Optional) If matches good if not matches will check for other options
-  if (filters.tags && Array.isArray(filters.tags) && filters.tags.length > 0) {
-    filters.tags.forEach((tag) => {
-      orConditions.push(`tags.cs.{${tag}}`);
-    });
-  }
-
-  if (orConditions.length > 0) {
-    query = query.or(orConditions.join(","));
-  }
-
-  // ->Region match (must match if provided)
-  if (filters.region) {
-    query = query.ilike("region", `%${filters.region}%`);
-  }
-
-  // ->Country match (must match if provided)
-  if (filters.country) {
-    query = query.ilike("country", `%${filters.country}%`);
-  }
-
-  // ->(must match if provided)
-  if (filters.min_cost) {
-    query = query.gte("est_cost_per_day", Number(filters.min_cost));
-  }
-  // ->(must match if provided)
-  if (filters.max_cost) {
-    query = query.lte("est_cost_per_day", Number(filters.max_cost));
-  }
-
-  const { data, error } = await query;
-
+  // Default global trending (just first 8 for now, ideally sort by a popularity metric)
+  const { data, error } = await query.limit(8);
   if (error) throw error;
-
   return data;
 }
 
@@ -68,7 +102,7 @@ async function insertPlaceFromAI(place) {
   }
 
   //Check-1: Name + Region Duplicate Check
-   const { data: nameMatches } = await supabase
+  const { data: nameMatches } = await supabase
     .from("places")
     .select("id")
     .ilike("name", name)
@@ -120,4 +154,45 @@ async function insertPlaceFromAI(place) {
 
 }
 
-module.exports = { searchPlacesDynamic, insertPlaceFromAI };
+async function getTopCities(countryId) {
+  // Assuming popularity_score or population determines "top"
+  const { data, error } = await supabase
+    .from('cities')
+    .select('*')
+    .eq('country_id', countryId)
+    .order('popularity_score', { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
+  return data;
+}
+
+async function getTopPOIs(countryId) {
+  const { data, error } = await supabase
+    .from('pois')
+    .select('*, cities(name)')
+    .eq('country_id', countryId)
+    .order('popularity_score', { ascending: false })
+    .limit(10);
+  if (error) throw error;
+  return data;
+}
+
+async function getCityPOIs(cityId) {
+  const { data, error } = await supabase
+    .from('pois')
+    .select('*')
+    .eq('city_id', cityId)
+    .order('popularity_score', { ascending: false }); // Return all? Or limit?
+  if (error) throw error;
+  return data;
+}
+
+module.exports = {
+  searchPlacesDynamic,
+  insertPlaceFromAI,
+  getTrendingPlaces,
+  getTopCities,
+  getTopPOIs,
+  getCityPOIs
+};

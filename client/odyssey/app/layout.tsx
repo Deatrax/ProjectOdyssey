@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 
 import "./globals.css";
+import NavBar from "@/components/NavBar";
 
 // Load fonts with CSS variables for easy usage
 const inter = Inter({
@@ -21,14 +22,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Manrope:wght@300;400;600&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} ${robotoMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${robotoMono.variable} antialiased bg-[#FFF5E9]`}>
+        <script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,marker&loading=async`}
+          async
+          defer
+        ></script>
+        <NavBar />
         {children}
       </body>
     </html>
