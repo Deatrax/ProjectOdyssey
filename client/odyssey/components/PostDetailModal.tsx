@@ -5,6 +5,7 @@ import { X, Calendar, MapPin, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { usePost, deletePost } from '@/hooks/usePosts';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
+import ShareButton from './ShareButton';
 import CommentSection from './CommentSection';
 import PostContentViewer from './PostContentViewer';
 
@@ -59,6 +60,17 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const getTitle = () => {
+    if (!post || !post.content || !post.content.content) return 'Untitled Post';
+    
+    for (const node of post.content.content) {
+      if (node.type === 'heading' && node.content && node.content[0]?.text) {
+        return node.content[0].text;
+      }
+    }
+    return post.tripName || 'Untitled Post';
   };
 
   const handleDelete = async () => {
@@ -186,6 +198,7 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
                       onLikeChange={setLikesCount}
                     />
                     <SaveButton postId={post._id} />
+                    <ShareButton postId={post._id} postTitle={getTitle()} />
                   </div>
                   <div className="text-sm text-gray-600">
                     <span className="font-semibold">{commentsCount}</span>
@@ -196,7 +209,6 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
 
               {/* Comments Section */}
               <div className="px-6 py-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Comments</h3>
                 <CommentSection
                   postId={post._id}
                   onCommentCountChange={setCommentsCount}

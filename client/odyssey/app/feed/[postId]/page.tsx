@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, MapPin, Loader2, Edit2, Trash2 } from 'lucide-react';
 import { usePost, deletePost } from '@/hooks/usePosts';
 import LikeButton from '@/components/LikeButton';
+import SaveButton from '@/components/SaveButton';
+import ShareButton from '@/components/ShareButton';
 import CommentSection from '@/components/CommentSection';
 import PostContentViewer from '@/components/PostContentViewer';
 
@@ -97,6 +99,27 @@ export default function SinglePostPage() {
 
   const isAuthor = currentUserId === post.authorId._id;
 
+  // Get post title for sharing
+  const getPostTitle = () => {
+    if (post.tripName) return post.tripName;
+    if (post.content) {
+      try {
+        const contentObj = typeof post.content === 'string' ? JSON.parse(post.content) : post.content;
+        const firstBlock = contentObj?.content?.[0];
+        if (firstBlock?.type === 'heading' && firstBlock?.content?.[0]?.text) {
+          return firstBlock.content[0].text;
+        }
+        if (firstBlock?.type === 'paragraph' && firstBlock?.content?.[0]?.text) {
+          const text = firstBlock.content[0].text;
+          return text.length > 60 ? text.substring(0, 60) + '...' : text;
+        }
+      } catch (e) {
+        console.error('Error parsing content for title:', e);
+      }
+    }
+    return 'Travel Story';
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF5E9] pt-8 pb-20">
       <div className="max-w-5xl mx-auto px-4">
@@ -170,24 +193,27 @@ export default function SinglePostPage() {
           </div>
 
           {/* Interaction Bar */}
-          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-teal-50 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div onClick={(e) => e.stopPropagation()}>
-                <LikeButton
-                  postId={post._id}
-                  initialLikesCount={likesCount}
-                  onLikeChange={setLikesCount}
-                />
+          <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-teal-50 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <LikeButton
+                    postId={post._id}
+                    initialLikesCount={likesCount}
+                    onLikeChange={setLikesCount}
+                  />
+                </div>
+                <div className="h-8 w-px bg-gray-300"></div>
+                <div className="text-sm text-gray-600 font-medium">
+                  <span className="text-lg font-bold text-gray-900">{commentsCount}</span>
+                  <span className="ml-2">{commentsCount === 1 ? 'comment' : 'comments'}</span>
+                </div>
               </div>
-              <div className="h-8 w-px bg-gray-300"></div>
-              <div className="text-sm text-gray-600 font-medium">
-                <span className="text-lg font-bold text-gray-900">{commentsCount}</span>
-                <span className="ml-2">{commentsCount === 1 ? 'comment' : 'comments'}</span>
-              </div>
-            </div>
 
-            <div className="text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">{likesCount}</span>
+              <div className="flex items-center gap-3">
+                <SaveButton postId={post._id} />
+                <ShareButton postId={post._id} postTitle={getPostTitle()} />
+              </div>
             </div>
           </div>
         </article>

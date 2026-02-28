@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MessageCircle, Calendar, MapPin } from 'lucide-react';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
+import ShareButton from './ShareButton';
 import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
@@ -69,7 +70,7 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
   return (
     <div
       onClick={handlePostClick}
-      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100"
+      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
     >
       {/* Header */}
       <div className="p-6 pb-4">
@@ -122,6 +123,9 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
           </button>
           <div onClick={(e) => e.stopPropagation()}>
             <SaveButton postId={post._id} />
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ShareButton postId={post._id} postTitle={getTitle()} />
           </div>
         </div>
 
