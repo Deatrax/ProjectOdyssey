@@ -378,6 +378,7 @@ export default function FeedPage() {
               isAuthenticated={isAuthenticated}
               currentUserId={currentUserId || undefined}
               onCreatePost={handleCreatePost}
+              onPostClick={handleOpenPostModal}
             />
           </aside>
         </div>

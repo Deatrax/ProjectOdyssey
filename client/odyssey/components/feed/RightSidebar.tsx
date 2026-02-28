@@ -20,9 +20,10 @@ interface RightSidebarProps {
   isAuthenticated: boolean;
   currentUserId?: string;
   onCreatePost?: () => void;
+  onPostClick?: (postId: string) => void;
 }
 
-export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId, onCreatePost }: RightSidebarProps) {
+export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId, onCreatePost, onPostClick }: RightSidebarProps) {
   const router = useRouter();
   const [trendingDestinations, setTrendingDestinations] = useState<TrendingDestination[]>([]);
   const [userActivityStats, setUserActivityStats] = useState({
@@ -255,7 +256,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
               return (
                 <div
                   key={post._id}
-                  onClick={() => router.push(`/feed/${post._id}`)}
+                  onClick={() => onPostClick ? onPostClick(post._id) : router.push(`/feed/${post._id}`)}
                   className="p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all cursor-pointer"
                 >
                   <p className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
