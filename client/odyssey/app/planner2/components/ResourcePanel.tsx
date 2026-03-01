@@ -55,6 +55,8 @@ interface ResourcePanelProps {
     onClusteringCancel?: () => void;
     aiClusteringEnabled?: boolean;
     onAiClusteringToggle?: (enabled: boolean) => void;
+    exploreSurroundings?: boolean;
+    onExploreSurroundingsToggle?: (enabled: boolean) => void;
     itineraryOptions?: any[];
     onSelectItineraryOption?: (option: any) => void;
     // Custom Requirements
@@ -161,6 +163,8 @@ export default function ResourcePanel({
     onClusteringCancel,
     aiClusteringEnabled = false,
     onAiClusteringToggle,
+    exploreSurroundings = true,
+    onExploreSurroundingsToggle,
     itineraryOptions = [],
     onSelectItineraryOption,
     // Custom Requirements
@@ -350,6 +354,31 @@ export default function ResourcePanel({
                                             </button>
                                         </div>
                                     )}
+
+                                    {/* Explore Surroundings Toggle (only if AI Clustering is ON) */}
+                                    {aiClusteringEnabled && onExploreSurroundingsToggle && (
+                                        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-gray-100 bg-gray-50/50">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className={`w-3 h-3 ${exploreSurroundings ? 'text-blue-500' : 'text-gray-400'}`} />
+                                                <span className="text-[11px] font-medium text-gray-600">
+                                                    {exploreSurroundings ? "Search Broadly (Include Surroundings)" : "Strict City Search (Exact Location Only)"}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => onExploreSurroundingsToggle(!exploreSurroundings)}
+                                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${
+                                                    exploreSurroundings ? 'bg-blue-400' : 'bg-gray-300'
+                                                }`}
+                                            >
+                                                <span
+                                                    className="inline-block h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-transform"
+                                                    style={{ transform: exploreSurroundings ? 'translateX(14px)' : 'translateX(2px)' }}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
+
                                     <form onSubmit={onSendMessage}>
                                         <div className="relative flex items-center bg-gray-50 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-[#4A9B7F] transition-all px-2">
                                             <input

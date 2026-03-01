@@ -100,6 +100,7 @@ export default function PlannerPage() {
   const [clusteringData, setClusteringData] = useState<any>(null);
   const [clusteringLoading, setClusteringLoading] = useState(false);
   const [aiClusteringEnabled, setAiClusteringEnabled] = useState(false); // user-controlled toggle
+  const [exploreSurroundings, setExploreSurroundings] = useState(true); // strict vs broad search
 
   // 7. Itinerary Generation State (Stage 2)
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -502,28 +503,15 @@ export default function PlannerPage() {
 
     try {
       // Check if this is a clustering request
-      const lowerInput = chatInput.toLowerCase();
-      const hasTripKeywords = lowerInput.includes("trip") || lowerInput.includes("itinerary");
-      const hasMultiDayPlan = /\d+\s*(day|days)/.test(lowerInput);
-
-      const hasMultipleLocations = () => {
-        const hasTravelVerb = lowerInput.includes('plan') || lowerInput.includes('visit') ||
-          lowerInput.includes('travel') || lowerInput.includes('explore');
-        if (!hasTravelVerb) return false;
-        const commaCount = (chatInput.match(/,/g) || []).length;
-        const hasAndSeparator = lowerInput.match(/\s+and\s+/g);
-        const separatorCount = commaCount + (hasAndSeparator ? hasAndSeparator.length : 0);
-        return separatorCount >= 1;
-      };
-
-      const isClusteringRequest = aiClusteringEnabled && (hasTripKeywords || hasMultiDayPlan || hasMultipleLocations());
+      // (Bypass the old fragile keyword heuristics — if the toggle is ON, trigger clustering)
+      const isClusteringRequest = aiClusteringEnabled;
 
       if (isClusteringRequest) {
         setClusteringLoading(true);
         const clusterRes = await fetch("http://localhost:4000/api/clustering/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : "" },
-          body: JSON.stringify({ message: userMsg.text, userContext: { budget: "medium", pace: "moderate" } })
+          body: JSON.stringify({ message: userMsg.text, userContext: { budget: "medium", pace: "moderate", exploreSurroundings } })
         });
 
         if (clusterRes.ok) {
@@ -1195,6 +1183,8 @@ export default function PlannerPage() {
                   onClusteringCancel={() => setStage("chat")}
                   aiClusteringEnabled={aiClusteringEnabled}
                   onAiClusteringToggle={setAiClusteringEnabled}
+                  exploreSurroundings={exploreSurroundings}
+                  onExploreSurroundingsToggle={setExploreSurroundings}
                   itineraryOptions={itineraryOptions}
                   onSelectItineraryOption={(option: any) => { setSelectedItinerary(option); setConfirmationOpen(true); }}
                   // Custom Requirements
