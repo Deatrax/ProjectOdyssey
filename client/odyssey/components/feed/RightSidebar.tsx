@@ -34,8 +34,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
     thisMonth: 0
   });
   const [statsLoaded, setStatsLoaded] = useState(false);
-  const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
-  const [trendingPostsLoading, setTrendingPostsLoading] = useState(false);
 
   // Fetch trending destinations from API
   useEffect(() => {
@@ -47,20 +45,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         }
       })
       .catch(err => console.error('Failed to fetch trending destinations', err));
-  }, []);
-
-  // Fetch trending posts from API
-  useEffect(() => {
-    setTrendingPostsLoading(true);
-    fetch('http://localhost:4000/api/posts/trending?limit=3&days=7')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data) {
-          setTrendingPosts(data.data);
-        }
-      })
-      .catch(err => console.error('Failed to fetch trending posts', err))
-      .finally(() => setTrendingPostsLoading(false));
   }, []);
 
   // Fetch user's complete activity stats
@@ -235,54 +219,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
                 <TrendingUp className="w-4 h-4 text-[#4A9B7F]" />
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Most Liked This Week */}
-      {!trendingPostsLoading && trendingPosts.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-md p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-bold text-gray-900">Trending Posts This Week</h3>
-          </div>
-          <div className="space-y-3">
-            {trendingPosts.map((post) => {
-              // Extract title from post
-              const getTitle = () => {
-                if (!post.content || !post.content.content) return 'Untitled';
-                for (const node of post.content.content) {
-                  if (node.type === 'heading' && node.content && node.content[0]?.text) {
-                    return node.content[0].text;
-                  }
-                }
-                return post.tripName || 'Untitled';
-              };
-
-              return (
-                <div
-                  key={post._id}
-                  onClick={() => onPostClick ? onPostClick(post._id) : router.push(`/feed/${post._id}`)}
-                  className="p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all cursor-pointer"
-                >
-                  <p className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
-                    {getTitle()}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3 h-3 text-red-500" />
-                      {post.likesCount || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="w-3 h-3" />
-                      {post.commentsCount || 0}
-                    </span>
-                    <span className="text-gray-400">•</span>
-                    <span>@{post.authorId?.username || 'User'}</span>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       )}
