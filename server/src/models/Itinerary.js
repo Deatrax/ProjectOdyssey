@@ -83,7 +83,8 @@ class ItineraryModel {
       .from("itineraries")
       .select("*")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("trip_status", { ascending: true })   // "active" < "planning" alphabetically → active first
+      .order("created_at", { ascending: false });  // then newest first within each status
 
     if (error) {
       console.error("Supabase fetch error:", error);

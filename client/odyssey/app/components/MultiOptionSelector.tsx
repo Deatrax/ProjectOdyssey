@@ -9,6 +9,7 @@ type ScheduleItem = {
   time: string;
   timeRange: string;
   visitDurationMin: number;
+  entryCost?: number | null;
   notes: string;
 };
 
@@ -24,6 +25,7 @@ type Itinerary = {
   description: string;
   paceDescription: string;
   estimatedCost: number;
+  currency?: string;
   schedule: ScheduleDay[];
 };
 
@@ -148,7 +150,7 @@ export default function MultiOptionSelector({
                 <div style={{ marginBottom: "12px" }}>
                   <p style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "2px" }}>Estimated Cost</p>
                   <p style={{ fontSize: "18px", fontWeight: 700, color: "#3b82f6" }}>
-                    ${itinerary.estimatedCost.toLocaleString()}
+                    {itinerary.currency || "USD"} {itinerary.estimatedCost.toLocaleString()}
                   </p>
                 </div>
 
@@ -161,7 +163,12 @@ export default function MultiOptionSelector({
                     {itinerary.schedule.slice(0, 2).map((day) => (
                       <div key={day.day} style={{ marginBottom: "6px" }}>
                         <span style={{ fontWeight: 600, color: "#1f2937" }}>Day {day.day}:</span>{" "}
-                        {day.items.map((item) => item.name).join(" → ")}
+                        {day.items.map((item) => {
+                          const costLabel =
+                            item.entryCost === 0 ? " (Free)" :
+                            item.entryCost ? ` (${itinerary.currency || ""} ${item.entryCost.toLocaleString()})`.trim() : "";
+                          return item.name + costLabel;
+                        }).join(" → ")}
                         {itinerary.schedule.length > 2 && day.day === 2 && <span>...</span>}
                       </div>
                     ))}

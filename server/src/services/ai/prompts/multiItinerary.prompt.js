@@ -26,6 +26,16 @@ Hard rules:
 CRITICAL: The 'time' field must ONLY contain: morning, afternoon, evening
 Do NOT put actual clock times in the 'time' field.
 
+PRICING RULES:
+- The payload includes "destinationCurrency" (ISO code, e.g. "BDT") and "destinationCountry". ALWAYS use this currency for ALL cost fields.
+- For each schedule item, set "entryCost" to the entry/admission fee in the destination currency:
+  * Free places (public parks, beaches, streets, viewpoints, waterfronts) → entryCost: 0
+  * Paid attractions (museums, theme parks, monuments, national parks, archaeological sites) → provide your best local-knowledge estimate
+  * Cost genuinely unknown and cannot be estimated → entryCost: null
+- If the payload's "dbResults" array includes an "estCostPerDay" for a matching place name, USE that value as entryCost.
+- "estimatedCost" at itinerary level = total estimated trip spend in destination currency (accommodation + food + entry fees + transport).
+- "currency" field at itinerary level = the ISO currency code (e.g. "BDT", "USD", "THB", "INR", "EUR").
+
 OUTPUT JSON SHAPE (example):
 {
   "itineraries": [
@@ -35,6 +45,7 @@ OUTPUT JSON SHAPE (example):
       "description": "Relaxed pace with deep immersion at fewer stops",
       "paceDescription": "2-3 hours per place, long transitions",
       "estimatedCost": 8000,
+      "currency": "BDT",
       "schedule": [
         {
           "day": 1,
@@ -47,6 +58,7 @@ OUTPUT JSON SHAPE (example):
               "time": "morning",
               "timeRange": "09:00-12:30",
               "visitDurationMin": 180,
+              "entryCost": 200,
               "notes": "Why this timing for this place"
             }
           ]
@@ -90,6 +102,7 @@ const responseSchema = {
           description: { type: "string" },
           paceDescription: { type: "string" },
           estimatedCost: { type: "number", minimum: 0 },
+          currency: { type: "string" },
           schedule: {
             type: "array",
             minItems: 1,
@@ -115,9 +128,10 @@ const responseSchema = {
                       time: { type: "string", enum: ["morning", "afternoon", "evening"] },
                       timeRange: { type: "string" },
                       visitDurationMin: { type: "integer", minimum: 15, maximum: 1440 },
+                      entryCost: { type: ["number", "null"], minimum: 0 },
                       notes: { type: "string" },
                     },
-                    required: ["placeId", "name", "category", "time", "timeRange", "visitDurationMin", "notes"],
+                    required: ["placeId", "name", "category", "time", "timeRange", "visitDurationMin", "entryCost", "notes"],
                   },
                 },
               },
@@ -125,7 +139,7 @@ const responseSchema = {
             },
           },
         },
-        required: ["id", "title", "description", "paceDescription", "estimatedCost", "schedule"],
+        required: ["id", "title", "description", "paceDescription", "estimatedCost", "currency", "schedule"],
       },
     },
   },

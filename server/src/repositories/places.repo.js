@@ -190,15 +190,39 @@ async function searchPlaces(keywords) {
       }
     }
 
-    // --- 4. Fallback: search legacy places table ---
-    if (results.length === 0) {
-      for (const q of searchQueries) {
-        const { data: places } = await supabase
-          .from("places")
-          .select("*")
-          .or(`name.ilike.%${q}%,country.ilike.%${q}%,region.ilike.%${q}%`)
-          .limit(5);
+    // --- 4. Always search places table (primary populated table — not just fallback) ---
+    // Previously this only ran when pois returned 0 results, meaning BD/regional data was never reached.
+    const placesFetches = [];
 
+    for (const q of searchQueries) {
+      placesFetches.push(
+        supabase.from("places").select("*")
+          .ilike("name", `%${q}%`)
+          .limit(6)
+      );
+    }
+
+    // Also fetch all places for the destination country
+    if (country) {
+      placesFetches.push(
+        supabase.from("places").select("*")
+          .ilike("country", `%${country}%`)
+          .limit(10)
+      );
+    }
+
+    // City name maps to region column in places table
+    if (city) {
+      placesFetches.push(
+        supabase.from("places").select("*")
+          .ilike("region", `%${city}%`)
+          .limit(6)
+      );
+    }
+
+    if (placesFetches.length > 0) {
+      const placesSettled = await Promise.all(placesFetches);
+      for (const { data: places } of placesSettled) {
         if (places) {
           for (const p of places) addResult(p, "POI");
         }
