@@ -14,6 +14,7 @@ export default function DestinationDetailsPage() {
     const [topCities, setTopCities] = useState<any[]>([]);
     const [topPOIs, setTopPOIs] = useState<any[]>([]);
     const [cityPOIs, setCityPOIs] = useState<any[]>([]);
+    const [images, setImages] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [isInCollection, setIsInCollection] = useState(false);
@@ -43,6 +44,14 @@ export default function DestinationDetailsPage() {
                     fetch(`http://localhost:4000/api/cities/${id}/pois`)
                         .then(r => r.json()).then(setCityPOIs).catch(console.warn);
                 }
+
+                // Fetch Images
+                fetch(`http://localhost:4000/api/admin/images/${type}/${id}`)
+                    .then(r => r.json())
+                    .then(imgData => {
+                        if (imgData.success) setImages(imgData.data);
+                    })
+                    .catch(console.warn);
             })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
@@ -91,7 +100,7 @@ export default function DestinationDetailsPage() {
     if (loading) return <div className="min-h-screen bg-[#FFF5E9] flex items-center justify-center">Loading...</div>;
     if (!data) return <div className="min-h-screen bg-[#FFF5E9] flex items-center justify-center">Not Found</div>;
 
-    const bgImage = data.name ? `https://source.unsplash.com/1600x900/?${data.name},travel` : "";
+    const bgImage = images.length > 0 ? images[0].url : (data.name ? `https://images.unsplash.com/featured/?${data.name},travel` : "");
 
     return (
         <div className="min-h-screen bg-[#FFF5E9] font-body text-gray-900 pb-20">
@@ -145,6 +154,20 @@ export default function DestinationDetailsPage() {
                         </p>
                     </div>
 
+                    {/* Photo Gallery */}
+                    {images.length > 1 && (
+                        <div>
+                            <h2 className="text-2xl font-bold mb-6">Gallery</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {images.slice(1).map((img, idx) => (
+                                    <div key={img.id || idx} className="rounded-xl overflow-hidden shadow-sm aspect-square bg-gray-100 group">
+                                        <img src={img.url} alt={`Gallery image ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Country: Top Cities */}
                     {type === 'country' && topCities.length > 0 && (
                         <div>
@@ -156,7 +179,7 @@ export default function DestinationDetailsPage() {
                                 {topCities.map(city => (
                                     <Link key={city.id} href={`/destinations/view/city/${city.id}`} className="block group">
                                         <div className="relative h-40 rounded-xl overflow-hidden shadow-sm">
-                                            <img src={`https://source.unsplash.com/400x300/?${city.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={city.name} />
+                                            <img src={`https://images.unsplash.com/featured/?${city.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={city.name} />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
                                                 <h3 className="text-white font-bold text-lg">{city.name}</h3>
                                             </div>
@@ -179,7 +202,7 @@ export default function DestinationDetailsPage() {
                                     <Link key={poi.id} href={`/destinations/view/poi/${poi.id}`} className="block group">
                                         <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all flex gap-4 items-center">
                                             <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                                                <img src={`https://source.unsplash.com/200x200/?${poi.name}`} className="w-full h-full object-cover" alt={poi.name} />
+                                                <img src={`https://images.unsplash.com/featured/?${poi.name}`} className="w-full h-full object-cover" alt={poi.name} />
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-gray-900 group-hover:text-[#4A9B7F] transition-colors">{poi.name}</h3>
@@ -201,7 +224,7 @@ export default function DestinationDetailsPage() {
                                     <Link key={poi.id} href={`/destinations/view/poi/${poi.id}`} className="block group">
                                         <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all flex gap-4">
                                             <div className="w-32 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                                                <img src={`https://source.unsplash.com/300x200/?${poi.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={poi.name} />
+                                                <img src={`https://images.unsplash.com/featured/?${poi.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={poi.name} />
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="font-bold text-lg text-gray-900 group-hover:text-[#4A9B7F] transition-colors mb-1">{poi.name}</h3>

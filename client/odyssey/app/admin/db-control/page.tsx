@@ -5,8 +5,9 @@ import CountryInputForm from "./CountryInputForm";
 import DistrictInputForm from "./DistrictInputForm";
 import PlaceForm from "./PlaceForm";
 import AIImportForm from "./AIImportForm";
+import ImageManagement from "./ImageManagement";
 
-type EntityType = "COUNTRY" | "DISTRICT" | "PLACE" | "AI_IMPORT";
+type EntityType = "COUNTRY" | "DISTRICT" | "PLACE" | "AI_IMPORT" | "IMAGES";
 
 export default function DbControlPage() {
   const [selectedType, setSelectedType] = useState<EntityType>("COUNTRY");
@@ -27,6 +28,7 @@ export default function DbControlPage() {
             <option value="DISTRICT">District (City)</option>
             <option value="PLACE">Place (POI)</option>
             <option value="AI_IMPORT">⚡ AI Bulk Import</option>
+            <option value="IMAGES">🖼️ Manage Images</option>
           </select>
         </div>
       </div>
@@ -38,6 +40,7 @@ export default function DbControlPage() {
         {selectedType === "DISTRICT" && <DistrictInputForm />}
         {selectedType === "PLACE" && <PlaceForm />}
         {selectedType === "AI_IMPORT" && <AIImportForm />}
+        {selectedType === "IMAGES" && <ImageManagement />}
       </div>
     </div>
   );

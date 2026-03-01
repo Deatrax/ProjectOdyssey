@@ -1,6 +1,66 @@
 const supabase = require("../config/supabaseClient");
 
 /// -- ->Note for other developers working with AI -- //
+async function attachImagesToPlaces(placesList) {
+  if (!placesList || placesList.length === 0) return placesList;
+
+  // Group by type for efficient querying
+  const placesByType = {
+    'COUNTRY': [],
+    'CITY': [],     // Both CITY and DISTRICT use 'CITY' in place_images
+    'DISTRICT': [],
+    'POI': []
+  };
+
+  placesList.forEach((p, idx) => {
+    let t = p.type || 'POI';
+    if (!placesByType[t]) placesByType[t] = [];
+    placesByType[t].push({ id: String(p.id), index: idx });
+  });
+
+  const imagePromises = [];
+
+  for (const [type, items] of Object.entries(placesByType)) {
+    if (items.length === 0) continue;
+    const ids = items.map(i => i.id);
+    const dbType = type === 'DISTRICT' ? 'CITY' : type;
+
+    imagePromises.push(
+      supabase.from('place_images')
+        .select('place_id, url')
+        .in('place_id', ids)
+        .eq('place_type', dbType)
+        .order('display_order', { ascending: true })
+    );
+  }
+
+  if (imagePromises.length === 0) return placesList;
+
+  try {
+    const results = await Promise.all(imagePromises);
+    const imageMap = {};
+
+    results.forEach(res => {
+      if (res.data) {
+        res.data.forEach(img => {
+          if (!imageMap[String(img.place_id)]) {
+            imageMap[String(img.place_id)] = img.url;
+          }
+        });
+      }
+    });
+
+    return placesList.map(p => ({
+      ...p,
+      img_url: imageMap[String(p.id)] || null,
+      images: imageMap[String(p.id)] ? [{ url: imageMap[String(p.id)] }] : []
+    }));
+  } catch (error) {
+    console.error("Error attaching images to places:", error);
+    return placesList;
+  }
+}
+
 async function searchPlacesDynamic(filters) {
   const queryTerm = (filters.search_query || "").trim();
 
@@ -139,11 +199,11 @@ async function searchPlacesDynamic(filters) {
     });
   };
 
-  return [
+  return await attachImagesToPlaces([
     ...dedup(formattedCountries),
     ...dedup(formattedCities),
     ...dedup(formattedPlaces)  // already ordered: city-FK first, then text-only
-  ];
+  ]);
 }
 
 async function getTrendingPlaces(userCountry) {
@@ -167,7 +227,10 @@ async function getTrendingPlaces(userCountry) {
   // Default global trending (just first 8 for now, ideally sort by a popularity metric)
   const { data, error } = await query.limit(8);
   if (error) throw error;
-  return data;
+
+  // Tag them as POI for attachImagesToPlaces
+  const formattedData = (data || []).map(p => ({ ...p, id: String(p.place_id || p.id), type: 'POI' }));
+  return await attachImagesToPlaces(formattedData);
 }
 
 async function insertPlaceFromAI(place) {

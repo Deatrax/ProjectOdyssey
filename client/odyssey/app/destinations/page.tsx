@@ -23,6 +23,7 @@ interface TrendingDestination {
   country: string;
   slug?: string;
   popularity?: number;
+  img_url?: string;
 }
 
 const DestinationsPage: React.FC = () => {
@@ -263,7 +264,7 @@ const DestinationsPage: React.FC = () => {
                   onClick={() => handlePlaceClick(search)}
                 >
                   <img
-                    src={`https://source.unsplash.com/600x400/?${search.name}`}
+                    src={search.img_url || `https://images.unsplash.com/featured/?${search.name},travel`}
                     alt={search.name}
                     className="w-full h-full object-cover brightness-75 group-hover:scale-110 transition duration-500"
                   />
@@ -295,8 +296,15 @@ const DestinationsPage: React.FC = () => {
                     className="flex items-center gap-3 p-4 hover:bg-[#FFF5E9] rounded-xl cursor-pointer transition-colors group"
                     onClick={() => handlePlaceClick(destination as any)}
                   >
-                    <div className="flex-shrink-0 w-10 h-10 bg-[#4A9B7F] text-white rounded-full flex items-center justify-center font-bold text-lg">
-                      {index + 1}
+                    <div className="flex-shrink-0 w-10 h-10 bg-[#4A9B7F] text-white rounded-full flex items-center justify-center font-bold text-lg overflow-hidden relative">
+                      {destination.img_url ? (
+                        <>
+                          <img src={destination.img_url} alt={destination.name} className="w-full h-full object-cover opacity-80" />
+                          <span className="absolute text-white drop-shadow-md">{index + 1}</span>
+                        </>
+                      ) : (
+                        index + 1
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-[#4A9B7F] transition-colors line-clamp-2 leading-tight">

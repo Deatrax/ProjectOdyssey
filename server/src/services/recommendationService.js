@@ -2,8 +2,71 @@ const User = require("../models/User");
 const VisitLog = require("../models/VisitLog");
 const { getTrendingPlaces } = require("./placeService");
 const { callGemini } = require("./ai/geminiClient");
+const supabase = require("../config/supabaseClient");
 
 class RecommendationService {
+    /**
+     * Helper to find real image for a place name
+     */
+    static async findRealImageForPlace(placeName) {
+        if (!supabase) return null;
+        try {
+            // Check cities first
+            let { data: cities } = await supabase
+                .from('cities')
+                .select('id')
+                .ilike('name', `%${placeName}%`)
+                .limit(1);
+
+            if (cities && cities.length > 0) {
+                const { data: images } = await supabase
+                    .from('place_images')
+                    .select('url')
+                    .eq('place_id', cities[0].id)
+                    .in('place_type', ['CITY', 'DISTRICT'])
+                    .limit(1);
+                if (images && images.length > 0) return images[0].url;
+            }
+
+            // Check countries
+            let { data: countries } = await supabase
+                .from('countries')
+                .select('id')
+                .ilike('name', `%${placeName}%`)
+                .limit(1);
+
+            if (countries && countries.length > 0) {
+                const { data: images } = await supabase
+                    .from('place_images')
+                    .select('url')
+                    .eq('place_id', countries[0].id)
+                    .eq('place_type', 'COUNTRY')
+                    .limit(1);
+                if (images && images.length > 0) return images[0].url;
+            }
+
+            // Check POIs
+            let { data: pois } = await supabase
+                .from('pois')
+                .select('id')
+                .ilike('name', `%${placeName}%`)
+                .limit(1);
+
+            if (pois && pois.length > 0) {
+                const { data: images } = await supabase
+                    .from('place_images')
+                    .select('url')
+                    .eq('place_id', pois[0].id)
+                    .eq('place_type', 'POI')
+                    .limit(1);
+                if (images && images.length > 0) return images[0].url;
+            }
+        } catch (error) {
+            console.error("Error looking up image:", error);
+        }
+        return null; // fallback
+    }
+
     /**
      * Main entry point for generating recommendations
      */
@@ -88,16 +151,33 @@ Rules:
         }
 
         // 6. Post-process (Add Image URLs)
-        const processedPlaces = result.recommended_places.map((rec, idx) => ({
-            ...rec,
-            // Using a more reliable way to get Unsplash images by keyword
-            card_image_url: `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop&sig=${idx}`, // Base high-quality travel image
-            card_image_url: `https://images.unsplash.com/featured/?${encodeURIComponent(rec.destination_name)},travel&sig=${idx}`,
-            sub_places: rec.sub_places.map((sp, sIdx) => ({
-                ...sp,
-                image_url: `https://images.unsplash.com/featured/?${encodeURIComponent(sp.place_name)},${encodeURIComponent(rec.destination_name)}&sig=${idx}${sIdx}`
-            }))
-        }));
+        const processedPlaces = [];
+
+        for (let idx = 0; idx < result.recommended_places.length; idx++) {
+            const rec = result.recommended_places[idx];
+
+            // Try to find a real image from DB
+            let realCardImageUrl = await this.findRealImageForPlace(rec.destination_name);
+            const fallbackCardImage = `https://images.unsplash.com/featured/?${encodeURIComponent(rec.destination_name)},travel&sig=${idx}`;
+
+            const processedSubPlaces = [];
+            for (let sIdx = 0; sIdx < rec.sub_places.length; sIdx++) {
+                const sp = rec.sub_places[sIdx];
+                let realSubImageUrl = await this.findRealImageForPlace(sp.place_name);
+                const fallbackSubImage = `https://images.unsplash.com/featured/?${encodeURIComponent(sp.place_name)},${encodeURIComponent(rec.destination_name)}&sig=${idx}${sIdx}`;
+
+                processedSubPlaces.push({
+                    ...sp,
+                    image_url: realSubImageUrl || fallbackSubImage
+                });
+            }
+
+            processedPlaces.push({
+                ...rec,
+                card_image_url: realCardImageUrl || fallbackCardImage,
+                sub_places: processedSubPlaces
+            });
+        }
 
         // 7. Save to User document (MongoDB)
         user.weeklyRecommendations = processedPlaces;

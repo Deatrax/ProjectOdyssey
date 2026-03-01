@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabaseClient');
 const User = require('../models/User'); // Import Mongoose User Model
+const imageService = require('../services/imageService');
 
 // --- DASHBOARD STATS ---
 router.get('/stats', async (req, res) => {
@@ -284,6 +285,117 @@ router.put('/places/:id', async (req, res) => {
         res.json({ success: true, data: data[0] });
     } catch (error) {
         console.error("Update Place Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- IMAGES ---
+router.post('/images/populate', async (req, res) => {
+    try {
+        const { placeId, placeType, name, cityName, googlePlaceId } = req.body;
+
+        if (!placeId || !placeType || !name) {
+            return res.status(400).json({ error: "placeId, placeType, and name are required." });
+        }
+
+        console.log(`Starting image population for ${name} (${placeType})`);
+
+        // 1. Fetch Google Photos
+        const { urls: googleUrls, newPlaceId } = await imageService.fetchGooglePhotosForPlace(
+            googlePlaceId,
+            name,
+            cityName,
+            10
+        );
+
+        // Update google_place_id if a new one was found
+        if (newPlaceId && !googlePlaceId) {
+            let tableName = '';
+            if (placeType === 'COUNTRY') tableName = 'countries';
+            else if (placeType === 'CITY' || placeType === 'DISTRICT') tableName = 'cities';
+            else if (placeType === 'POI') tableName = 'pois';
+
+            if (tableName) {
+                await supabase.from(tableName).update({ google_place_id: newPlaceId }).eq('id', placeId);
+            }
+        }
+
+        // 2. Fetch Unsplash Photos
+        const unsplashQuery = `${name} ${cityName || ''}`.trim();
+        const unsplashUrls = await imageService.fetchUnsplashPhotos(unsplashQuery, 3);
+
+        const allImageUrls = [...googleUrls, ...unsplashUrls];
+
+        if (allImageUrls.length === 0) {
+            return res.status(404).json({ error: "No images found on Google or Unsplash." });
+        }
+
+        let displayOrder = 1;
+        const uploadedImages = [];
+
+        // 3. Upload to Cloudinary and Save to DB
+        // Fetch existing images to get the next max display_order
+        const { data: existingImages } = await supabase
+            .from('place_images')
+            .select('display_order')
+            .eq('place_id', placeId)
+            .eq('place_type', placeType)
+            .order('display_order', { ascending: false })
+            .limit(1);
+
+        if (existingImages && existingImages.length > 0) {
+            displayOrder = existingImages[0].display_order + 1;
+        }
+
+        for (const rawUrl of allImageUrls) {
+            const cloudinaryUrl = await imageService.uploadToCloudinary(rawUrl);
+
+            if (cloudinaryUrl) {
+                const { data, error: insertErr } = await supabase
+                    .from('place_images')
+                    .insert([{
+                        place_id: placeId,
+                        place_type: placeType === 'DISTRICT' ? 'CITY' : placeType,
+                        url: cloudinaryUrl,
+                        display_order: displayOrder,
+                        is_verified: true,
+                        caption: name
+                    }])
+                    .select();
+
+                if (!insertErr && data) {
+                    uploadedImages.push(data[0]);
+                    displayOrder++;
+                } else {
+                    console.error("Failed to insert URL to DB:", insertErr?.message);
+                }
+            }
+        }
+
+        res.json({ success: true, count: uploadedImages.length, images: uploadedImages });
+    } catch (error) {
+        console.error("Populate Images Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/images/:placeType/:placeId', async (req, res) => {
+    try {
+        let { placeType, placeId } = req.params;
+        placeType = placeType.toUpperCase() === 'DISTRICT' ? 'CITY' : placeType.toUpperCase();
+
+        const { data, error } = await supabase
+            .from('place_images')
+            .select('*')
+            .eq('place_id', placeId)
+            .eq('place_type', placeType)
+            .order('display_order', { ascending: true });
+
+        if (error) throw error;
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error("Fetch Images Error:", error);
         res.status(500).json({ error: error.message });
     }
 });

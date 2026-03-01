@@ -94,7 +94,7 @@ function SearchResultsContent() {
                             >
                                 <div className="h-48 overflow-hidden relative">
                                     <img
-                                        src={`https://source.unsplash.com/600x400/?${place.name}`}
+                                        src={place.img_url || `https://images.unsplash.com/featured/?${place.name},travel`}
                                         alt={place.name}
                                         className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                                     />
