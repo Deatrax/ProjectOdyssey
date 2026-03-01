@@ -121,6 +121,28 @@ export default function PostCard({ post, feedSource, onPostClick }: PostCardProp
         )}
 
         <p className="text-gray-700 leading-relaxed">{preview}</p>
+        
+        {/* Blog post images */}
+        {post.images && post.images.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {post.images.slice(0, 4).map((img, idx) => (
+              <div key={idx} className="relative aspect-video overflow-hidden rounded-lg">
+                <img
+                  src={img}
+                  alt={`Image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                {idx === 3 && post.images && post.images.length > 4 && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white font-semibold text-xl">
+                      +{post.images.length - 4}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Footer */}

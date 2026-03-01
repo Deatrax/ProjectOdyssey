@@ -20,7 +20,7 @@ const supabase = require("../config/supabaseClient");
  */
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { type, content, tripId, tripName } = req.body;
+    const { type, content, images, tripId, tripName } = req.body;
     const authorId = req.user.id; // From JWT token
 
     // Validation
@@ -37,6 +37,7 @@ router.post("/", authMiddleware, async (req, res) => {
       authorId,
       type,
       content,
+      images: images || [],
       tripId: tripId || null,
       tripName: tripName || null
     });
@@ -381,7 +382,7 @@ router.get("/:id", async (req, res) => {
  */
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { content, tripName, tripProgress, reviewData } = req.body;
+    const { content, images, tripName, tripProgress, reviewData } = req.body;
     const userId = req.user.id;
 
     // Find post
@@ -398,6 +399,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
     // Update fields
     if (content) post.content = content;
+    if (images !== undefined) post.images = images;
     if (tripName !== undefined) post.tripName = tripName;
 
     // Update tripProgress for trip update posts

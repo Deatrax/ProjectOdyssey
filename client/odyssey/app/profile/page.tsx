@@ -542,8 +542,8 @@ const ProfilePage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.url) {
-          setNewReview((prev) => ({ ...prev, images: [...prev.images, data.url] }));
+        if (data.success && data.imageUrl) {
+          setNewReview((prev) => ({ ...prev, images: [...prev.images, data.imageUrl] }));
         }
       } else {
         console.error("Upload failed");

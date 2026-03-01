@@ -23,6 +23,7 @@ export interface Post {
   };
   type: 'blog' | 'auto' | 'review';
   content: any; // BlockNote JSON structure
+  images?: string[];
   tripId?: string;
   tripName?: string;
   tripProgress?: {
@@ -50,6 +51,7 @@ export interface Post {
 export interface CreatePostData {
   type: 'blog' | 'auto' | 'review';
   content?: any;
+  images?: string[];
   tripId?: string;
   tripName?: string;
   tripProgress?: {

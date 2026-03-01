@@ -9,6 +9,9 @@ import SaveButton from '@/components/SaveButton';
 import ShareButton from '@/components/ShareButton';
 import CommentSection from '@/components/CommentSection';
 import PostContentViewer from '@/components/PostContentViewer';
+import EditTripUpdateModal from '@/components/EditTripUpdateModal';
+import EditReviewModal from '@/components/EditReviewModal';
+import EditBlogModal from '@/components/EditBlogModal';
 
 export default function SinglePostPage() {
   const params = useParams();
@@ -18,6 +21,9 @@ export default function SinglePostPage() {
   const [likesCount, setLikesCount] = useState(0);
   const [commentsCount, setCommentsCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editTripModalOpen, setEditTripModalOpen] = useState(false);
+  const [editReviewModalOpen, setEditReviewModalOpen] = useState(false);
+  const [editBlogModalOpen, setEditBlogModalOpen] = useState(false);
 
   useEffect(() => {
     if (post) {
@@ -62,9 +68,13 @@ export default function SinglePostPage() {
   };
 
   const handleEdit = () => {
-    // For now, redirect to create page with edit mode
-    // In a full implementation, you'd want a separate edit page
-    alert('Edit functionality coming soon! For now, you can delete and create a new post.');
+    if (post?.type === 'auto') {
+      setEditTripModalOpen(true);
+    } else if (post?.type === 'review') {
+      setEditReviewModalOpen(true);
+    } else if (post?.type === 'blog') {
+      setEditBlogModalOpen(true);
+    }
   };
 
   if (loading) {
@@ -121,6 +131,40 @@ export default function SinglePostPage() {
   };
 
   return (
+    <>
+      {editTripModalOpen && post && post.type === 'auto' && (
+        <EditTripUpdateModal
+          post={post}
+          isOpen={editTripModalOpen}
+          onClose={() => setEditTripModalOpen(false)}
+          onUpdated={() => {
+            setEditTripModalOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
+      {editReviewModalOpen && post && post.type === 'review' && post.reviewData && (
+        <EditReviewModal
+          post={post}
+          isOpen={editReviewModalOpen}
+          onClose={() => setEditReviewModalOpen(false)}
+          onUpdated={() => {
+            setEditReviewModalOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
+      {editBlogModalOpen && post && post.type === 'blog' && (
+        <EditBlogModal
+          post={post}
+          isOpen={editBlogModalOpen}
+          onClose={() => setEditBlogModalOpen(false)}
+          onUpdated={() => {
+            setEditBlogModalOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
     <div className="min-h-screen bg-[#FFF5E9] pt-8 pb-20">
       <div className="max-w-5xl mx-auto px-4">
         {/* Back Button */}
@@ -191,6 +235,24 @@ export default function SinglePostPage() {
           <div className="px-8 py-12 border-b border-gray-200 max-w-4xl">
             <PostContentViewer content={post.content} />
           </div>
+
+          {/* Blog Post Images */}
+          {post.images && post.images.length > 0 && (
+            <div className="px-8 py-8 border-b border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-4">📸 Images</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {post.images.map((img, idx) => (
+                  <div key={idx} className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
+                    <img
+                      src={img}
+                      alt={`Image ${idx + 1}`}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Trip Progress Details (for trip update posts) */}
           {post.type === 'auto' && post.tripProgress && (
@@ -382,5 +444,6 @@ export default function SinglePostPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }

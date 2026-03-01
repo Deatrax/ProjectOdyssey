@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, MapPin, Loader2, Plus, Trash2, Check } from 'lucide-react';
+import { X, ChevronDown, MapPin, Loader2, Plus, Trash2, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { updatePost } from '@/hooks/usePosts';
 import type { Post } from '@/hooks/usePosts';
 
@@ -18,6 +18,7 @@ interface PlannerLocation {
   placeId: string;
   isVisited: boolean;
   isCurrentLocation: boolean;
+  photos: string[];
 }
 
 interface EditTripUpdateModalProps {
@@ -44,6 +45,11 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
     })) || []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingLocationPhoto, setUploadingLocationPhoto] = useState<number | null>(null);
+  const [locationPhotoUrls, setLocationPhotoUrls] = useState<{[key: number]: string}>({});
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Planner integration states
   const [isPlannerTrip, setIsPlannerTrip] = useState(false);
@@ -94,9 +100,9 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
         const seen = new Set<string>();
         const locations: PlannerLocation[] = [];
 
-        // Get already visited location names (case-insensitive)
-        const visitedNames = new Set(
-          (post.tripProgress?.locations || []).map(l => l.name.toLowerCase())
+        // Get already visited location names (case-insensitive) and their photos
+        const visitedLocationsMap = new Map(
+          (post.tripProgress?.locations || []).map(l => [l.name.toLowerCase(), l.photos || []])
         );
 
         // Find current location from existing trip progress
@@ -109,13 +115,15 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
             const name = (p.name || p.title || '').trim();
             if (!name || seen.has(name.toLowerCase())) continue;
             seen.add(name.toLowerCase());
-            const isVisited = visitedNames.has(name.toLowerCase());
-            const isCurrentLoc = currentLocationNameLower ? name.toLowerCase() === currentLocationNameLower : false;
+            const nameLower = name.toLowerCase();
+            const isVisited = visitedLocationsMap.has(nameLower);
+            const isCurrentLoc = currentLocationNameLower ? nameLower === currentLocationNameLower : false;
             locations.push({
               name,
               placeId: p.id || p.placeId || '',
               isVisited,
               isCurrentLocation: isCurrentLoc,
+              photos: visitedLocationsMap.get(nameLower) || [],
             });
           }
         } else if (trip.selected_itinerary?.schedule) {
@@ -128,13 +136,15 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
               const name = item.name?.trim();
               if (!name || item.isBreak || seen.has(name.toLowerCase())) continue;
               seen.add(name.toLowerCase());
-              const isVisited = visitedNames.has(name.toLowerCase());
-              const isCurrentLoc = currentLocationNameLower ? name.toLowerCase() === currentLocationNameLower : false;
+              const nameLower = name.toLowerCase();
+              const isVisited = visitedLocationsMap.has(nameLower);
+              const isCurrentLoc = currentLocationNameLower ? nameLower === currentLocationNameLower : false;
               locations.push({
                 name,
                 placeId: item.placeId || item.id || '',
                 isVisited,
                 isCurrentLocation: isCurrentLoc,
+                photos: visitedLocationsMap.get(nameLower) || [],
               });
             }
           }
@@ -174,13 +184,154 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
     setTripLocations(tripLocations.filter((_, i) => i !== index));
   };
 
-  const addPhotoToLocation = (index: number) => {
-    const url = prompt('Enter photo URL:');
-    if (url?.trim()) {
-      const updated = [...tripLocations];
-      updated[index].photos.push(url.trim());
-      setTripLocations(updated);
+  const handleLocationFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, locationIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingLocationPhoto(locationIndex);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        const updated = [...tripLocations];
+        updated[locationIndex].photos.push(data.imageUrl);
+        setTripLocations(updated);
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingLocationPhoto(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddLocationPhotoUrl = (locationIndex: number) => {
+    const url = locationPhotoUrls[locationIndex]?.trim();
+    if (!url) return;
+    
+    try {
+      new URL(url);
+      const updated = [...tripLocations];
+      updated[locationIndex].photos.push(url);
+      setTripLocations(updated);
+      // Clear only this location's URL
+      setLocationPhotoUrls({...locationPhotoUrls, [locationIndex]: ''});
+    } catch {
+      alert('Please enter a valid URL');
+    }
+  };
+
+  const handleRemoveLocationPhoto = (locationIndex: number, photoIndex: number) => {
+    const updated = [...tripLocations];
+    updated[locationIndex].photos = updated[locationIndex].photos.filter((_, i) => i !== photoIndex);
+    setTripLocations(updated);
+  };
+
+  const openLightbox = (imageUrl: string, allImages: string[]) => {
+    const index = allImages.indexOf(imageUrl);
+    setLightboxImages(allImages);
+    setLightboxIndex(index);
+    setLightboxImage(imageUrl);
+  };
+
+  const navigateLightbox = (direction: 'prev' | 'next') => {
+    const newIndex = direction === 'next' ? lightboxIndex + 1 : lightboxIndex - 1;
+    if (newIndex >= 0 && newIndex < lightboxImages.length) {
+      setLightboxIndex(newIndex);
+      setLightboxImage(lightboxImages[newIndex]);
+    }
+  };
+
+  // Photo upload handlers for planner locations
+  const handlePlannerLocationFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, locationIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingLocationPhoto(locationIndex);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        const updated = [...plannerLocations];
+        updated[locationIndex].photos.push(data.imageUrl);
+        setPlannerLocations(updated);
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingLocationPhoto(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddPlannerPhotoUrl = (locationIndex: number) => {
+    const url = locationPhotoUrls[locationIndex]?.trim();
+    if (!url) return;
+    
+    try {
+      new URL(url);
+      const updated = [...plannerLocations];
+      updated[locationIndex].photos.push(url);
+      setPlannerLocations(updated);
+      // Clear only this location's URL
+      setLocationPhotoUrls({...locationPhotoUrls, [locationIndex]: ''});
+    } catch {
+      alert('Please enter a valid URL');
+    }
+  };
+
+  const handleRemovePlannerPhoto = (locationIndex: number, photoIndex: number) => {
+    const updated = [...plannerLocations];
+    updated[locationIndex].photos = updated[locationIndex].photos.filter((_, i) => i !== photoIndex);
+    setPlannerLocations(updated);
   };
 
   const togglePlannerLocation = (index: number) => {
@@ -234,7 +385,7 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
             name: loc.name,
             placeId: loc.placeId,
             visitedAt: new Date().toISOString().split('T')[0],
-            photos: [],
+            photos: loc.photos || [],
             isCurrentLocation: loc.isCurrentLocation,
           });
         }
@@ -285,6 +436,7 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-20 animate-fadeIn">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -398,43 +550,126 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
 
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {plannerLocations.map((location, index) => (
-                    <div
-                      key={index}
-                      className={`border rounded-xl p-4 transition-all ${
-                        location.isVisited
-                          ? 'bg-green-50 border-green-300'
-                          : 'bg-white border-gray-200 hover:border-[#4A9B7F]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={location.isVisited}
-                          onChange={() => togglePlannerLocation(index)}
-                          className="w-5 h-5 accent-[#4A9B7F] cursor-pointer"
-                          disabled={isSubmitting}
-                        />
-                        <div className="flex-1">
-                          <p className={`font-medium ${location.isVisited ? 'text-green-800' : 'text-gray-900'}`}>
-                            {location.name}
-                          </p>
+                    <div key={index} className="space-y-2">
+                      <div
+                        className={`border rounded-xl p-4 transition-all ${
+                          location.isVisited
+                            ? 'bg-green-50 border-green-300'
+                            : 'bg-white border-gray-200 hover:border-[#4A9B7F]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={location.isVisited}
+                            onChange={() => togglePlannerLocation(index)}
+                            className="w-5 h-5 accent-[#4A9B7F] cursor-pointer"
+                            disabled={isSubmitting}
+                          />
+                          <div className="flex-1">
+                            <p className={`font-medium ${location.isVisited ? 'text-green-800' : 'text-gray-900'}`}>
+                              {location.name}
+                            </p>
+                            {location.isVisited && (
+                              <label className="flex items-center gap-2 text-sm mt-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={location.isCurrentLocation}
+                                  onChange={() => togglePlannerLocationAsCurrent(index)}
+                                  className="w-4 h-4 accent-[#4A9B7F]"
+                                  disabled={isSubmitting}
+                                />
+                                <span className="text-[#4A9B7F] font-medium">Set as current location</span>
+                              </label>
+                            )}
+                          </div>
                           {location.isVisited && (
-                            <label className="flex items-center gap-2 text-sm mt-1 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={location.isCurrentLocation}
-                                onChange={() => togglePlannerLocationAsCurrent(index)}
-                                className="w-4 h-4 accent-[#4A9B7F]"
-                                disabled={isSubmitting}
-                              />
-                              <span className="text-[#4A9B7F] font-medium">Set as current location</span>
-                            </label>
+                            <Check className="w-5 h-5 text-green-600" />
                           )}
                         </div>
-                        {location.isVisited && (
-                          <Check className="w-5 h-5 text-green-600" />
-                        )}
                       </div>
+
+                      {/* Photo Upload Section - Only show for visited locations */}
+                      {location.isVisited && (
+                        <div className="ml-7 pl-3 border-l-2 border-green-200 space-y-2">
+                          <label className="block text-xs font-medium text-gray-600">
+                            📸 Add Photos (Optional)
+                          </label>
+                          
+                          {/* Photo URL Input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={locationPhotoUrls[index] || ''}
+                              onChange={(e) => setLocationPhotoUrls({...locationPhotoUrls, [index]: e.target.value})}
+                              placeholder="Paste photo URL"
+                              className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                              disabled={isSubmitting || uploadingLocationPhoto === index}
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddPlannerPhotoUrl(index)}
+                            />
+                            <button
+                              onClick={() => handleAddPlannerPhotoUrl(index)}
+                              disabled={!locationPhotoUrls[index]?.trim() || isSubmitting || uploadingLocationPhoto === index}
+                              className="px-3 py-1.5 bg-[#4A9B7F] text-white rounded text-sm hover:bg-[#3d8268] disabled:opacity-50"
+                            >
+                              Add
+                            </button>
+                          </div>
+
+                          {/* File Upload Button */}
+                          <label 
+                            className={`flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-gray-300 rounded hover:border-[#4A9B7F] hover:bg-teal-50 transition-all cursor-pointer ${
+                              (isSubmitting || uploadingLocationPhoto === index) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {uploadingLocationPhoto === index ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin text-[#4A9B7F]" />
+                                <span className="text-xs text-gray-600">Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-xs text-gray-600">Upload from device</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handlePlannerLocationFileUpload(e, index)}
+                              disabled={isSubmitting || uploadingLocationPhoto === index}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {/* Photo Preview Grid */}
+                          {location.photos.length > 0 && (
+                            <div className="flex gap-2 flex-wrap">
+                              {location.photos.map((photo, photoIndex) => {
+                                const allPhotos = plannerLocations.flatMap(loc => loc.photos);
+                                return (
+                                  <div key={photoIndex} className="relative w-16 h-16 group">
+                                    <img 
+                                      src={photo} 
+                                      alt="" 
+                                      className="w-full h-full object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                                      onClick={() => openLightbox(photo, allPhotos)}
+                                    />
+                                    <button
+                                      onClick={() => handleRemovePlannerPhoto(index, photoIndex)}
+                                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -544,33 +779,82 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
 
                       {/* Photos */}
                       <div className="mb-3">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Photos ({location.photos.length})
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          📸 Photos ({location.photos.length})
                         </label>
-                        <div className="flex gap-2 flex-wrap">
-                          {location.photos.map((photo, photoIndex) => (
-                            <div key={photoIndex} className="relative w-16 h-16">
-                              <img src={photo} alt="" className="w-full h-full object-cover rounded-lg" />
-                              <button
-                                onClick={() => {
-                                  const updated = [...tripLocations];
-                                  updated[index].photos.splice(photoIndex, 1);
-                                  setTripLocations([...updated]);
-                                }}
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                        
+                        {/* Photo URL Input */}
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={locationPhotoUrls[index] || ''}
+                            onChange={(e) => setLocationPhotoUrls({...locationPhotoUrls, [index]: e.target.value})}
+                            placeholder="Paste photo URL"
+                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                            disabled={isSubmitting || uploadingLocationPhoto === index}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddLocationPhotoUrl(index)}
+                          />
                           <button
-                            onClick={() => addPhotoToLocation(index)}
-                            className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-[#4A9B7F] text-gray-400 hover:text-[#4A9B7F] transition-colors text-2xl"
-                            disabled={isSubmitting}
+                            onClick={() => handleAddLocationPhotoUrl(index)}
+                            disabled={!locationPhotoUrls[index]?.trim() || isSubmitting || uploadingLocationPhoto === index}
+                            className="px-3 py-1.5 bg-[#4A9B7F] text-white rounded text-sm hover:bg-[#3d8268] disabled:opacity-50"
                           >
-                            +
+                            Add
                           </button>
                         </div>
+
+                        {/* File Upload Button */}
+                        <label 
+                          className={`flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-gray-300 rounded hover:border-[#4A9B7F] hover:bg-teal-50 transition-all cursor-pointer mb-2 ${
+                            (isSubmitting || uploadingLocationPhoto === index) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {uploadingLocationPhoto === index ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin text-[#4A9B7F]" />
+                              <span className="text-xs text-gray-600">Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs text-gray-600">Upload from device</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleLocationFileUpload(e, index)}
+                            disabled={isSubmitting || uploadingLocationPhoto === index}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {/* Photo Preview Grid */}
+                        {location.photos.length > 0 && (
+                          <div className="flex gap-2 flex-wrap">
+                            {location.photos.map((photo, photoIndex) => {
+                              const allPhotos = tripLocations.flatMap(loc => loc.photos);
+                              return (
+                                <div key={photoIndex} className="relative w-16 h-16 group">
+                                  <img 
+                                    src={photo} 
+                                    alt="" 
+                                    className="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                                    onClick={() => openLightbox(photo, allPhotos)}
+                                  />
+                                  <button
+                                    onClick={() => handleRemoveLocationPhoto(index, photoIndex)}
+                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <button
@@ -625,5 +909,64 @@ export default function EditTripUpdateModal({ post, isOpen, onClose, onUpdated }
         </div>
       </div>
     </div>
+
+    {/* Image Lightbox */}
+    {lightboxImage && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        />
+        
+        {/* Close Button */}
+        <button
+          onClick={() => setLightboxImage(null)}
+          className="absolute top-4 right-4 z-[10000] p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+        >
+          <X className="w-6 h-6 text-white" />
+        </button>
+
+        {/* Navigation Buttons */}
+        {lightboxImages.length > 1 && (
+          <>
+            {lightboxIndex > 0 && (
+              <button
+                onClick={() => navigateLightbox('prev')}
+                className="absolute left-4 z-[10000] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-8 h-8 text-white" />
+              </button>
+            )}
+            {lightboxIndex < lightboxImages.length - 1 && (
+              <button
+                onClick={() => navigateLightbox('next')}
+                className="absolute right-4 z-[10000] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <ChevronRight className="w-8 h-8 text-white" />
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Image Counter */}
+        {lightboxImages.length > 1 && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[10000] px-4 py-2 bg-black/50 rounded-full text-white text-sm font-medium">
+            {lightboxIndex + 1} / {lightboxImages.length}
+          </div>
+        )}
+
+        {/* Image */}
+        <div className="relative z-[9999] max-w-[95vw] max-h-[95vh] flex items-center justify-center">
+          <img
+            src={lightboxImage!}
+            alt="Full size"
+            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
+    </>
   );
 }

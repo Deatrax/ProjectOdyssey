@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, MapPin, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { X, Calendar, MapPin, Edit2, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePost, deletePost } from '@/hooks/usePosts';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
@@ -10,6 +10,7 @@ import CommentSection from './CommentSection';
 import PostContentViewer from './PostContentViewer';
 import EditTripUpdateModal from './EditTripUpdateModal';
 import EditReviewModal from './EditReviewModal';
+import EditBlogModal from './EditBlogModal';
 
 interface PostDetailModalProps {
   postId: string;
@@ -25,6 +26,10 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editTripModalOpen, setEditTripModalOpen] = useState(false);
   const [editReviewModalOpen, setEditReviewModalOpen] = useState(false);
+  const [editBlogModalOpen, setEditBlogModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     if (post) {
@@ -41,22 +46,34 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
     }
   }, []);
 
-  // Close on Escape key
+  // Handle lightbox keyboard navigation
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (lightboxImage) {
+        if (e.key === 'Escape') {
+          setLightboxImage(null);
+        } else if (e.key === 'ArrowRight' && lightboxIndex < lightboxImages.length - 1) {
+          setLightboxIndex(lightboxIndex + 1);
+          setLightboxImage(lightboxImages[lightboxIndex + 1]);
+        } else if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
+          setLightboxIndex(lightboxIndex - 1);
+          setLightboxImage(lightboxImages[lightboxIndex - 1]);
+        }
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
     };
     
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
     
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, lightboxImage, lightboxImages, lightboxIndex]);
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -96,8 +113,23 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
       setEditTripModalOpen(true);
     } else if (post?.type === 'review') {
       setEditReviewModalOpen(true);
-    } else {
-      alert('Edit functionality coming soon for blog posts!');
+    } else if (post?.type === 'blog') {
+      setEditBlogModalOpen(true);
+    }
+  };
+
+  const openLightbox = (imageUrl: string, allImages: string[]) => {
+    const index = allImages.indexOf(imageUrl);
+    setLightboxImages(allImages);
+    setLightboxIndex(index);
+    setLightboxImage(imageUrl);
+  };
+
+  const navigateLightbox = (direction: 'prev' | 'next') => {
+    const newIndex = direction === 'next' ? lightboxIndex + 1 : lightboxIndex - 1;
+    if (newIndex >= 0 && newIndex < lightboxImages.length) {
+      setLightboxIndex(newIndex);
+      setLightboxImage(lightboxImages[newIndex]);
     }
   };
 
@@ -123,6 +155,17 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
         onClose={() => setEditReviewModalOpen(false)}
         onUpdated={() => {
           setEditReviewModalOpen(false);
+          window.location.reload();
+        }}
+      />
+    )}
+    {editBlogModalOpen && post && post.type === 'blog' && (
+      <EditBlogModal
+        post={post}
+        isOpen={editBlogModalOpen}
+        onClose={() => setEditBlogModalOpen(false)}
+        onUpdated={() => {
+          setEditBlogModalOpen(false);
           window.location.reload();
         }}
       />
@@ -221,6 +264,30 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
                 <PostContentViewer content={post.content} />
               </div>
 
+              {/* Blog Images (for blog posts) */}
+              {post.type === 'blog' && post.images && post.images.length > 0 && (
+                <div className="px-6 py-6 border-b border-gray-100">
+                  <h4 className="font-semibold text-gray-900 mb-3">Images</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {post.images.filter(Boolean).map((src: string, index: number) => (
+                      <div 
+                        key={index} 
+                        className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 cursor-pointer group"
+                        onClick={() => openLightbox(src, post.images.filter(Boolean))}
+                      >
+                        <img
+                          src={src}
+                          alt={`Blog image ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Trip Progress Details (for trip update posts) */}
               {post.type === 'auto' && post.tripProgress && (
                 <div className="px-6 py-6 border-b border-gray-100 space-y-5">
@@ -279,15 +346,23 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
                         {post.tripProgress.locations
                           .flatMap((loc: any) => loc.photos || [])
                           .filter(Boolean)
-                          .map((photo: string, index: number) => (
-                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden">
-                              <img
-                                src={photo}
-                                alt={`Trip photo ${index + 1}`}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                              />
-                            </div>
-                          ))}
+                          .map((photo: string, index: number) => {
+                            const allPhotos = post.tripProgress.locations.flatMap((loc: any) => loc.photos || []).filter(Boolean);
+                            return (
+                              <div 
+                                key={index} 
+                                className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group"
+                                onClick={() => openLightbox(photo, allPhotos)}
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Trip photo ${index + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
                   )}
@@ -349,13 +424,18 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
                       <h5 className="font-semibold text-gray-700 mb-3">Photos</h5>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {post.reviewData.images.filter(Boolean).map((src: string, index: number) => (
-                          <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-amber-50">
+                          <div 
+                            key={index} 
+                            className="relative aspect-square rounded-xl overflow-hidden bg-amber-50 cursor-pointer group"
+                            onClick={() => openLightbox(src, post.reviewData!.images.filter(Boolean))}
+                          >
                             <img
                               src={src}
                               alt={`Review photo ${index + 1}`}
-                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                             />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
                           </div>
                         ))}
                       </div>
@@ -395,6 +475,64 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
         </div>
       </div>
     </div>
+
+    {/* Image Lightbox */}
+    {lightboxImage && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        />
+        
+        {/* Close Button */}
+        <button
+          onClick={() => setLightboxImage(null)}
+          className="absolute top-4 right-4 z-[10000] p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+        >
+          <X className="w-6 h-6 text-white" />
+        </button>
+
+        {/* Navigation Buttons */}
+        {lightboxImages.length > 1 && (
+          <>
+            {lightboxIndex > 0 && (
+              <button
+                onClick={() => navigateLightbox('prev')}
+                className="absolute left-4 z-[10000] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-8 h-8 text-white" />
+              </button>
+            )}
+            {lightboxIndex < lightboxImages.length - 1 && (
+              <button
+                onClick={() => navigateLightbox('next')}
+                className="absolute right-4 z-[10000] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <ChevronRight className="w-8 h-8 text-white" />
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Image Counter */}
+        {lightboxImages.length > 1 && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[10000] px-4 py-2 bg-black/50 rounded-full text-white text-sm font-medium">
+            {lightboxIndex + 1} / {lightboxImages.length}
+          </div>
+        )}
+
+        {/* Image */}
+        <div className="relative z-[9999] max-w-[95vw] max-h-[95vh] flex items-center justify-center">
+          <img
+            src={lightboxImage}
+            alt="Full size"
+            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
 
     </>
   );

@@ -16,6 +16,7 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed, // BlockNote JSON structure
     required: true
   },
+  images: [String],  // Array of image URLs for blog posts
   tripId: {
     type: String, // UUID from Supabase itineraries table
     default: null

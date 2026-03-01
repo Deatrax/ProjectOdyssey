@@ -21,6 +21,11 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
   const [showInstructions, setShowInstructions] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  // Image upload states
+  const [images, setImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState('');
+  
   // Trip update specific states
   const [tripLocations, setTripLocations] = useState<Array<{
     name: string;
@@ -31,6 +36,8 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
   }>>([]);
   const [currentLocationName, setCurrentLocationName] = useState('');
   const [completionPercentage, setCompletionPercentage] = useState(0);
+  const [uploadingLocationPhoto, setUploadingLocationPhoto] = useState<number | null>(null);
+  const [locationPhotoUrl, setLocationPhotoUrl] = useState<string>('');
 
   // Planner trip integration states
   const [plannerTrips, setPlannerTrips] = useState<any[]>([]);
@@ -41,8 +48,11 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
     placeId: string;
     isVisited: boolean;
     isCurrentLocation: boolean;
-  }>>([]); 
+    photos: string[];
+  }>>([]);
   const [plannerLocationsLoading, setPlannerLocationsLoading] = useState(false);
+  const [uploadingPlannerPhoto, setUploadingPlannerPhoto] = useState<number | null>(null);
+  const [plannerPhotoUrl, setPlannerPhotoUrl] = useState<string>('');
 
   // Function to check if there are unsaved changes
   const checkUnsavedChanges = () => {
@@ -119,15 +129,20 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
       setPostType('select');
       setContent(null);
       setTripName('');
+      setImages([]);
+      setCurrentImageUrl('');
       setTripLocations([]);
       setCurrentLocationName('');
       setCompletionPercentage(0);
+      setLocationPhotoUrl('');
       setShowInstructions(true);
       setHasUnsavedChanges(false);
       setPlannerTrips([]);
       setSelectedPlannerTripId('');
       setPlannerLocations([]);
       setPlannerLocationsLoading(false);
+      setPlannerPhotoUrl('');
+      setUploadingPlannerPhoto(null);
     }
   }, [isOpen]);
 
@@ -196,6 +211,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
             placeId: p.id || p.placeId || '',
             isVisited: false,
             isCurrentLocation: false,
+            photos: [],
           });
         }
       }
@@ -218,6 +234,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
                 placeId: item.placeId || item.id || '',
                 isVisited: false,
                 isCurrentLocation: false,
+                photos: [],
               });
             }
           }
@@ -260,7 +277,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
               name: l.name,
               placeId: l.placeId,
               visitedAt: new Date().toISOString().split('T')[0],
-              photos: [],
+              photos: l.photos || [],
               isCurrentLocation: l.isCurrentLocation,
             })),
             currentLocationName: currentLoc?.name || '',
@@ -287,6 +304,202 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
 
   const handleContentChange = (newContent: any) => {
     setContent(newContent);
+  };
+
+  // Image upload handlers for blog posts
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        setImages([...images, data.imageUrl]);
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  const handleAddImageUrl = () => {
+    if (!currentImageUrl.trim()) return;
+    
+    // Basic URL validation
+    try {
+      new URL(currentImageUrl);
+      setImages([...images, currentImageUrl]);
+      setCurrentImageUrl('');
+    } catch {
+      alert('Please enter a valid URL');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
+  // Image upload handlers for trip location photos
+  const handleLocationFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, locationIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingLocationPhoto(locationIndex);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        const updatedLocations = [...tripLocations];
+        updatedLocations[locationIndex].photos.push(data.imageUrl);
+        setTripLocations(updatedLocations);
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingLocationPhoto(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddLocationPhotoUrl = (locationIndex: number) => {
+    if (!locationPhotoUrl.trim()) return;
+    
+    try {
+      new URL(locationPhotoUrl);
+      const updatedLocations = [...tripLocations];
+      updatedLocations[locationIndex].photos.push(locationPhotoUrl);
+      setTripLocations(updatedLocations);
+      setLocationPhotoUrl('');
+    } catch {
+      alert('Please enter a valid URL');
+    }
+  };
+
+  const handleRemoveLocationPhoto = (locationIndex: number, photoIndex: number) => {
+    const updatedLocations = [...tripLocations];
+    updatedLocations[locationIndex].photos = updatedLocations[locationIndex].photos.filter((_, i) => i !== photoIndex);
+    setTripLocations(updatedLocations);
+  };
+
+  // Image upload handlers for planner locations
+  const handlePlannerLocationFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, locationIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingPlannerPhoto(locationIndex);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        const updatedLocations = [...plannerLocations];
+        updatedLocations[locationIndex].photos.push(data.imageUrl);
+        setPlannerLocations(updatedLocations);
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingPlannerPhoto(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddPlannerPhotoUrl = (locationIndex: number) => {
+    if (!plannerPhotoUrl.trim()) return;
+    
+    try {
+      new URL(plannerPhotoUrl);
+      const updatedLocations = [...plannerLocations];
+      updatedLocations[locationIndex].photos.push(plannerPhotoUrl);
+      setPlannerLocations(updatedLocations);
+      setPlannerPhotoUrl('');
+    } catch {
+      alert('Please enter a valid URL');
+    }
+  };
+
+  const handleRemovePlannerPhoto = (locationIndex: number, photoIndex: number) => {
+    const updatedLocations = [...plannerLocations];
+    updatedLocations[locationIndex].photos = updatedLocations[locationIndex].photos.filter((_, i) => i !== photoIndex);
+    setPlannerLocations(updatedLocations);
   };
 
   const handleSubmit = async () => {
@@ -322,6 +535,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
       const result = await createPost({
         type: 'blog',
         content,
+        images,
         tripName: tripName.trim() || undefined,
       });
 
@@ -632,6 +846,82 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
                 </div>
               </div>
 
+              {/* Image Upload Section */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  📸 Add Images <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                
+                {/* URL Input */}
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={currentImageUrl}
+                    onChange={(e) => setCurrentImageUrl(e.target.value)}
+                    placeholder="Paste image URL"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                    disabled={isSubmitting || uploadingImage}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddImageUrl()}
+                  />
+                  <button
+                    onClick={handleAddImageUrl}
+                    disabled={!currentImageUrl.trim() || isSubmitting || uploadingImage}
+                    className="px-4 py-2 bg-[#4A9B7F] text-white rounded-lg hover:bg-[#3d8268] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  >
+                    Add URL
+                  </button>
+                </div>
+
+                {/* File Upload Button */}
+                <label 
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-2 border-dashed border-gray-300 rounded-lg hover:border-[#4A9B7F] hover:bg-teal-50 transition-all cursor-pointer ${
+                    (isSubmitting || uploadingImage) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {uploadingImage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#4A9B7F]" />
+                      <span className="text-sm text-gray-600">Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm text-gray-600">Upload from device</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={isSubmitting || uploadingImage}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Image Preview Grid */}
+                {images.length > 0 && (
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {images.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <img
+                          src={img}
+                          alt={`Upload ${idx + 1}`}
+                          className="w-full h-16 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Editor */}
               <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden min-h-[400px]">
                 <PostEditor
@@ -845,33 +1135,78 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
                     </div>
 
                     <div className="mb-3">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Photos ({location.photos.length})
+                      <label className="block text-xs font-medium text-gray-600 mb-2">
+                        📸 Photos ({location.photos.length})
                       </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {location.photos.map((photo, photoIndex) => (
-                          <div key={photoIndex} className="relative w-16 h-16">
-                            <img src={photo} alt="" className="w-full h-full object-cover rounded" />
-                            <button
-                              onClick={() => {
-                                const updated = [...tripLocations];
-                                updated[index].photos.splice(photoIndex, 1);
-                                setTripLocations(updated);
-                              }}
-                              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                      
+                      {/* Photo URL Input */}
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={locationPhotoUrl}
+                          onChange={(e) => setLocationPhotoUrl(e.target.value)}
+                          placeholder="Paste photo URL"
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                          disabled={isSubmitting || uploadingLocationPhoto === index}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddLocationPhotoUrl(index)}
+                        />
                         <button
-                          onClick={() => addPhotoToLocation(index)}
-                          className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center hover:border-[#4A9B7F] transition-colors"
-                          disabled={isSubmitting}
+                          onClick={() => handleAddLocationPhotoUrl(index)}
+                          disabled={!locationPhotoUrl.trim() || isSubmitting || uploadingLocationPhoto === index}
+                          className="px-3 py-1.5 bg-[#4A9B7F] text-white rounded text-sm hover:bg-[#3d8268] disabled:opacity-50"
                         >
-                          +
+                          Add
                         </button>
                       </div>
+
+                      {/* File Upload Button */}
+                      <label 
+                        className={`flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-gray-300 rounded hover:border-[#4A9B7F] hover:bg-teal-50 transition-all cursor-pointer mb-2 ${
+                          (isSubmitting || uploadingLocationPhoto === index) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {uploadingLocationPhoto === index ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-[#4A9B7F]" />
+                            <span className="text-xs text-gray-600">Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-xs text-gray-600">Upload from device</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLocationFileUpload(e, index)}
+                          disabled={isSubmitting || uploadingLocationPhoto === index}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Photo Preview Grid */}
+                      {location.photos.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {location.photos.map((photo, photoIndex) => (
+                            <div key={photoIndex} className="relative w-16 h-16 group">
+                              <img 
+                                src={photo} 
+                                alt="" 
+                                className="w-full h-full object-cover rounded border border-gray-200" 
+                              />
+                              <button
+                                onClick={() => handleRemoveLocationPhoto(index, photoIndex)}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -1075,56 +1410,135 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpen
                   </label>
                   <div className="space-y-2">
                     {plannerLocations.map((loc, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                          loc.isCurrentLocation
-                            ? 'border-[#4A9B7F] bg-teal-50'
-                            : loc.isVisited
-                            ? 'border-teal-200 bg-teal-50/40'
-                            : 'border-gray-200 bg-white'
-                        }`}
-                      >
-                        {/* Visited checkbox */}
-                        <input
-                          type="checkbox"
-                          id={`loc-${index}`}
-                          checked={loc.isVisited}
-                          onChange={(e) => {
-                            const updated = [...plannerLocations];
-                            updated[index] = { ...updated[index], isVisited: e.target.checked };
-                            // If unchecked and was current, clear current
-                            if (!e.target.checked && updated[index].isCurrentLocation) {
-                              updated[index].isCurrentLocation = false;
-                            }
-                            setPlannerLocations(updated);
-                          }}
-                          className="w-4 h-4 accent-[#4A9B7F] cursor-pointer"
-                          disabled={isSubmitting}
-                        />
-                        <MapPin className={`w-4 h-4 flex-shrink-0 ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-teal-500' : 'text-gray-300'}`} />
-                        <label htmlFor={`loc-${index}`} className={`flex-1 text-sm font-medium cursor-pointer ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {loc.name}
-                        </label>
-                        {/* Mark as current */}
-                        {loc.isVisited && (
-                          <button
-                            onClick={() => {
-                              const updated = plannerLocations.map((l, i) => ({
-                                ...l,
-                                isCurrentLocation: i === index,
-                              }));
+                      <div key={index} className="space-y-2">
+                        <div
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                            loc.isCurrentLocation
+                              ? 'border-[#4A9B7F] bg-teal-50'
+                              : loc.isVisited
+                              ? 'border-teal-200 bg-teal-50/40'
+                              : 'border-gray-200 bg-white'
+                          }`}
+                        >
+                          {/* Visited checkbox */}
+                          <input
+                            type="checkbox"
+                            id={`loc-${index}`}
+                            checked={loc.isVisited}
+                            onChange={(e) => {
+                              const updated = [...plannerLocations];
+                              updated[index] = { ...updated[index], isVisited: e.target.checked };
+                              // If unchecked and was current, clear current
+                              if (!e.target.checked && updated[index].isCurrentLocation) {
+                                updated[index].isCurrentLocation = false;
+                              }
                               setPlannerLocations(updated);
                             }}
-                            className={`text-xs px-2 py-1 rounded-full font-semibold transition-colors ${
-                              loc.isCurrentLocation
-                                ? 'bg-[#4A9B7F] text-white'
-                                : 'bg-gray-100 text-gray-500 hover:bg-teal-100 hover:text-[#4A9B7F]'
-                            }`}
+                            className="w-4 h-4 accent-[#4A9B7F] cursor-pointer"
                             disabled={isSubmitting}
-                          >
-                            {loc.isCurrentLocation ? 'Current' : 'Set Current'}
-                          </button>
+                          />
+                          <MapPin className={`w-4 h-4 flex-shrink-0 ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-teal-500' : 'text-gray-300'}`} />
+                          <label htmlFor={`loc-${index}`} className={`flex-1 text-sm font-medium cursor-pointer ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {loc.name}
+                          </label>
+                          {/* Mark as current */}
+                          {loc.isVisited && (
+                            <button
+                              onClick={() => {
+                                const updated = plannerLocations.map((l, i) => ({
+                                  ...l,
+                                  isCurrentLocation: i === index,
+                                }));
+                                setPlannerLocations(updated);
+                              }}
+                              className={`text-xs px-2 py-1 rounded-full font-semibold transition-colors ${
+                                loc.isCurrentLocation
+                                  ? 'bg-[#4A9B7F] text-white'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-teal-100 hover:text-[#4A9B7F]'
+                              }`}
+                              disabled={isSubmitting}
+                            >
+                              {loc.isCurrentLocation ? 'Current' : 'Set Current'}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Photo Upload Section - Only show for visited locations */}
+                        {loc.isVisited && (
+                          <div className="ml-7 pl-3 border-l-2 border-teal-200 space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">
+                              📸 Add Photos (Optional)
+                            </label>
+                            
+                            {/* Photo URL Input */}
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={plannerPhotoUrl}
+                                onChange={(e) => setPlannerPhotoUrl(e.target.value)}
+                                placeholder="Paste photo URL"
+                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#4A9B7F]"
+                                disabled={isSubmitting || uploadingPlannerPhoto === index}
+                                onKeyPress={(e) => e.key === 'Enter' && handleAddPlannerPhotoUrl(index)}
+                              />
+                              <button
+                                onClick={() => handleAddPlannerPhotoUrl(index)}
+                                disabled={!plannerPhotoUrl.trim() || isSubmitting || uploadingPlannerPhoto === index}
+                                className="px-3 py-1.5 bg-[#4A9B7F] text-white rounded text-sm hover:bg-[#3d8268] disabled:opacity-50"
+                              >
+                                Add
+                              </button>
+                            </div>
+
+                            {/* File Upload Button */}
+                            <label 
+                              className={`flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-gray-300 rounded hover:border-[#4A9B7F] hover:bg-teal-50 transition-all cursor-pointer ${
+                                (isSubmitting || uploadingPlannerPhoto === index) ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              {uploadingPlannerPhoto === index ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#4A9B7F]" />
+                                  <span className="text-xs text-gray-600">Uploading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="text-xs text-gray-600">Upload from device</span>
+                                </>
+                              )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handlePlannerLocationFileUpload(e, index)}
+                                disabled={isSubmitting || uploadingPlannerPhoto === index}
+                                className="hidden"
+                              />
+                            </label>
+
+                            {/* Photo Preview Grid */}
+                            {loc.photos.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {loc.photos.map((photo, photoIndex) => (
+                                  <div key={photoIndex} className="relative w-16 h-16 group">
+                                    <img 
+                                      src={photo} 
+                                      alt="" 
+                                      className="w-full h-full object-cover rounded border border-gray-200" 
+                                    />
+                                    <button
+                                      onClick={() => handleRemovePlannerPhoto(index, photoIndex)}
+                                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
