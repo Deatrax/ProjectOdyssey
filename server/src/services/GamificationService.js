@@ -91,6 +91,142 @@ class GamificationService {
             throw err;
         }
     }
+
+    /**
+     * Calculate travel efficiency for a user
+     * efficiency = (completed_visits / planned_visits) * 100
+     * @param {string} userId
+     * @returns {number} 0-100
+     */
+    static async calculateEfficiency(userId) {
+        try {
+            // Count completed visits (cheap — no row fetch)
+            const { count: completedVisits, error: visitError } = await supabase
+                .from('visit_logs')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('status', 'completed');
+
+            if (visitError) throw visitError;
+
+            // Fetch all confirmed itineraries to count planned activities
+            const { data: itineraries, error: itinError } = await supabase
+                .from('itineraries')
+                .select('selected_itinerary')
+                .eq('user_id', userId)
+                .eq('status', 'confirmed');
+
+            if (itinError) throw itinError;
+
+            let plannedVisits = 0;
+            itineraries.forEach(itin => {
+                const schedule = itin.selected_itinerary?.schedule;
+                if (Array.isArray(schedule)) {
+                    schedule.forEach(day => {
+                        plannedVisits += (day.activities || []).length;
+                    });
+                }
+            });
+
+            if (plannedVisits === 0) return 0;
+
+            const efficiency = Math.min(100, Math.round((completedVisits / plannedVisits) * 100));
+            return efficiency;
+        } catch (err) {
+            console.error('calculateEfficiency error:', err);
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate and persist current streak and personal best for a user.
+     * A streak = consecutive calendar days (UTC) with at least one completed visit.
+     * @param {string} userId
+     * @returns {{ currentStreak: number, personalBest: number }}
+     */
+    static async calculateAndSyncStreak(userId) {
+        try {
+            // 1. Fetch all completed visit dates for this user
+            const { data: visits, error } = await supabase
+                .from('visit_logs')
+                .select('exited_at')
+                .eq('user_id', userId)
+                .eq('status', 'completed')
+                .not('exited_at', 'is', null)
+                .order('exited_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (!visits || visits.length === 0) {
+                await User.findByIdAndUpdate(userId, {
+                    currentStreak: 0,
+                    personalBest: 0,
+                    lastActivityDate: '',
+                });
+                return { currentStreak: 0, personalBest: 0 };
+            }
+
+            // 2. Collect unique UTC calendar dates the user was active
+            const uniqueDates = [
+                ...new Set(
+                    visits.map(v => new Date(v.exited_at).toISOString().split('T')[0])
+                )
+            ].sort();
+
+            // 3. Calculate longest historical streak
+            let longestStreak = 1;
+            let runningStreak = 1;
+            for (let i = 1; i < uniqueDates.length; i++) {
+                const prev = new Date(uniqueDates[i - 1]);
+                const curr = new Date(uniqueDates[i]);
+                const diffDays = (curr - prev) / (1000 * 60 * 60 * 24);
+                if (diffDays === 1) {
+                    runningStreak++;
+                    longestStreak = Math.max(longestStreak, runningStreak);
+                } else {
+                    runningStreak = 1;
+                }
+            }
+
+            // 4. Calculate current active streak (from today backwards)
+            const todayStr = new Date().toISOString().split('T')[0];
+            const yesterdayDate = new Date();
+            yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+            const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+            const lastDate = uniqueDates[uniqueDates.length - 1];
+            let currentStreak = 0;
+
+            // Only count streak if user was active today OR yesterday
+            if (lastDate === todayStr || lastDate === yesterdayStr) {
+                currentStreak = 1;
+                for (let i = uniqueDates.length - 2; i >= 0; i--) {
+                    const curr = new Date(uniqueDates[i + 1]);
+                    const prev = new Date(uniqueDates[i]);
+                    const diffDays = (curr - prev) / (1000 * 60 * 60 * 24);
+                    if (diffDays === 1) {
+                        currentStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            const personalBest = Math.max(longestStreak, currentStreak);
+
+            // 5. Persist to MongoDB
+            await User.findByIdAndUpdate(userId, {
+                currentStreak,
+                personalBest,
+                lastActivityDate: lastDate,
+            });
+
+            return { currentStreak, personalBest };
+        } catch (err) {
+            console.error('calculateAndSyncStreak error:', err);
+            return { currentStreak: 0, personalBest: 0 };
+        }
+    }
 }
 
 module.exports = GamificationService;
