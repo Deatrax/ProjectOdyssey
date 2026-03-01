@@ -295,6 +295,116 @@ router.post("/chat", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// POST /api/ai/generatePlaces  — Admin bulk import (NO RAG)
+// Generates brand-new place data from Gemini without touching the DB.
+// ═══════════════════════════════════════════════════════════════
+router.post("/generatePlaces", async (req, res) => {
+  try {
+    const { prompt, country, city, count = 5 } = req.body;
+
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "prompt is required (string)" });
+    }
+
+    const locationContext = city && country
+      ? `in ${city}, ${country}`
+      : country
+        ? `in ${country}`
+        : "";
+
+    const systemInstruction = `You are a travel data expert helping populate a tourism database.
+The admin will describe what kinds of places they want to add ${locationContext}.
+Your job is to generate detailed, accurate, factual place data for real-world locations.
+Do NOT reference any existing database — generate fresh, high-quality place records.
+
+IMPORTANT: You MUST respond with ONLY valid JSON in this exact shape:
+{
+  "places": [
+    {
+      "name": "Full official place name",
+      "short_desc": "2-3 sentence factual description",
+      "primary_category": "e.g. Museum, Park, Restaurant, Temple, Market, Beach",
+      "secondary_category": "e.g. Art Museum, National Park, Street Food Market",
+      "macro_category": "Urban | Nature | History",
+      "address": "Full street address if known, else neighbourhood/district",
+      "latitude": 12.3456,
+      "longitude": 78.9012,
+      "google_place_id": "ChIJ... (The actual Google Place ID if known, else leave empty string)",
+      "tags": ["tag1", "tag2", "tag3"],
+      "visit_duration_min": 90,
+      "est_cost_per_day": 15
+    }
+  ]
+}
+
+Generate exactly ${count} places. Use real GPS coordinates and real Google Place IDs where possible. If unsure of exact coordinates, provide an approximate value. All fields are required.`;
+
+    const userInstruction = `Admin request: "${prompt}"${locationContext ? ` (Location: ${city || ""}${city && country ? ", " : ""}${country || ""})` : ""}
+Generate ${count} real, factual places matching this description. Each place must have all required fields filled in.`;
+
+    // Internal helper to get valid JSON with 1 retry
+    async function getValidPlacesJson(payload) {
+      // 1st attempt
+      try {
+        const first = await callGemini({
+          system: systemInstruction,
+          user: payload,
+        });
+        if (first && Array.isArray(first.places) && first.places.length > 0) {
+          return first;
+        }
+      } catch (err) {
+        console.warn("Invalid places JSON from AI (attempt 1):", err.message);
+      }
+
+      // 2nd attempt (retry with strict instruction)
+      const retryInstruction = payload + '\n\nIMPORTANT: Your previous response failed to parse as valid JSON. Ensure EVERY object is correctly closed with curly braces } and separated by commas. Return ONLY valid JSON.';
+      try {
+        const second = await callGemini({
+          system: systemInstruction,
+          user: retryInstruction,
+        });
+        if (second && Array.isArray(second.places) && second.places.length > 0) {
+          return second;
+        }
+      } catch (err) {
+        console.error("Invalid places JSON from AI (attempt 2):", err.message);
+      }
+      return null;
+    }
+
+    const raw = await getValidPlacesJson(userInstruction);
+
+    if (!raw) {
+      return res.status(502).json({ error: "AI did not return valid places data. Please try again." });
+    }
+
+    // Normalise the places array
+    const places = raw.places.map((p) => ({
+      name: p.name || "Unknown Place",
+      short_desc: p.short_desc || p.description || "",
+      primary_category: p.primary_category || p.category || "Place",
+      secondary_category: p.secondary_category || "",
+      macro_category: ["Urban", "Nature", "History"].includes(p.macro_category) ? p.macro_category : "Urban",
+      address: p.address || "",
+      latitude: typeof p.latitude === "number" ? p.latitude.toString() : (p.latitude || ""),
+      longitude: typeof p.longitude === "number" ? p.longitude.toString() : (p.longitude || ""),
+      google_place_id: p.google_place_id || p.place_id || "",
+      tags: Array.isArray(p.tags) ? p.tags : (typeof p.tags === "string" ? p.tags.split(",").map(t => t.trim()) : []),
+      visit_duration_min: parseInt(p.visit_duration_min) || 60,
+      est_cost_per_day: parseFloat(p.est_cost_per_day) || null,
+    }));
+
+    return res.json({ success: true, data: { places } });
+
+  } catch (err) {
+    console.error("AI /generatePlaces error:", err);
+    return res.status(500).json({ error: err.message || "AI generation error" });
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
 // Helper: validated search JSON with retry
 // ═══════════════════════════════════════════════════════════════
 async function getValidSearchJson(payload) {
