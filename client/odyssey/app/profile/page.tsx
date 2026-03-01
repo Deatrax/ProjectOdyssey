@@ -926,6 +926,7 @@ const ProfilePage: React.FC = () => {
                 <TravelStatsCard
                   xp={userData.xp || 0}
                   level={userData.level || 1}
+                  badges={userData.badges || []}
                 />
 
                 {/* Recent Activity */}
