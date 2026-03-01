@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Camera, Star, Smile, Heart, MapPin, Upload } from 'lucide-react';
 import PhotoCollage from './PhotoCollage';
 
@@ -38,6 +38,32 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
   const [photos, setPhotos] = useState<string[]>(trip.memory?.memory_photos || []);
   const [newPhoto, setNewPhoto] = useState('');
   const [activeTab, setActiveTab] = useState<'diary' | 'photos'>('diary');
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDeviceUpload = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = 3 - photos.length;
+    if (remaining <= 0) return;
+    Array.from(files).slice(0, remaining).forEach(file => {
+      if (!file.type.startsWith('image/')) {
+        setUploadError('Please select image files only.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('Each image must be under 5 MB.');
+        return;
+      }
+      setUploadError('');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setPhotos(prev => prev.length < 3 ? [...prev, dataUrl] : prev);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
 
   if (!isOpen) return null;
 
@@ -128,7 +154,7 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
     <div className="fixed inset-0 bg-black/50 z-[1100] flex items-center justify-center animate-fade-in">
       <div className="bg-white rounded-3xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-amber-50 to-orange-50 px-8 py-6 border-b border-gray-200 flex justify-between items-start">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-amber-50 to-orange-50 px-8 py-6 border-b border-gray-200 flex justify-between items-start">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{trip.name}</h2>
             <p className="text-gray-600 text-sm">
@@ -153,8 +179,8 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
             <button
               onClick={() => setActiveTab('diary')}
               className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'diary'
-                  ? 'text-amber-600 border-b-2 border-amber-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                ? 'text-amber-600 border-b-2 border-amber-600'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
               📔 Trip Diary
@@ -162,8 +188,8 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
             <button
               onClick={() => setActiveTab('photos')}
               className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'photos'
-                  ? 'text-amber-600 border-b-2 border-amber-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                ? 'text-amber-600 border-b-2 border-amber-600'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
               📸 Memories {photos.length > 0 && <span className="ml-2 bg-amber-500 text-white text-xs rounded-full px-2 py-0.5">{photos.length}/3</span>}
@@ -205,8 +231,8 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
                       key={moodOption}
                       onClick={() => setMood(moodOption)}
                       className={`p-3 rounded-xl transition-all font-medium ${mood === moodOption
-                          ? 'bg-purple-500 text-white shadow-lg scale-105'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-purple-500 text-white shadow-lg scale-105'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {moodOption}
@@ -260,32 +286,65 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
                 </div>
               )}
 
-              {/* Add Photo */}
+              {/* Add Photo – device upload + URL */}
               {photos.length < 3 && (
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6">
-                  <div className="flex flex-col gap-4">
+                <div>
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleDeviceUpload(e.target.files)}
+                  />
+
+                  {/* Drop / click zone */}
+                  <div
+                    className="border-2 border-dashed border-amber-300 rounded-2xl p-6 bg-amber-50/40 cursor-pointer hover:bg-amber-50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); handleDeviceUpload(e.dataTransfer.files); }}
+                  >
+                    <div className="flex flex-col items-center gap-2 mb-4">
+                      <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Upload className="w-6 h-6 text-amber-500" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-700">Upload from device</p>
+                      <p className="text-xs text-gray-400">Click or drag &amp; drop · JPG, PNG, WEBP · max 5 MB each</p>
+                      <p className="text-xs text-amber-600 font-medium">{3 - photos.length} slot{3 - photos.length !== 1 ? 's' : ''} remaining</p>
+                    </div>
+                  </div>
+
+                  {uploadError && (
+                    <p className="text-xs text-red-500 mt-2">{uploadError}</p>
+                  )}
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-xs text-gray-400 font-medium">or paste a URL</span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
+
+                  {/* URL input */}
+                  <div className="flex gap-2">
                     <input
                       type="url"
                       value={newPhoto}
                       onChange={(e) => setNewPhoto(e.target.value)}
-                      placeholder="Paste image URL here..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="https://..."
+                      className="flex-1 p-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                     <button
                       onClick={handleAddPhoto}
                       disabled={!newPhoto || photos.length >= 3}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-lg font-semibold transition-all ${newPhoto && photos.length < 3
-                          ? 'bg-amber-500 text-white hover:bg-amber-600'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
+                      className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-1 ${newPhoto && photos.length < 3 ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                     >
-                      <Camera className="w-5 h-5" />
-                      Add Memory Photo ({photos.length}/3)
+                      <Camera className="w-4 h-4" />
+                      Add
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-3">
-                    💡 Tip: Copy image URLs from Google Photos, Unsplash, or other sources
-                  </p>
                 </div>
               )}
 
@@ -301,7 +360,7 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 px-8 py-6 border-t border-gray-200 flex gap-4 justify-end">
+        <div className="sticky bottom-0 z-10 bg-gray-50 px-8 py-6 border-t border-gray-200 flex gap-4 justify-end">
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-lg bg-gray-200 text-gray-900 font-semibold hover:bg-gray-300 transition"

@@ -234,25 +234,49 @@ const CardContent: React.FC<{
   return (
     <>
       {/* Image – shown when hovered */}
-      {hovered && (
-        <div style={{ position: 'relative', height: 90, overflow: 'hidden' }}>
-          {trip.image ? (
-            <img src={trip.image} alt={trip.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <div
-              style={{
-                width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: accent
-                  ? 'linear-gradient(135deg,rgba(251,191,36,0.35),rgba(249,115,22,0.35))'
-                  : 'linear-gradient(135deg,rgba(59,130,246,0.35),rgba(168,85,247,0.35))',
+      {hovered && (() => {
+        // Resolve best available photo: trip hero → first place image → unsplash by place name → gradient
+        const placePhoto =
+          trip.image ||
+          (Array.isArray(trip.selectedPlaces) && trip.selectedPlaces.length > 0
+            ? (trip.selectedPlaces[0]?.images?.[0] ||
+              trip.selectedPlaces[0]?.image ||
+              trip.selectedPlaces[0]?.photoUrl ||
+              trip.selectedPlaces[0]?.photo_url)
+            : null) ||
+          null;
+
+        const firstPlaceName =
+          (Array.isArray(trip.visitedPlaces) && trip.visitedPlaces[0]?.name) ||
+          (Array.isArray(trip.selectedPlaces) && (trip.selectedPlaces[0]?.name || trip.selectedPlaces[0]?.title)) ||
+          trip.name;
+
+        const imgSrc = placePhoto || `https://source.unsplash.com/400x200/?${encodeURIComponent(firstPlaceName)},travel`;
+
+        return (
+          <div style={{ position: 'relative', height: 90, overflow: 'hidden' }}>
+            <img
+              src={imgSrc}
+              alt={firstPlaceName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
               }}
-            >
-              <MapPin style={{ width: 28, height: 28, color: 'rgba(255,255,255,0.4)' }} />
+            />
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              padding: '4px 8px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.65), transparent)',
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              📍 {firstPlaceName}
             </div>
-          )}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.55))' }} />
-        </div>
-      )}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.4))' }} />
+          </div>
+        );
+      })()}
 
       <div style={{ padding: '10px 12px 12px' }}>
         {/* Status badge */}
