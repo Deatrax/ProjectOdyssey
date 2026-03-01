@@ -21,6 +21,7 @@ const reviewRoutes = require("./routes/reviewRoutes"); // Review Routes
 const uploadRoutes = require("./routes/uploadRoutes"); // Upload Routes
 const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
 const recommendationRoutes = require("./routes/recommendationRoutes");
+const gamificationRoutes = require("./routes/gamificationRoutes");
 const { startScheduler } = require("./services/recommendationScheduler");
 
 const app = express();
@@ -91,6 +92,7 @@ app.use('/api/groups', groupRoutes); //DEATRAX: From Incoming
 app.use('/api/reviews', reviewRoutes); //DEATRAX: From Current
 app.use('/api/upload', uploadRoutes); //DEATRAX: From Current
 app.use('/api/recommendations', recommendationRoutes); //DEATRAX: From Current
+app.use('/api/gamification', gamificationRoutes); // Gamification Stats
 
 // 5. Start Scheduler
 startScheduler();
