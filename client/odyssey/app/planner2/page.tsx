@@ -55,6 +55,7 @@ type Trip = {
   tripName: string;
   startDate?: string;
   status: "draft" | "confirmed" | "completed";
+  trip_status?: "planning" | "active" | "completed" | "cancelled";
   days: number;
   travelers: number;
   schedule: Record<number, ItineraryItem[]>;
@@ -73,6 +74,10 @@ export default function PlannerPage() {
   // 2. Data
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
+  // True when the active trip is a shared group trip — locks switching & creation
+  const [isGroupTrip, setIsGroupTrip] = useState(false);
+  // The ID of the group trip (persists even when user browses another trip)
+  const [groupTripId, setGroupTripId] = useState<string | null>(null);
 
   // Derived active trip
   const activeTrip = trips.find(t => t.id === activeTripId) || null;
@@ -247,6 +252,76 @@ export default function PlannerPage() {
     if (!token) return;
 
     try {
+      // ── Priority 1: active group trip ────────────────────────────────────
+      const groupRes = await fetch("http://localhost:4000/api/groups/mine/active", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (groupRes.ok) {
+        const groupData = await groupRes.json();
+        if (groupData.success && groupData.group && groupData.itinerary) {
+          const itin = groupData.itinerary;
+          const selectedItin = itin.selected_itinerary;
+          const days = selectedItin?.days || 3;
+          const groupTrip: Trip = {
+            id: itin.id,
+            tripName: `[Group] ${groupData.group.title}`,
+            startDate: selectedItin?.startDate || "2024-06-01",
+            days,
+            travelers: selectedItin?.travelers || 1,
+            status: "confirmed",
+            schedule: normalizeSchedule(selectedItin?.schedule, days),
+          };
+          setSavedItineraryId(itin.id);
+          setSavedItinerary({
+            id: itin.id,
+            tripName: groupTrip.tripName,
+            title: selectedItin?.title,
+            description: selectedItin?.description,
+            paceDescription: selectedItin?.paceDescription,
+            estimatedCost: selectedItin?.estimatedCost,
+            schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : [],
+          });
+          setIsGroupTrip(true);
+          setGroupTripId(groupTrip.id);
+          setActiveTripId(groupTrip.id);
+
+          // Also load personal trips so they appear in the sidebar (just not active)
+          try {
+            const personalRes = await fetch("http://localhost:4000/api/trips", {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (personalRes.ok) {
+              const personalData = await personalRes.json();
+              const personalTrips = (personalData.success && personalData.data)
+                ? personalData.data.map((t: any) => {
+                    const d = t.selected_itinerary?.days || 3;
+                    return {
+                      id: t.id,
+                      tripName: t.trip_name,
+                      startDate: t.selected_itinerary?.startDate || "2024-06-01",
+                      days: d,
+                      travelers: t.selected_itinerary?.travelers || 1,
+                      status: t.status || "draft",
+                      trip_status: t.trip_status || "planning",
+                      schedule: normalizeSchedule(t.selected_itinerary?.schedule, d),
+                    };
+                  })
+                : [];
+              // Group trip pinned first, personal trips follow
+              setTrips([groupTrip, ...personalTrips]);
+            } else {
+              setTrips([groupTrip]);
+            }
+          } catch {
+            setTrips([groupTrip]);
+          }
+          return;
+        }
+      }
+
+      // ── Priority 2: personal itineraries ─────────────────────────────────
+      setIsGroupTrip(false);
+      setGroupTripId(null);
       const res = await fetch("http://localhost:4000/api/trips", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -262,14 +337,18 @@ export default function PlannerPage() {
               days,
               travelers: t.selected_itinerary?.travelers || 1,
               status: t.status || "draft",
+              trip_status: t.trip_status || "planning",
               schedule: normalizeSchedule(t.selected_itinerary?.schedule, days)
             };
           });
           setTrips(loadedTrips);
 
           if (loadedTrips.length > 0) {
-            const firstActive = loadedTrips.find((t: any) => t.status !== "completed");
-            if (firstActive) setActiveTripId(firstActive.id);
+            // Prefer whichever trip was last marked active; fall back to first non-completed
+            const wasActive = loadedTrips.find((t: any) => t.trip_status === "active");
+            const firstPlanning = loadedTrips.find((t: any) => t.status !== "completed");
+            const toActivate = wasActive || firstPlanning;
+            if (toActivate) setActiveTripId(toActivate.id);
             else setShowSetup(true);
           } else {
             setShowSetup(true);
@@ -387,6 +466,30 @@ export default function PlannerPage() {
 
   // --- ACTIONS ---
 
+  // Switch the active trip — updates trip_status in DB (skip for group trips)
+  const handleSelectTrip = async (id: string) => {
+    const token = localStorage.getItem("token");
+    if (token && !isGroupTrip) {
+      // Demote old active trip back to planning
+      if (activeTripId && activeTripId !== id) {
+        fetch(`http://localhost:4000/api/trips/${activeTripId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ trip_status: "planning" })
+        }).catch(() => {});
+        setTrips(prev => prev.map(t => t.id === activeTripId ? { ...t, trip_status: "planning" as const } : t));
+      }
+      // Promote new trip to active
+      fetch(`http://localhost:4000/api/trips/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ trip_status: "active" })
+      }).catch(() => {});
+      setTrips(prev => prev.map(t => t.id === id ? { ...t, trip_status: "active" as const } : t));
+    }
+    setActiveTripId(id);
+  };
+
   const handleCreateTrip = async (data: { title: string; days: number; travelers: number; startDate: string }) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -401,6 +504,8 @@ export default function PlannerPage() {
       tripName: data.title,
       selectedPlaces: [],
       status: "draft",
+      // When group trip is active, new personal trips stay as planning (not activated)
+      trip_status: isGroupTrip ? "planning" : "active",
       selectedItinerary: {
         title: data.title,
         days: data.days,
@@ -411,6 +516,15 @@ export default function PlannerPage() {
     };
 
     try {
+      // Demote current active trip to planning before creating a new active one
+      if (!isGroupTrip && activeTripId) {
+        fetch(`http://localhost:4000/api/trips/${activeTripId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ trip_status: "planning" })
+        }).catch(() => {});
+        setTrips(prev => prev.map(t => t.id === activeTripId ? { ...t, trip_status: "planning" as const } : t));
+      }
       const res = await fetch("http://localhost:4000/api/trips/save", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -425,10 +539,11 @@ export default function PlannerPage() {
           travelers: data.travelers,
           startDate: data.startDate,
           status: "draft" as const,
+          trip_status: (isGroupTrip ? "planning" : "active") as "planning" | "active",
           schedule: schedule
         };
         setTrips([createdTrip, ...trips]);
-        setActiveTripId(createdTrip.id);
+        if (!isGroupTrip) setActiveTripId(createdTrip.id); // keep group trip active if locked
         setShowSetup(false);
       }
     } catch (e) {
@@ -999,14 +1114,16 @@ export default function PlannerPage() {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
+      // Soft delete — mark cancelled so it disappears from the sidebar but data is preserved
       await fetch(`http://localhost:4000/api/trips/${tripId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ trip_status: "cancelled" })
       });
       setTrips(prev => {
         const remaining = prev.filter(t => t.id !== tripId);
         if (activeTripId === tripId) {
-          const next = remaining.find(t => t.status !== "completed");
+          const next = remaining.find(t => t.trip_status !== "cancelled" && t.status !== "completed");
           if (next) setActiveTripId(next.id);
           else { setActiveTripId(null); setShowSetup(true); }
         }
@@ -1043,9 +1160,11 @@ export default function PlannerPage() {
             <ItinerarySidebar
               itineraries={trips}
               activeItineraryId={activeTripId}
-              onSelectItinerary={setActiveTripId}
+              onSelectItinerary={handleSelectTrip}
               onNewTrip={() => setShowSetup(true)}
               onDeleteTrip={handleDeleteTrip}
+              isGroupTrip={isGroupTrip}
+              groupTripId={groupTripId}
             />
           ) : (
             <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">

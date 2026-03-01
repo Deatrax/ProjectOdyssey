@@ -3,6 +3,7 @@ import { Inter, Roboto_Mono } from "next/font/google";
 
 import "./globals.css";
 import NavBar from "@/components/NavBar";
+import GlobalGroupChat from "@/components/GlobalGroupChat";
 
 // Load fonts with CSS variables for easy usage
 const inter = Inter({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           defer
         ></script>
         <NavBar />
+        <GlobalGroupChat />
         {children}
       </body>
     </html>

@@ -20,6 +20,7 @@ const savedPostRoutes = require("./routes/savedPostRoutes"); // Social Feed - Sa
 const reviewRoutes = require("./routes/reviewRoutes"); // Review Routes
 const uploadRoutes = require("./routes/uploadRoutes"); // Upload Routes
 const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
+const groupChatRoutes = require('./routes/groupChatRoutes'); // Group Chat
 const recommendationRoutes = require("./routes/recommendationRoutes");
 const { startScheduler } = require("./services/recommendationScheduler");
 
@@ -88,6 +89,7 @@ app.use('/api/comments', commentRoutes); // Social Feed - Comments
 app.use('/api/likes', likeRoutes); // Social Feed - Likes
 app.use('/api/saved-posts', savedPostRoutes); // Social Feed - Saved Posts
 app.use('/api/groups', groupRoutes); //DEATRAX: From Incoming
+app.use('/api/groups/:groupId/messages', groupChatRoutes); // Group Chat
 app.use('/api/reviews', reviewRoutes); //DEATRAX: From Current
 app.use('/api/upload', uploadRoutes); //DEATRAX: From Current
 app.use('/api/recommendations', recommendationRoutes); //DEATRAX: From Current

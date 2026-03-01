@@ -65,8 +65,8 @@ router.post("/collection/add", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Place data is required" });
     }
 
-    // 1. Find existing "My Collection" itinerary
-    const allItineraries = await ItineraryModel.getUserItineraries(userId);
+    // 1. Find existing "My Collection" itinerary — use unfiltered fetch so the collection row is visible
+    const allItineraries = await ItineraryModel.getUserItinerariesUnfiltered(userId);
     let collectionTrip = allItineraries.find(t => t.status === 'collection');
 
     if (collectionTrip) {
@@ -166,7 +166,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { tripName, selectedPlaces, selectedItinerary, status } = req.body;
+    const { tripName, selectedPlaces, selectedItinerary, status, trip_status } = req.body;
 
     // Verify ownership first
     const existing = await ItineraryModel.getItineraryById(id);
@@ -179,6 +179,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
       selectedPlaces,
       selectedItinerary,
       status,
+      trip_status,
     });
 
     return res.json({
