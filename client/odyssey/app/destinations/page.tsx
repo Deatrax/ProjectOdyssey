@@ -8,10 +8,11 @@ import PlaceDetailsModal from "../../components/PlaceDetailsModal";
 interface DestinationCardProps {
   id: string;
   name: string;
-  type: string; // 'COUNTRY' | 'CITY' | 'POI'
+  type: string; // 'COUNTRY' | 'DISTRICT' | 'POI'
   img_url?: string;
   short_desc?: string;
   country?: string;
+  district?: string; // region for POIs
   source?: string;
 }
 
@@ -165,30 +166,69 @@ const DestinationsPage: React.FC = () => {
             </div>
 
             {/* Dropdown Results */}
-            {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-3xl shadow-2xl overflow-hidden animate-slideUp max-h-96 overflow-y-auto">
-                {searchResults.map((place) => (
+            {showSearchResults && searchResults.length > 0 && (() => {
+              const countries = searchResults.filter(p => p.type === 'COUNTRY');
+              const districts = searchResults.filter(p => p.type === 'DISTRICT');
+              const pois      = searchResults.filter(p => p.type === 'POI');
+
+              const typeMeta: Record<string, { emoji: string; label: string; bg: string; text: string }> = {
+                COUNTRY:  { emoji: '🌍', label: 'Country',  bg: 'bg-blue-100',   text: 'text-blue-700' },
+                DISTRICT: { emoji: '🏙️', label: 'District', bg: 'bg-purple-100', text: 'text-purple-700' },
+                POI:      { emoji: '📍', label: 'Place',    bg: 'bg-green-100',  text: 'text-green-700' },
+              };
+
+              const ResultItem = ({ place }: { place: DestinationCardProps }) => {
+                const meta = typeMeta[place.type] || typeMeta.POI;
+                return (
                   <div
                     key={place.id}
                     onClick={() => handlePlaceClick(place)}
-                    className="flex items-center gap-4 p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
                   >
-                    <div className="w-16 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
-                      {/* Use place name hash for consistent placeholder if no image */}
-                      <img
-                        src={`https://source.unsplash.com/100x100/?${place.name}`}
-                        alt={place.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <span className="text-xl w-7 text-center flex-shrink-0">{meta.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm truncate">{place.name}</h4>
+                      <p className="text-xs text-gray-400 truncate">
+                        {place.type === 'POI' && place.district ? `${place.district} · ` : ''}
+                        {place.country}
+                      </p>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-gray-900">{place.name}</h4>
-                      <p className="text-xs text-gray-500 uppercase">{place.type || 'Dest'} • {place.country}</p>
-                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.bg} ${meta.text}`}>
+                      {meta.label}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              };
+
+              const GroupHeader = ({ label }: { label: string }) => (
+                <div className="px-5 py-1.5 bg-gray-50 border-b border-gray-100">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+                </div>
+              );
+
+              return (
+                <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-3xl shadow-2xl overflow-hidden animate-slideUp max-h-[28rem] overflow-y-auto divide-y divide-gray-100">
+                  {countries.length > 0 && (
+                    <>
+                      <GroupHeader label="Countries" />
+                      {countries.map(p => <ResultItem key={p.id} place={p} />)}
+                    </>
+                  )}
+                  {districts.length > 0 && (
+                    <>
+                      <GroupHeader label="Districts" />
+                      {districts.map(p => <ResultItem key={p.id} place={p} />)}
+                    </>
+                  )}
+                  {pois.length > 0 && (
+                    <>
+                      <GroupHeader label="Places" />
+                      {pois.map(p => <ResultItem key={p.id} place={p} />)}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             {/* No Results State */}
             {showSearchResults && searchResults.length === 0 && searchQuery.length > 2 && !isSearching && (
               <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-3xl shadow-2xl p-6 text-center text-gray-500">
