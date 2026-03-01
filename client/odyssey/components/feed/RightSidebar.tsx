@@ -34,6 +34,8 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
     thisMonth: 0
   });
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
+  const [trendingPostsLoading, setTrendingPostsLoading] = useState(false);
 
   // Fetch trending destinations from API
   useEffect(() => {
@@ -45,6 +47,20 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
         }
       })
       .catch(err => console.error('Failed to fetch trending destinations', err));
+  }, []);
+
+  // Fetch trending posts from API
+  useEffect(() => {
+    setTrendingPostsLoading(true);
+    fetch('http://localhost:4000/api/posts/trending?limit=3&days=7')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setTrendingPosts(data.data);
+        }
+      })
+      .catch(err => console.error('Failed to fetch trending posts', err))
+      .finally(() => setTrendingPostsLoading(false));
   }, []);
 
   // Fetch user's complete activity stats
@@ -126,28 +142,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       }).length
     };
   }, [userPosts, userActivityStats, statsLoaded]);
-
-  // Get most liked posts this week
-  const popularPosts = useMemo(() => {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    return allPosts
-      .filter(post => new Date(post.createdAt) >= oneWeekAgo)
-      .sort((a, b) => {
-        // First, sort by likes (descending)
-        const likeDiff = (b.likesCount || 0) - (a.likesCount || 0);
-        if (likeDiff !== 0) return likeDiff;
-        
-        // If likes are equal, sort by comments (descending)
-        const commentDiff = (b.commentsCount || 0) - (a.commentsCount || 0);
-        if (commentDiff !== 0) return commentDiff;
-        
-        // If both are equal, sort by date (newer first)
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      .slice(0, 3);
-  }, [allPosts]);
 
   return (
     <div className="sticky top-24 space-y-6">
@@ -246,14 +240,14 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
       )}
 
       {/* Most Liked This Week */}
-      {popularPosts.length > 0 && (
+      {!trendingPostsLoading && trendingPosts.length > 0 && (
         <div className="bg-white rounded-2xl shadow-md p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-orange-500" />
             <h3 className="text-lg font-bold text-gray-900">Trending Posts This Week</h3>
           </div>
           <div className="space-y-3">
-            {popularPosts.map((post) => {
+            {trendingPosts.map((post) => {
               // Extract title from post
               const getTitle = () => {
                 if (!post.content || !post.content.content) return 'Untitled';
@@ -284,7 +278,7 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
                       {post.commentsCount || 0}
                     </span>
                     <span className="text-gray-400">•</span>
-                    <span>@{post.authorId.username}</span>
+                    <span>@{post.authorId?.username || 'User'}</span>
                   </div>
                 </div>
               );

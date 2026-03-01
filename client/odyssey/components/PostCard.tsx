@@ -94,10 +94,10 @@ export default function PostCard({ post, feedSource, onPostClick }: PostCardProp
       <div className="p-6 pb-4">
         <div className="flex items-start gap-3 mb-4">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4A9B7F] to-purple-500 flex items-center justify-center text-white font-semibold text-lg">
-            {post.authorId.username?.charAt(0).toUpperCase() || 'U'}
+            {post.authorId?.username?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{post.authorId.username}</h3>
+            <h3 className="font-semibold text-gray-900">{post.authorId?.username || 'Unknown User'}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
               <span>{formatDate(post.createdAt)}</span>

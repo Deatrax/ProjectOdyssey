@@ -326,7 +326,8 @@ router.get("/:userId", optionalAuth, async (req, res) => {
       Post.find({ authorId: userId })
         .sort({ createdAt: -1 })
         .limit(6)
-        .select("_id type content images reviewData createdAt likesCount commentsCount")
+        .select("_id type content images reviewData tripProgress tripName tripId createdAt likesCount commentsCount authorId")
+        .populate("authorId", "username email profilePicture displayName")
         .lean(),
       // Only check isFollowing if caller is logged in and viewing someone else's profile
       callerId && !isOwnProfile

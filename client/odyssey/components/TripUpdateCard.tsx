@@ -64,8 +64,8 @@ export default function TripUpdateCard({ post, feedSource, onPostClick }: TripUp
           {post.authorId?.profilePicture ? (
             <div className="w-12 h-12 rounded-full bg-gray-100 shadow-sm flex items-center justify-center">
               <img
-                src={post.authorId.profilePicture}
-                alt={post.authorId.username || 'User'}
+                src={post.authorId?.profilePicture}
+                alt={post.authorId?.username || 'User'}
                 className="w-full h-full rounded-full object-cover"
               />
             </div>

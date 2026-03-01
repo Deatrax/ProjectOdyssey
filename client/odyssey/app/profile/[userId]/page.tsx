@@ -6,6 +6,7 @@ import { Settings, Lock, Loader2 } from 'lucide-react';
 import FollowButton from '@/components/FollowButton';
 import PostCard from '@/components/PostCard';
 import ReviewPostCard from '@/components/ReviewPostCard';
+import TripUpdateCard from '@/components/TripUpdateCard';
 import type { PublicProfile } from '@/lib/types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -208,6 +209,9 @@ export default function ProfilePage() {
           {profile.recentPosts && profile.recentPosts.length > 0 ? (
             <div className="space-y-4">
               {profile.recentPosts.map(post => {
+                if (post.type === 'auto') {
+                  return <TripUpdateCard key={post._id} post={post} />;
+                }
                 if (post.type === 'review' && post.reviewData) {
                   return <ReviewPostCard key={post._id} post={post} />;
                 }

@@ -131,6 +131,57 @@ router.get("/user/:userId", async (req, res) => {
 });
 
 /**
+ * GET /api/posts/trending
+ * Get trending posts from the last week sorted by engagement score
+ * 
+ * Query params:
+ * - limit: number of posts to return (default: 3, max: 20)
+ * - days: number of days to look back (default: 7)
+ */
+router.get("/trending", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 3, 20);
+    const days = parseInt(req.query.days) || 7;
+    
+    // Calculate cutoff date
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    // Fetch posts from the last N days
+    const posts = await Post.find({
+      createdAt: { $gte: cutoffDate }
+    })
+      .populate("authorId", "username email profilePicture displayName")
+      .lean();
+
+    // Calculate engagement score and sort: likes * 3 + comments * 2
+    const rankedPosts = posts
+      .map(post => ({
+        ...post,
+        _engagementScore: (post.likesCount * 3) + (post.commentsCount * 2)
+      }))
+      .sort((a, b) => {
+        // Sort by engagement score (descending)
+        const scoreDiff = b._engagementScore - a._engagementScore;
+        if (scoreDiff !== 0) return scoreDiff;
+        // If scores are equal, sort by date (newer first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(0, limit);
+
+    return res.json({
+      success: true,
+      data: rankedPosts,
+      period: `Last ${days} days`
+    });
+
+  } catch (err) {
+    console.error("GET /api/posts/trending error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch trending posts" });
+  }
+});
+
+/**
  * GET /api/posts/feed
  * Smart personalised feed — mix of friends' posts + trending posts.
  *
@@ -202,15 +253,29 @@ router.get("/feed", authMiddleware, async (req, res) => {
     //    Posts from people the user does NOT follow (and not themselves),
     //    sorted by engagement (likes * 3 + comments * 2), then newest first.
     //    Exclude any IDs already in friendPosts to prevent duplicates.
-    const trendingPosts = await Post.find({
+    let trendingPosts = await Post.find({
       authorId: { $nin: [...followingIds, userId] },
       _id:      { $nin: friendPostIds }      // no duplication
     })
-      .sort({ likesCount: -1, commentsCount: -1, createdAt: -1 })
-      .skip(trendingSkip)
-      .limit(trendingTarget + 4)             // small buffer
+      .sort({ createdAt: -1 })               // Get recent posts first
+      .limit((trendingTarget + 4) * 3)       // Fetch more to sort by engagement
       .populate("authorId", "username email profileImage displayName")
       .lean();
+
+    // Calculate engagement score and sort: likes * 3 + comments * 2
+    trendingPosts = trendingPosts
+      .map(post => ({
+        ...post,
+        _engagementScore: (post.likesCount * 3) + (post.commentsCount * 2)
+      }))
+      .sort((a, b) => {
+        // Sort by engagement score (descending)
+        const scoreDiff = b._engagementScore - a._engagementScore;
+        if (scoreDiff !== 0) return scoreDiff;
+        // If scores are equal, sort by date (newer first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(trendingSkip, trendingSkip + trendingTarget + 4);
 
     const trendingTaken = Math.min(trendingPosts.length, trendingTarget);
 
