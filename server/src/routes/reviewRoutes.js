@@ -3,6 +3,7 @@
 const router = require("express").Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const ReviewModel = require("../models/Review");
+const Post = require("../models/Post");
 
 /**
  * GET /api/reviews
@@ -33,14 +34,16 @@ router.get("/", authMiddleware, async (req, res) => {
  *   location: "Bali, Indonesia",
  *   rating: 5,
  *   comment: "Amazing place!",
- *   title: "Must Visit" (optional)
+ *   title: "Must Visit"        (optional),
+ *   images: ["url1", "url2"]   (optional),
+ *   shareToFeed: true          (optional — auto-posts to social feed)
  * }
  */
 router.post("/", authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
         const username = req.user.username;
-        const { placeName, location, rating, comment, title, images } = req.body;
+        const { placeName, location, rating, comment, title, images, shareToFeed } = req.body;
 
         if (!placeName) {
             return res.status(400).json({ error: "placeName is required" });
@@ -58,10 +61,66 @@ router.post("/", authMiddleware, async (req, res) => {
             images,
         });
 
+        // ---------- Auto-share to feed (opt-in) ----------
+        let feedPost = null;
+        if (shareToFeed) {
+            try {
+                const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
+                const contentBlocks = [
+                    {
+                        type: "heading",
+                        attrs: { level: 2 },
+                        content: [{ type: "text", text: `Review: ${placeName}  ${stars}` }]
+                    }
+                ];
+                if (title) {
+                    contentBlocks.push({
+                        type: "paragraph",
+                        content: [{ type: "text", text: `"${title}"`, marks: [{ type: "italic" }] }]
+                    });
+                }
+                if (comment) {
+                    contentBlocks.push({
+                        type: "paragraph",
+                        content: [{ type: "text", text: comment }]
+                    });
+                }
+                contentBlocks.push({
+                    type: "paragraph",
+                    content: [{ type: "text", text: `📍 ${placeName}  •  Rated ${rating}/5` }]
+                });
+
+                feedPost = await Post.create({
+                    authorId: userId,
+                    type: "review",
+                    content: { type: "doc", content: contentBlocks },
+                    reviewData: {
+                        reviewId: review.id || null,
+                        placeName,
+                        placeType: review.place_type || "POI",
+                        rating: Number(rating),
+                        title: title || null,
+                        comment: comment || null,
+                        images: Array.isArray(images) ? images : [],
+                        visitDate: null
+                    }
+                });
+
+                await feedPost.populate("authorId", "username email");
+                console.log("✅ Review auto-shared to feed:", feedPost._id);
+            } catch (postErr) {
+                // Don't fail the review creation if feed post fails
+                console.error("⚠️ Failed to auto-share review to feed:", postErr);
+            }
+        }
+
         return res.status(201).json({
             success: true,
-            message: "Review created successfully",
+            message: shareToFeed
+                ? "Review created and shared to feed successfully"
+                : "Review created successfully",
             data: review,
+            feedPost: feedPost || undefined
         });
     } catch (err) {
         console.error("POST /api/reviews error:", err);

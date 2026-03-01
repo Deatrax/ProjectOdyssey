@@ -3,6 +3,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const Post = require("../models/Post");
 const Comment = require("../models/Comment");
 const Like = require("../models/Like");
+const supabase = require("../config/supabaseClient");
 
 /**
  * POST /api/posts
@@ -320,6 +321,136 @@ router.post("/trip-update", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("POST /api/posts/trip-update error:", err);
     return res.status(500).json({ error: err.message || "Failed to create trip update" });
+  }
+});
+
+/**
+ * POST /api/posts/review-share
+ * Create a feed post from a place review.
+ *
+ * Two ways to call:
+ *
+ * Option A — share an existing Supabase review by ID:
+ *   { "reviewId": "<uuid>" }
+ *
+ * Option B — supply review fields directly (creates a Supabase review first, then posts):
+ *   {
+ *     "placeName": "Eiffel Tower",
+ *     "rating": 5,
+ *     "title": "Breathtaking!",    // optional
+ *     "comment": "The view is amazing",
+ *     "images": ["https://..."],  // optional
+ *     "placeType": "POI"           // optional, default "POI"
+ *   }
+ */
+router.post("/review-share", authMiddleware, async (req, res) => {
+  try {
+    const authorId = req.user.id;
+    const { reviewId, placeName, rating, title, comment, images, placeType } = req.body;
+
+    let reviewData = {};
+
+    if (reviewId) {
+      // ── Option A: pull existing review from Supabase ──────────────────────
+      const { data: review, error } = await supabase
+        .from("reviews")
+        .select("*, review_images(url)")
+        .eq("id", reviewId)
+        .single();
+
+      if (error || !review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+
+      reviewData = {
+        reviewId: review.id,
+        placeName: review.place_name,
+        placeType: review.place_type || "POI",
+        rating: review.rating,
+        title: review.title || null,
+        comment: review.comment || null,
+        images: (review.review_images || []).map(img => img.url),
+        visitDate: review.visit_date ? new Date(review.visit_date) : null
+      };
+
+    } else {
+      // ── Option B: direct fields ────────────────────────────────────────────
+      if (!placeName) {
+        return res.status(400).json({ error: "Either reviewId or placeName is required" });
+      }
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "rating must be between 1 and 5" });
+      }
+
+      reviewData = {
+        reviewId: null,
+        placeName,
+        placeType: placeType || "POI",
+        rating: Number(rating),
+        title: title || null,
+        comment: comment || null,
+        images: Array.isArray(images) ? images : [],
+        visitDate: null
+      };
+    }
+
+    // ── Build star string (e.g. "⭐⭐⭐⭐⭐") ──────────────────────────────
+    const stars = "⭐".repeat(reviewData.rating) + "☆".repeat(5 - reviewData.rating);
+
+    // ── Auto-generate BlockNote content ───────────────────────────────────
+    const contentBlocks = [
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [
+          {
+            type: "text",
+            text: `Review: ${reviewData.placeName}  ${stars}`
+          }
+        ]
+      }
+    ];
+
+    if (reviewData.title) {
+      contentBlocks.push({
+        type: "paragraph",
+        content: [{ type: "text", text: `"${reviewData.title}"`, marks: [{ type: "italic" }] }]
+      });
+    }
+
+    if (reviewData.comment) {
+      contentBlocks.push({
+        type: "paragraph",
+        content: [{ type: "text", text: reviewData.comment }]
+      });
+    }
+
+    contentBlocks.push({
+      type: "paragraph",
+      content: [{ type: "text", text: `📍 ${reviewData.placeName}  •  Rated ${reviewData.rating}/5` }]
+    });
+
+    const content = { type: "doc", content: contentBlocks };
+
+    // ── Create the post ────────────────────────────────────────────────────
+    const post = await Post.create({
+      authorId,
+      type: "review",
+      content,
+      reviewData
+    });
+
+    await post.populate("authorId", "username email");
+
+    return res.status(201).json({
+      success: true,
+      message: "Review shared to feed successfully",
+      data: post
+    });
+
+  } catch (err) {
+    console.error("POST /api/posts/review-share error:", err);
+    return res.status(500).json({ error: err.message || "Failed to share review" });
   }
 });
 
