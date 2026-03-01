@@ -1,8 +1,10 @@
-const express = require("express");
-const jwt     = require("jsonwebtoken");
-const User    = require("../models/User");
-const Post    = require("../models/Post");
-const Follow  = require("../models/Follow");
+const express        = require("express");
+const jwt            = require("jsonwebtoken");
+const User           = require("../models/User");
+const Post           = require("../models/Post");
+const Follow         = require("../models/Follow");
+const SearchHistory  = require("../models/SearchHistory");
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
@@ -116,6 +118,147 @@ router.get("/search", optionalAuth, async (req, res) => {
   } catch (err) {
     console.error("GET /api/users/search error:", err);
     return res.status(500).json({ error: err.message || "Search failed" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/users/search-history
+// Record a profile click into the caller's search history.
+// Call this when the user taps a search result to open a profile.
+//
+// Auth: required
+//
+// Body:
+//   { searchedUserId: "<ObjectId>", query: "alfi" }   (query is optional)
+//
+// Behaviour: upserts — if this pair already exists, updatedAt is refreshed
+// so the entry rises to the top of the history list. No duplicates.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/search-history", authMiddleware, async (req, res) => {
+  try {
+    const searcherId     = req.user.id;
+    const { searchedUserId, query = "" } = req.body;
+
+    if (!searchedUserId) {
+      return res.status(400).json({ error: "searchedUserId is required" });
+    }
+
+    // Prevent recording yourself
+    if (searcherId === searchedUserId.toString()) {
+      return res.status(400).json({ error: "Cannot record yourself in search history" });
+    }
+
+    // Upsert: update query + updatedAt if pair exists, else create
+    const entry = await SearchHistory.findOneAndUpdate(
+      { searcherId, searchedUserId },
+      { $set: { query } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Search history recorded",
+      data: entry
+    });
+
+  } catch (err) {
+    console.error("POST /api/users/search-history error:", err);
+    return res.status(500).json({ error: err.message || "Failed to record search history" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/users/search-history
+// Get the caller's recent search history (last 20 entries, most recent first).
+// Each entry includes the searched user's basic profile info.
+//
+// Auth: required
+//
+// Response:
+//   { success, count, data: [{ _id, query, updatedAt, user: UserStub }] }
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/search-history", authMiddleware, async (req, res) => {
+  try {
+    const searcherId = req.user.id;
+
+    const history = await SearchHistory.find({ searcherId })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .populate("searchedUserId", "_id username displayName profileImage")
+      .lean();
+
+    // Flatten into a cleaner shape
+    const data = history.map(entry => ({
+      _id:       entry._id,
+      query:     entry.query,
+      updatedAt: entry.updatedAt,
+      user:      entry.searchedUserId   // populated user stub
+    }));
+
+    return res.json({
+      success: true,
+      count:   data.length,
+      data
+    });
+
+  } catch (err) {
+    console.error("GET /api/users/search-history error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch search history" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/users/search-history
+// Clear the caller's ENTIRE search history.
+//
+// Auth: required
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete("/search-history", authMiddleware, async (req, res) => {
+  try {
+    const searcherId = req.user.id;
+
+    const result = await SearchHistory.deleteMany({ searcherId });
+
+    return res.json({
+      success: true,
+      message: `Search history cleared (${result.deletedCount} entries removed)`
+    });
+
+  } catch (err) {
+    console.error("DELETE /api/users/search-history error:", err);
+    return res.status(500).json({ error: err.message || "Failed to clear search history" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/users/search-history/:entryId
+// Remove a single entry from the caller's search history.
+// Use this for the "✕" button next to each history item.
+//
+// Auth: required
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete("/search-history/:entryId", authMiddleware, async (req, res) => {
+  try {
+    const searcherId = req.user.id;
+    const { entryId } = req.params;
+
+    const entry = await SearchHistory.findOneAndDelete({
+      _id:       entryId,
+      searcherId            // ensures users can only delete their own entries
+    });
+
+    if (!entry) {
+      return res.status(404).json({ error: "History entry not found" });
+    }
+
+    return res.json({
+      success: true,
+      message: "History entry removed"
+    });
+
+  } catch (err) {
+    console.error("DELETE /api/users/search-history/:entryId error:", err);
+    return res.status(500).json({ error: err.message || "Failed to remove history entry" });
   }
 });
 
