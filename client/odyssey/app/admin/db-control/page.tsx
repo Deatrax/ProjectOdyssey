@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import CountryInputForm from "./CountryInputForm";
 import DistrictInputForm from "./DistrictInputForm";
 import PlaceForm from "./PlaceForm";
+import AIImportForm from "./AIImportForm";
 
-type EntityType = "COUNTRY" | "DISTRICT" | "PLACE";
+type EntityType = "COUNTRY" | "DISTRICT" | "PLACE" | "AI_IMPORT";
 
 export default function DbControlPage() {
   const [selectedType, setSelectedType] = useState<EntityType>("COUNTRY");
@@ -25,6 +26,7 @@ export default function DbControlPage() {
             <option value="COUNTRY">Country</option>
             <option value="DISTRICT">District (City)</option>
             <option value="PLACE">Place (POI)</option>
+            <option value="AI_IMPORT">AI Import (Bulk Add)</option>
           </select>
         </div>
       </div>
@@ -33,6 +35,7 @@ export default function DbControlPage() {
         {selectedType === "COUNTRY" && <CountryInputForm />}
         {selectedType === "DISTRICT" && <DistrictInputForm />}
         {selectedType === "PLACE" && <PlaceForm />}
+        {selectedType === "AI_IMPORT" && <AIImportForm />}
       </div>
     </div>
   );
