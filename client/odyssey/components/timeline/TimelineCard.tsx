@@ -14,6 +14,7 @@ interface Trip {
   image: string | null;
   memory: any;
   selectedPlaces: any[];
+  visitedPlaces: { name: string; id: string; status: string }[];
   itineraryData: any;
 }
 
@@ -26,21 +27,27 @@ interface TimelineCardProps {
 const TimelineCard: React.FC<TimelineCardProps> = ({ trip, isCompleted, onClick }) => {
   const startDate = new Date(trip.startDate);
   const endDate = new Date(trip.endDate);
-  
+
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
   };
 
   const getPlaceNames = () => {
-    if (Array.isArray(trip.selectedPlaces)) {
-      return trip.selectedPlaces.slice(0, 3).map(p => p.name || p.title).join(', ');
+    if (Array.isArray(trip.visitedPlaces) && trip.visitedPlaces.length > 0) {
+      return trip.visitedPlaces.slice(0, 3).map(p => p.name).filter(Boolean).join(', ');
     }
-    return 'Multiple locations';
+    if (Array.isArray(trip.selectedPlaces) && trip.selectedPlaces.length > 0) {
+      return trip.selectedPlaces.slice(0, 3).map(p => p.name || p.title).filter(Boolean).join(', ');
+    }
+    return 'No places recorded yet';
   };
+
+  const visitedCount = trip.visitedPlaces?.length ?? 0;
+  const plannedCount = trip.selectedPlaces?.length ?? 0;
 
   const hasBadges = trip.memory?.badges_earned && trip.memory.badges_earned.length > 0;
 
@@ -49,8 +56,8 @@ const TimelineCard: React.FC<TimelineCardProps> = ({ trip, isCompleted, onClick 
       onClick={onClick}
       className={`
         relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300
-        ${isCompleted 
-          ? 'bg-white shadow-lg hover:shadow-2xl hover:scale-102' 
+        ${isCompleted
+          ? 'bg-white shadow-lg hover:shadow-2xl hover:scale-102'
           : 'bg-white/80 border-2 border-dashed border-blue-300 shadow-md hover:shadow-lg'
         }
         ${hasBadges && isCompleted ? 'ring-2 ring-amber-400' : ''}
@@ -78,7 +85,7 @@ const TimelineCard: React.FC<TimelineCardProps> = ({ trip, isCompleted, onClick 
             <MapPin className="w-12 h-12 text-white opacity-50" />
           </div>
         )}
-        
+
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-end">
           <div className="w-full translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black to-transparent p-4 text-white">
@@ -114,9 +121,16 @@ const TimelineCard: React.FC<TimelineCardProps> = ({ trip, isCompleted, onClick 
         </div>
 
         {/* Places on Hover */}
-        <div className="max-h-0 overflow-hidden group-hover:max-h-20 transition-all duration-300">
+        <div className="max-h-0 overflow-hidden group-hover:max-h-24 transition-all duration-300">
           <div className="text-xs text-gray-600 py-2 border-t border-gray-200">
-            <p className="font-medium text-gray-700 mb-1">Visited Places:</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-medium text-gray-700">Visited Places:</p>
+              {visitedCount > 0 && plannedCount > 0 && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+                  {visitedCount}/{plannedCount} visited
+                </span>
+              )}
+            </div>
             <p className="line-clamp-2">{getPlaceNames()}</p>
           </div>
         </div>
@@ -132,7 +146,7 @@ const TimelineCard: React.FC<TimelineCardProps> = ({ trip, isCompleted, onClick 
                   <span className="text-gray-700 font-medium">{trip.memory.trip_rating}/5</span>
                 </div>
               )}
-              
+
               {trip.memory.mood && (
                 <div className="text-gray-700">
                   <span className="font-medium">Mood:</span> {trip.memory.mood}

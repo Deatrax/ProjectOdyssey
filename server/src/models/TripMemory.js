@@ -175,25 +175,11 @@ class TripMemoryModel {
   static async getUserTimelineTrips(userId) {
     const { data, error } = await supabase
       .from("trip_memories")
-      .select(`
-        *,
-        itineraries:itinerary_id (
-          id,
-          trip_name,
-          trip_start_date,
-          trip_end_date,
-          selected_places,
-          selected_itinerary,
-          status,
-          trip_status
-        )
-      `)
-      .eq("user_id", userId)
-      .order("itineraries.trip_start_date", { ascending: false });
+      .select("*")
+      .eq("user_id", userId);
 
     if (error) {
       console.error("Supabase error:", error);
-      // Return empty array if table doesn't exist
       if (error.code === "PGRST116" || error.message?.includes("does not exist")) {
         return [];
       }

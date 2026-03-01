@@ -4,6 +4,7 @@ const router = require("express").Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const ItineraryModel = require("../models/Itinerary");
 const TripMemoryModel = require("../models/TripMemory");
+const VisitLogModel = require("../models/VisitLog");
 
 /**
  * POST /api/trips/save
@@ -154,25 +155,44 @@ router.get("/timeline", authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const now = new Date();
 
-    // Get all user itineraries with memory data
+    // Get all user itineraries
     const itineraries = await ItineraryModel.getUserItineraries(userId);
 
-    // Try to get timeline trips, but handle if table doesn't exist
-    let timelineTrips = [];
+    // Try to get saved trip memories (now returns flat rows, no join)
+    let memoriesMap = {};
     try {
-      timelineTrips = await TripMemoryModel.getUserTimelineTrips(userId);
+      const timelineTrips = await TripMemoryModel.getUserTimelineTrips(userId);
+      timelineTrips.forEach((row) => {
+        memoriesMap[row.itinerary_id] = row;
+      });
     } catch (err) {
-      console.warn("Warning: Could not fetch trip memories (table may not exist yet):", err.message);
-      // Continue anyway - just won't have memory data
+      console.warn("Warning: Could not fetch trip memories:", err.message);
     }
 
-    // Map itineraries with memory data
+    // Fetch all visit_logs for this user grouped by itinerary_id
+    let visitsByItinerary = {};
+    try {
+      const allVisits = await VisitLogModel.getUserVisits(userId, { pageSize: 500 });
+      allVisits.forEach((v) => {
+        if (!visitsByItinerary[v.itinerary_id]) visitsByItinerary[v.itinerary_id] = [];
+        visitsByItinerary[v.itinerary_id].push(v);
+      });
+    } catch (err) {
+      console.warn("Warning: Could not fetch visit logs:", err.message);
+    }
+
+    // Build enriched trip objects
     const enrichedTrips = itineraries.map((itin) => {
-      const memory = timelineTrips.find(t => t.itinerary_id === itin.id);
+      const memory = memoriesMap[itin.id] || null;
       const tripStartDate = itin.trip_start_date ? new Date(itin.trip_start_date) : new Date(itin.created_at);
       const tripEndDate = itin.trip_end_date ? new Date(itin.trip_end_date) : tripStartDate;
-
       const isCompleted = tripEndDate <= now;
+
+      // Actual visited places from visit_logs (completed status preferred, else any)
+      const itinVisits = visitsByItinerary[itin.id] || [];
+      const visitedPlaces = itinVisits
+        .filter((v) => v.status === "completed" || v.status === "in_progress")
+        .map((v) => ({ name: v.place_name, id: v.place_id, status: v.status }));
 
       return {
         id: itin.id,
@@ -182,13 +202,15 @@ router.get("/timeline", authMiddleware, async (req, res) => {
         status: itin.trip_status || itin.status,
         isCompleted,
         image: extractTripImage(itin),
-        memory: memory || null,
+        memory,
+        // visitedPlaces: actual places from visit_logs
+        visitedPlaces,
+        // selectedPlaces: the originally planned places (kept for fallback)
         selectedPlaces: itin.selected_places || [],
         itineraryData: itin.selected_itinerary || null,
       };
     });
 
-    // Split into past and upcoming
     const pastTrips = enrichedTrips
       .filter(t => t.isCompleted)
       .sort((a, b) => b.startDate - a.startDate);
