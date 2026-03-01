@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Heart, MessageCircle, FileText, MapPin, TrendingUp, PenSquare } from 'lucide-react';
+import { Heart, MessageCircle, FileText, MapPin, TrendingUp, PenSquare, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Post } from '@/hooks/usePosts';
+import UserSearch from '../UserSearch';
 
 interface TrendingDestination {
   id: string;
@@ -150,6 +151,17 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
 
   return (
     <div className="sticky top-24 space-y-6">
+      {/* Find People Section */}
+      {isAuthenticated && (
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-5 h-5 text-[#4A9B7F]" />
+            <h3 className="text-lg font-bold text-gray-900">Find People</h3>
+          </div>
+          <UserSearch token={typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined} />
+        </div>
+      )}
+
       {/* User Activity Stats */}
       {isAuthenticated && (
         <div className="bg-white rounded-2xl shadow-lg p-6">

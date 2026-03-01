@@ -316,7 +316,7 @@ router.get("/:id", async (req, res) => {
  */
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { content, tripName } = req.body;
+    const { content, tripName, tripProgress, reviewData } = req.body;
     const userId = req.user.id;
 
     // Find post
@@ -334,6 +334,74 @@ router.put("/:id", authMiddleware, async (req, res) => {
     // Update fields
     if (content) post.content = content;
     if (tripName !== undefined) post.tripName = tripName;
+
+    // Update tripProgress for trip update posts
+    if (tripProgress && post.type === 'auto') {
+      post.tripProgress = {
+        locations: tripProgress.locations || [],
+        currentLocationName: tripProgress.currentLocationName || '',
+        totalLocations: tripProgress.locations?.length || 0,
+        completionPercentage: tripProgress.completionPercentage || 0
+      };
+
+      // Also regenerate the auto content to reflect update
+      const currentLoc = tripProgress.locations?.find((l) => l.isCurrentLocation);
+      post.content = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: `I've visited ${tripProgress.locations?.length || 0} locations on my journey! Currently at ${tripProgress.currentLocationName || (currentLoc?.name || 'an exciting place')}.`
+              }
+            ]
+          }
+        ]
+      };
+    }
+
+    // Update reviewData for review posts, regenerate BlockNote content
+    if (reviewData && post.type === 'review') {
+      post.reviewData = {
+        reviewId: post.reviewData?.reviewId ?? null,
+        placeName: reviewData.placeName ?? post.reviewData?.placeName,
+        placeType: reviewData.placeType ?? post.reviewData?.placeType ?? 'POI',
+        rating: Number(reviewData.rating ?? post.reviewData?.rating),
+        title: reviewData.title ?? post.reviewData?.title ?? null,
+        comment: reviewData.comment ?? post.reviewData?.comment ?? null,
+        images: Array.isArray(reviewData.images) ? reviewData.images : (post.reviewData?.images ?? []),
+        visitDate: post.reviewData?.visitDate ?? null
+      };
+
+      const rd = post.reviewData;
+      const stars = '⭐'.repeat(rd.rating) + '☆'.repeat(5 - rd.rating);
+      const contentBlocks = [
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: `Review: ${rd.placeName}  ${stars}` }]
+        }
+      ];
+      if (rd.title) {
+        contentBlocks.push({
+          type: 'paragraph',
+          content: [{ type: 'text', text: `"${rd.title}"`, marks: [{ type: 'italic' }] }]
+        });
+      }
+      if (rd.comment) {
+        contentBlocks.push({
+          type: 'paragraph',
+          content: [{ type: 'text', text: rd.comment }]
+        });
+      }
+      contentBlocks.push({
+        type: 'paragraph',
+        content: [{ type: 'text', text: `📍 ${rd.placeName}  •  Rated ${rd.rating}/5` }]
+      });
+      post.content = { type: 'doc', content: contentBlocks };
+    }
 
     await post.save();
     await post.populate("authorId", "username email");

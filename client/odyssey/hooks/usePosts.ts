@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 
 const API_URL = 'http://localhost:4000/api';
 
+export interface ReviewData {
+  reviewId: string | null;
+  placeName: string;
+  placeType: string | null;
+  rating: number;
+  title: string | null;
+  comment: string | null;
+  images: string[];
+  visitDate: string | null;
+}
+
 export interface Post {
   _id: string;
   authorId: {
@@ -10,7 +21,7 @@ export interface Post {
     email: string;
     profilePicture?: string;
   };
-  type: 'blog' | 'auto';
+  type: 'blog' | 'auto' | 'review';
   content: any; // BlockNote JSON structure
   tripId?: string;
   tripName?: string;
@@ -28,16 +39,32 @@ export interface Post {
   };
   likesCount: number;
   commentsCount: number;
+  reviewData?: ReviewData;
   isLiked?: boolean;
+  /** Populated by the smart feed endpoint only */
+  _feedSource?: 'friends' | 'trending';
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreatePostData {
-  type: 'blog' | 'auto';
-  content: any;
+  type: 'blog' | 'auto' | 'review';
+  content?: any;
   tripId?: string;
   tripName?: string;
+  tripProgress?: {
+    locations: Array<{
+      name: string;
+      placeId: string;
+      visitedAt: string;
+      photos: string[];
+      isCurrentLocation: boolean;
+    }>;
+    currentLocationName: string;
+    totalLocations: number;
+    completionPercentage: number;
+  };
+  reviewData?: ReviewData;
 }
 
 export function usePosts(limit: number = 10) {

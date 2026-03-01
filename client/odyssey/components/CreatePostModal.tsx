@@ -9,10 +9,12 @@ interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPostCreated?: () => void;
+  /** Called when the user wants to open the Write-a-Review form */
+  onOpenReview?: () => void;
 }
 
-export default function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostModalProps) {
-  const [postType, setPostType] = useState<'select' | 'blog' | 'trip-update'>('select');
+export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpenReview }: CreatePostModalProps) {
+  const [postType, setPostType] = useState<'select' | 'blog' | 'trip-update' | 'trip-source' | 'existing-trip'>('select');
   const [content, setContent] = useState<any>(null);
   const [tripName, setTripName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +31,18 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
   }>>([]);
   const [currentLocationName, setCurrentLocationName] = useState('');
   const [completionPercentage, setCompletionPercentage] = useState(0);
+
+  // Planner trip integration states
+  const [plannerTrips, setPlannerTrips] = useState<any[]>([]);
+  const [plannerTripsLoading, setPlannerTripsLoading] = useState(false);
+  const [selectedPlannerTripId, setSelectedPlannerTripId] = useState('');
+  const [plannerLocations, setPlannerLocations] = useState<Array<{
+    name: string;
+    placeId: string;
+    isVisited: boolean;
+    isCurrentLocation: boolean;
+  }>>([]); 
+  const [plannerLocationsLoading, setPlannerLocationsLoading] = useState(false);
 
   // Function to check if there are unsaved changes
   const checkUnsavedChanges = () => {
@@ -110,8 +124,166 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
       setCompletionPercentage(0);
       setShowInstructions(true);
       setHasUnsavedChanges(false);
+      setPlannerTrips([]);
+      setSelectedPlannerTripId('');
+      setPlannerLocations([]);
+      setPlannerLocationsLoading(false);
     }
   }, [isOpen]);
+
+  const fetchPlannerTrips = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setPlannerTripsLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/trips', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const allTrips = Array.isArray(data.success ? data.data : data)
+          ? (data.success ? data.data : data)
+          : [];
+        // Exclude "My Collection" pseudo-trips and trips with no locations
+        const realTrips = allTrips.filter((t: any) => {
+          if (t.status === 'collection') return false;
+          const hasPlaces = Array.isArray(t.selected_places) && t.selected_places.length > 0;
+          const hasSchedule = t.selected_itinerary?.schedule &&
+            Object.values(t.selected_itinerary.schedule).some((d: any) => {
+              const items = Array.isArray(d) ? d : (d?.items || []);
+              return items.some((i: any) => i.name && !i.isBreak);
+            });
+          return hasPlaces || hasSchedule;
+        });
+        setPlannerTrips(realTrips);
+      }
+    } catch (e) {
+      console.error('Failed to fetch planner trips', e);
+    } finally {
+      setPlannerTripsLoading(false);
+    }
+  };
+
+  const handleSelectPlannerTrip = async (tripId: string) => {
+    setSelectedPlannerTripId(tripId);
+    setPlannerLocations([]);
+    if (!tripId) return;
+
+    setPlannerLocationsLoading(true);
+    // Fetch the single trip fresh from the API to avoid stale state issues
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/trips/${tripId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const trip = data.success ? data.data : data;
+      if (!trip) return;
+
+      const seen = new Set<string>();
+      const locations: any[] = [];
+
+      // Prefer selected_places (explicit trip-specific list)
+      if (Array.isArray(trip.selected_places) && trip.selected_places.length > 0) {
+        for (const p of trip.selected_places) {
+          const name = (p.name || p.title || '').trim();
+          if (!name || seen.has(name.toLowerCase())) continue;
+          seen.add(name.toLowerCase());
+          locations.push({
+            name,
+            placeId: p.id || p.placeId || '',
+            isVisited: false,
+            isCurrentLocation: false,
+          });
+        }
+      }
+
+      // Fall back to schedule days
+      if (locations.length === 0) {
+        const schedule = trip.selected_itinerary?.schedule;
+        if (schedule) {
+          const days: any[] = Array.isArray(schedule)
+            ? schedule
+            : Object.values(schedule);
+          for (const day of days) {
+            const items: any[] = Array.isArray(day) ? day : (day?.items || []);
+            for (const item of items) {
+              const name = (item.name || '').trim();
+              if (!name || item.isBreak || seen.has(name.toLowerCase())) continue;
+              seen.add(name.toLowerCase());
+              locations.push({
+                name,
+                placeId: item.placeId || item.id || '',
+                isVisited: false,
+                isCurrentLocation: false,
+              });
+            }
+          }
+        }
+      }
+
+      setPlannerLocations(locations);
+    } catch (e) {
+      console.error('Failed to fetch trip details', e);
+    } finally {
+      setPlannerLocationsLoading(false);
+    }
+  };
+
+  const handleSubmitExistingTrip = async () => {
+    const visitedLocations = plannerLocations.filter(l => l.isVisited);
+    if (visitedLocations.length === 0) {
+      alert('Please mark at least one location as visited!');
+      return;
+    }
+    const selectedTrip = plannerTrips.find((t: any) => String(t.id) === String(selectedPlannerTripId));
+    if (!selectedTrip) return;
+
+    setIsSubmitting(true);
+    const token = localStorage.getItem('token');
+    if (!token) { alert('Please login first'); setIsSubmitting(false); return; }
+
+    const completion = Math.round((visitedLocations.length / plannerLocations.length) * 100);
+    const currentLoc = plannerLocations.find(l => l.isCurrentLocation) || visitedLocations[visitedLocations.length - 1];
+
+    try {
+      const response = await fetch('http://localhost:4000/api/posts/trip-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          tripId: selectedPlannerTripId,
+          tripName: selectedTrip.trip_name || selectedTrip.tripName || 'My Trip',
+          tripProgress: {
+            locations: visitedLocations.map(l => ({
+              name: l.name,
+              placeId: l.placeId,
+              visitedAt: new Date().toISOString().split('T')[0],
+              photos: [],
+              isCurrentLocation: l.isCurrentLocation,
+            })),
+            currentLocationName: currentLoc?.name || '',
+            totalLocations: plannerLocations.length,
+            completionPercentage: completion,
+          }
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Trip update shared successfully! 🎉');
+        onClose();
+        if (onPostCreated) onPostCreated();
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to create trip update');
+        setIsSubmitting(false);
+      }
+    } catch (error: any) {
+      alert('Network error: ' + error.message);
+      setIsSubmitting(false);
+    }
+  };
 
   const handleContentChange = (newContent: any) => {
     setContent(newContent);
@@ -298,7 +470,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
             {/* Trip Update Option */}
             <button
-              onClick={() => setPostType('trip-update')}
+              onClick={() => { setPostType('trip-source'); fetchPlannerTrips(); }}
               className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-amber-400 hover:bg-amber-50/30 transition-all group text-left"
             >
               <div className="flex items-start gap-4">
@@ -314,23 +486,25 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
               </div>
             </button>
 
-            {/* Coming Soon - Review */}
-            <div className="w-full p-6 border-2 border-gray-100 rounded-xl bg-gray-50 text-left opacity-60 cursor-not-allowed">
+            {/* Review a Place */}
+            <button
+              onClick={() => { onClose(); onOpenReview?.(); }}
+              className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-[#4A9B7F] hover:bg-teal-50/30 transition-all group text-left"
+            >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                   ⭐
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-600 mb-1 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">
                     Review a Place
-                    <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Coming Soon</span>
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-600">
                     Share your rating and review for restaurants, hotels, and attractions
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>
@@ -734,6 +908,250 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Sharing...</span>
                 </>
+              ) : (
+                <span>Share Trip Update 🗺️</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Trip Source Selection (existing vs new)
+  if (postType === 'trip-source') {
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 pt-20 animate-fadeIn">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-scaleIn">
+          <div className="bg-gradient-to-r from-[#4A9B7F] to-teal-600 px-6 py-4 text-white flex items-center justify-between rounded-t-2xl">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setPostType('select')} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                <ChevronDown className="w-5 h-5 rotate-90" />
+              </button>
+              <div>
+                <h2 className="text-xl font-bold">Share Trip Progress</h2>
+                <p className="text-teal-50 text-sm">Choose how you want to share your journey</p>
+              </div>
+            </div>
+            <button onClick={handleClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="p-8 space-y-4">
+            {/* Existing Trip */}
+            <button
+              onClick={() => setPostType('existing-trip')}
+              className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-[#4A9B7F] hover:bg-teal-50/30 transition-all group text-left"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                  🗺️
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Share from an Existing Trip</h3>
+                  <p className="text-sm text-gray-600">
+                    Pick a trip you already planned and mark which locations you've visited so far
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* New Trip */}
+            <button
+              onClick={() => setPostType('trip-update')}
+              className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-amber-400 hover:bg-amber-50/30 transition-all group text-left"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                  ✏️
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Create a New Trip Update</h3>
+                  <p className="text-sm text-gray-600">
+                    Manually add locations and photos for a trip not yet in your planner
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Existing Planner Trip Flow
+  if (postType === 'existing-trip') {
+    const visitedCount = plannerLocations.filter(l => l.isVisited).length;
+    const autoCompletion = plannerLocations.length > 0
+      ? Math.round((visitedCount / plannerLocations.length) * 100)
+      : 0;
+
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 pt-20 animate-fadeIn">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scaleIn flex flex-col">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-[#4A9B7F] to-teal-600 px-6 py-4 text-white flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setPostType('trip-source')} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                <ChevronDown className="w-5 h-5 rotate-90" />
+              </button>
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-2xl">🗺️</div>
+              <div>
+                <h2 className="text-xl font-bold">Share Trip Progress</h2>
+                <p className="text-teal-50 text-sm">Select a trip and mark visited locations</p>
+              </div>
+            </div>
+            <button onClick={handleClose} disabled={isSubmitting} className="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Trip Dropdown */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Select a Trip <span className="text-red-500">*</span>
+              </label>
+              {plannerTripsLoading ? (
+                <div className="flex items-center gap-2 text-gray-500 py-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading trips...</span>
+                </div>
+              ) : plannerTrips.length === 0 ? (
+                <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-4 text-center">
+                  No trips found in your planner.
+                  <button onClick={() => setPostType('trip-update')} className="ml-1 text-[#4A9B7F] font-medium underline">Create a new trip update instead</button>
+                </div>
+              ) : (
+                <select
+                  value={selectedPlannerTripId}
+                  onChange={(e) => handleSelectPlannerTrip(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A9B7F] bg-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">-- Choose a trip --</option>
+                  {plannerTrips.map((trip: any) => (
+                    <option key={trip.id} value={trip.id}>
+                      {trip.trip_name || trip.tripName || 'Untitled Trip'}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Locations list */}
+            {selectedPlannerTripId && plannerLocationsLoading && (
+              <div className="flex items-center gap-2 text-gray-500 py-4 justify-center">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading locations...</span>
+              </div>
+            )}
+
+            {selectedPlannerTripId && !plannerLocationsLoading && plannerLocations.length > 0 && (
+              <>
+                {/* Auto completion bar */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700">Trip Completion</span>
+                    <span className="text-sm font-bold text-[#4A9B7F]">{autoCompletion}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#4A9B7F] rounded-full transition-all duration-300"
+                      style={{ width: `${autoCompletion}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{visitedCount} of {plannerLocations.length} locations visited</p>
+                </div>
+
+                {/* Location checkboxes */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Mark Visited Locations
+                  </label>
+                  <div className="space-y-2">
+                    {plannerLocations.map((loc, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          loc.isCurrentLocation
+                            ? 'border-[#4A9B7F] bg-teal-50'
+                            : loc.isVisited
+                            ? 'border-teal-200 bg-teal-50/40'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        {/* Visited checkbox */}
+                        <input
+                          type="checkbox"
+                          id={`loc-${index}`}
+                          checked={loc.isVisited}
+                          onChange={(e) => {
+                            const updated = [...plannerLocations];
+                            updated[index] = { ...updated[index], isVisited: e.target.checked };
+                            // If unchecked and was current, clear current
+                            if (!e.target.checked && updated[index].isCurrentLocation) {
+                              updated[index].isCurrentLocation = false;
+                            }
+                            setPlannerLocations(updated);
+                          }}
+                          className="w-4 h-4 accent-[#4A9B7F] cursor-pointer"
+                          disabled={isSubmitting}
+                        />
+                        <MapPin className={`w-4 h-4 flex-shrink-0 ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-teal-500' : 'text-gray-300'}`} />
+                        <label htmlFor={`loc-${index}`} className={`flex-1 text-sm font-medium cursor-pointer ${loc.isCurrentLocation ? 'text-[#4A9B7F]' : loc.isVisited ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {loc.name}
+                        </label>
+                        {/* Mark as current */}
+                        {loc.isVisited && (
+                          <button
+                            onClick={() => {
+                              const updated = plannerLocations.map((l, i) => ({
+                                ...l,
+                                isCurrentLocation: i === index,
+                              }));
+                              setPlannerLocations(updated);
+                            }}
+                            className={`text-xs px-2 py-1 rounded-full font-semibold transition-colors ${
+                              loc.isCurrentLocation
+                                ? 'bg-[#4A9B7F] text-white'
+                                : 'bg-gray-100 text-gray-500 hover:bg-teal-100 hover:text-[#4A9B7F]'
+                            }`}
+                            disabled={isSubmitting}
+                          >
+                            {loc.isCurrentLocation ? 'Current' : 'Set Current'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedPlannerTripId && !plannerLocationsLoading && plannerLocations.length === 0 && (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                This trip has no locations yet. Add places in the planner first.
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div className="text-sm text-gray-600">
+              {visitedCount > 0 ? `${visitedCount} location${visitedCount > 1 ? 's' : ''} visited` : 'Mark locations as visited'}
+            </div>
+            <button
+              onClick={handleSubmitExistingTrip}
+              disabled={isSubmitting || !selectedPlannerTripId || visitedCount === 0}
+              className="flex items-center gap-2 px-6 py-2 bg-[#4A9B7F] text-white rounded-lg hover:bg-[#3d8268] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /><span>Sharing...</span></>
               ) : (
                 <span>Share Trip Update 🗺️</span>
               )}

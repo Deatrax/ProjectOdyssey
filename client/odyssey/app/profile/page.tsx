@@ -7,6 +7,7 @@ import Image from "next/image";
 import VisitMap from "./VisitMap";
 import TravelStatsCard from "./TravelStatsCard";
 import TravelActivityChart from "@/components/TravelActivityChart";
+import { useFollowStats } from "@/hooks/useFollow";
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -152,6 +153,9 @@ const ProfilePage: React.FC = () => {
   // Visit stats state (Unified)
   const [visitStats, setVisitStats] = useState<{ count: number, countryStats: Record<string, number> }>({ count: 0, countryStats: {} });
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Follow stats (live from API)
+  const followStats = useFollowStats(userData?._id);
 
   // Image upload state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -848,12 +852,12 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-600 text-sm mt-1">Reviews</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">342</p>
+            <p className="text-3xl font-bold text-gray-900">{followStats.followersCount}</p>
             <p className="text-gray-600 text-sm mt-1">Followers</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">{Object.keys(visitStats.countryStats || {}).length}</p>
-            <p className="text-gray-600 text-sm mt-1">Countries</p>
+            <p className="text-3xl font-bold text-gray-900">{followStats.followingCount}</p>
+            <p className="text-gray-600 text-sm mt-1">Following</p>
           </div>
         </div>
 

@@ -11,13 +11,14 @@ import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
   post: Post;
+  feedSource?: 'friends' | 'trending';
   onPostClick?: (postId: string) => void;
 }
 
-export default function PostCard({ post, onPostClick }: PostCardProps) {
+export default function PostCard({ post, feedSource, onPostClick }: PostCardProps) {
   // If it's a trip update (auto-generated), render special card
   if (post.type === 'auto') {
-    return <TripUpdateCard post={post} onPostClick={onPostClick} />;
+    return <TripUpdateCard post={post} feedSource={feedSource} onPostClick={onPostClick} />;
   }
 
   // Otherwise, render regular blog post card
@@ -79,6 +80,16 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
       onClick={handlePostClick}
       className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
     >
+      {/* Feed source badge */}
+      {feedSource && (
+        <div className="px-6 pt-4 pb-0">
+          {feedSource === 'friends' ? (
+            <span className="text-xs text-blue-500 font-medium">👥 From someone you follow</span>
+          ) : (
+            <span className="text-xs text-orange-400 font-medium">🔥 Trending</span>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start gap-3 mb-4">

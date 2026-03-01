@@ -1,20 +1,30 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  /** When true, the "Share to community feed" checkbox defaults to checked */
+  defaultShareToFeed?: boolean;
 }
 
-const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, onSuccess }) => {
+const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, onSuccess, defaultShareToFeed = false }) => {
   const router = useRouter();
   const [newReview, setNewReview] = useState({ placeName: "", location: "", rating: 5, comment: "", images: [] as string[] });
+  const [shareToFeed, setShareToFeed] = useState(defaultShareToFeed);
   const [currentImageUrl, setCurrentImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Reset form & shareToFeed toggle each time the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setShareToFeed(defaultShareToFeed);
+    }
+  }, [isOpen, defaultShareToFeed]);
 
   const handleSubmitReview = async () => {
     if (!newReview.placeName || !newReview.rating) return;
@@ -27,7 +37,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, onSuccess })
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(newReview),
+        body: JSON.stringify({ ...newReview, shareToFeed }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -36,9 +46,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, onSuccess })
           setCurrentImageUrl("");
           onClose();
           if (onSuccess) onSuccess();
-          alert("Review submitted successfully!");
-          // Navigate to profile with reviews tab
-          router.push("/profile?tab=reviews");
+          alert(shareToFeed ? "Review submitted and shared to the community feed!" : "Review submitted successfully!");
+          // Only navigate away when not sharing to feed (avoid leaving the feed page)
+          if (!shareToFeed) {
+            router.push("/profile?tab=reviews");
+          }
         } else {
           alert(data.error || "Failed to submit review");
         }
@@ -234,6 +246,27 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, onSuccess })
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Share to Feed Toggle */}
+        <div className="mt-5 flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setShareToFeed((v) => !v)}
+            className={`relative inline-flex w-11 h-6 items-center rounded-full transition-colors flex-shrink-0 ${
+              shareToFeed ? 'bg-[#4A9B7F]' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block w-4 h-4 transform bg-white rounded-full shadow transition-transform ${
+                shareToFeed ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+          <div>
+            <p className="font-semibold text-gray-800 text-sm">Share to community feed</p>
+            <p className="text-xs text-gray-500">Your review will appear as a post in the Travel Feed</p>
           </div>
         </div>
 

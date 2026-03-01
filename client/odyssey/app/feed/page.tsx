@@ -5,24 +5,30 @@ import { useRouter } from 'next/navigation';
 import { PenSquare, Loader2 } from 'lucide-react';
 import { usePosts } from '@/hooks/usePosts';
 import { fetchSavedPosts } from '@/hooks/useSavedPosts';
+import { useSmartFeed } from '@/hooks/useSmartFeed';
 import PostCard from '@/components/PostCard';
+import TripUpdateCard from '@/components/TripUpdateCard';
+import ReviewPostCard from '@/components/ReviewPostCard';
 import LeftSidebar from '@/components/feed/LeftSidebar';
 import RightSidebar from '@/components/feed/RightSidebar';
 import PostDetailModal from '@/components/PostDetailModal';
 import CreatePostModal from '@/components/CreatePostModal';
+import ReviewModal from '@/components/ReviewModal';
 
 export default function FeedPage() {
   const router = useRouter();
   const { posts, loading, error, hasMore, loadMore, refresh } = usePosts(10);
+  const smartFeed = useSmartFeed();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('blog');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved' | 'smart'>('smart');
   const [timelineFilter, setTimelineFilter] = useState<string>('all');
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,12 +85,23 @@ export default function FeedPage() {
     }
   }, [activeFilter, isAuthenticated]);
 
+  // Load smart feed when switching to it
+  useEffect(() => {
+    if (activeFilter === 'smart') {
+      smartFeed.loadInitial();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter]);
+
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !loading) {
-          loadMore();
+        if (!entries[0]?.isIntersecting) return;
+        if (activeFilter === 'smart') {
+          if (smartFeed.hasMore && !smartFeed.loading) smartFeed.loadMore();
+        } else {
+          if (hasMore && !loading) loadMore();
         }
       },
       { threshold: 0.1 }
@@ -100,7 +117,7 @@ export default function FeedPage() {
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, loading, loadMore]);
+  }, [hasMore, loading, loadMore, activeFilter, smartFeed]);
 
   // Listen for post interactions (likes, comments) to refresh trending posts
   useEffect(() => {
@@ -162,6 +179,8 @@ export default function FeedPage() {
       filtered = filtered.filter(post => post.type === 'blog');
     } else if (activeFilter === 'auto') {
       filtered = filtered.filter(post => post.type === 'auto');
+    } else if (activeFilter === 'review') {
+      filtered = filtered.filter(post => post.type === 'review');
     } else if (activeFilter === 'my-posts' && currentUserId) {
       filtered = filtered.filter(post => post.authorId._id === currentUserId);
     }
@@ -247,6 +266,20 @@ export default function FeedPage() {
     window.location.reload();
   };
 
+  // Smart-feed loading state (before any posts arrive)
+  if (activeFilter === 'smart' && smartFeed.loading && smartFeed.posts.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#FFF5E9] pt-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+            <Loader2 className="w-12 h-12 animate-spin text-teal-600" />
+            <p className="text-gray-500 text-sm">Personalizing your feed…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if ((loading || savedPostsLoading) && posts.length === 0 && savedPosts.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF5E9] pt-8">
@@ -291,7 +324,7 @@ export default function FeedPage() {
             className="hidden lg:flex items-center gap-2 px-6 py-3 bg-[#4A9B7F] text-white rounded-xl hover:bg-[#3d8268] transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <PenSquare className="w-5 h-5" />
-            <span className="font-medium">Write Story</span>
+            <span className="font-bold">Write Story</span>
           </button>
         </div>
 
@@ -300,8 +333,8 @@ export default function FeedPage() {
           {/* Left Sidebar - Hidden on mobile */}
           <aside className="hidden lg:block">
             <LeftSidebar
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
+              activeFilter={activeFilter as any}
+              onFilterChange={(f) => setActiveFilter(f as any)}
               timelineFilter={timelineFilter}
               onTimelineChange={setTimelineFilter}
               savedPostsCount={savedPosts.length}
@@ -312,7 +345,64 @@ export default function FeedPage() {
 
           {/* Main Feed */}
           <main className="min-w-0">
-            {filteredPosts.length === 0 && !loading && !savedPostsLoading ? (
+            {/* ---- SMART FEED ---- */}
+            {activeFilter === 'smart' && (
+              <>
+                {smartFeed.posts.length === 0 && !smartFeed.loading ? (
+                  <div className="text-center py-20">
+                    <div className="text-6xl mb-4">✨</div>
+                    <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your feed is empty</h2>
+                    <p className="text-gray-600">Follow other travellers to see their posts here!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {smartFeed.posts.map((post) =>
+                      post.type === 'auto' ? (
+                        <TripUpdateCard
+                          key={post._id}
+                          post={post}
+                          feedSource={post._feedSource}
+                          onPostClick={handleOpenPostModal}
+                        />
+                      ) : post.type === 'review' ? (
+                        <ReviewPostCard
+                          key={post._id}
+                          post={post}
+                          feedSource={post._feedSource}
+                          onPostClick={handleOpenPostModal}
+                        />
+                      ) : (
+                        <PostCard
+                          key={post._id}
+                          post={post}
+                          feedSource={post._feedSource}
+                          onPostClick={handleOpenPostModal}
+                        />
+                      )
+                    )}
+                  </div>
+                )}
+
+                {smartFeed.loading && smartFeed.posts.length > 0 && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                  </div>
+                )}
+
+                {smartFeed.allCaughtUp && (
+                  <div className="text-center py-10">
+                    <div className="text-4xl mb-3">✅</div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-1">You're all caught up!</h3>
+                    <p className="text-gray-500 text-sm">{smartFeed.allCaughtUpMessage}</p>
+                  </div>
+                )}
+
+                {smartFeed.hasMore && <div ref={observerTarget} className="h-20" />}
+              </>
+            )}
+
+            {/* ---- REGULAR FEEDS ---- */}
+            {activeFilter !== 'smart' && (filteredPosts.length === 0 && !loading && !savedPostsLoading ? (
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">
                   {activeFilter === 'saved' ? '🔖' : '✈️'}
@@ -342,28 +432,41 @@ export default function FeedPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {filteredPosts.map((post) => (
-                  <PostCard 
-                    key={post._id} 
-                    post={post} 
-                    onPostClick={handleOpenPostModal}
-                  />
-                ))}
+                {filteredPosts.map((post) =>
+                  post.type === 'auto' ? (
+                    <TripUpdateCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  ) : post.type === 'review' ? (
+                    <ReviewPostCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  ) : (
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  )
+                )}
               </div>
-            )}
-
-            {/* Loading More Indicator */}
+            ))}
+            {/* Loading More Indicator - regular feeds only */}
             {(loading || savedPostsLoading) && (posts.length > 0 || savedPosts.length > 0) && (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
               </div>
             )}
 
-            {/* Infinite Scroll Trigger - only for non-saved posts */}
-            {hasMore && activeFilter !== 'saved' && <div ref={observerTarget} className="h-20" />}
+            {/* Infinite Scroll Trigger - only for non-saved, non-smart posts */}
+            {activeFilter !== 'saved' && activeFilter !== 'smart' && hasMore && <div ref={observerTarget} className="h-20" />}
 
-            {/* End of Feed */}
-            {!hasMore && filteredPosts.length > 0 && (
+            {/* End of non-smart Feed */}
+            {activeFilter !== 'smart' && !hasMore && filteredPosts.length > 0 && (
               <div className="text-center py-8 text-gray-500">
                 <p>You've reached the end of the feed! 🎉</p>
               </div>
@@ -410,6 +513,18 @@ export default function FeedPage() {
           setCreateModalOpen(false);
           refresh();
         }}
+        onOpenReview={() => {
+          setCreateModalOpen(false);
+          setReviewModalOpen(true);
+        }}
+      />
+
+      {/* Review Modal — opened from feed, share-to-feed pre-checked */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        defaultShareToFeed={true}
+        onSuccess={refresh}
       />
     </div>
   );
