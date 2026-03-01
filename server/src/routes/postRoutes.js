@@ -3,6 +3,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const Post = require("../models/Post");
 const Comment = require("../models/Comment");
 const Like = require("../models/Like");
+const Follow = require("../models/Follow");
 const supabase = require("../config/supabaseClient");
 
 /**
@@ -105,6 +106,177 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error("GET /api/posts error:", err);
     return res.status(500).json({ error: err.message || "Failed to fetch posts" });
+  }
+});
+
+/**
+ * GET /api/posts/user/:userId
+ * Get all posts by a specific user
+ */
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const posts = await Post.find({ authorId: req.params.userId })
+      .sort({ createdAt: -1 })
+      .populate("authorId", "username email");
+
+    return res.json({
+      success: true,
+      data: posts
+    });
+
+  } catch (err) {
+    console.error("GET /api/posts/user/:userId error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch user posts" });
+  }
+});
+
+/**
+ * GET /api/posts/feed
+ * Smart personalised feed — mix of friends' posts + trending posts.
+ *
+ * Algorithm per page:
+ *   - 60% (6 posts) from people the user follows  → sorted by newest first
+ *   - 40% (4 posts) from trending (everyone else) → sorted by engagement score
+ *   - If friends pool runs dry, fill remaining slots from trending
+ *   - If trending pool runs dry, fill remaining slots from friends
+ *   - When BOTH pools are exhausted → allCaughtUp: true
+ *
+ * Cursor pagination:
+ *   - First request: no cursor
+ *   - Each response returns `nextCursor` (base64 encoded skip state)
+ *   - Pass nextCursor as `cursor` query param to get next page
+ *   - When allCaughtUp is true, show "You are all caught up!" message
+ *
+ * Query params:
+ *   - cursor  (optional) - pagination cursor from previous response
+ *   - limit   (optional) - posts per page, default 10, max 20
+ */
+router.get("/feed", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit  = Math.min(parseInt(req.query.limit) || 10, 20);
+
+    // ── 1. Decode cursor ────────────────────────────────────────────────────
+    let friendsSkip  = 0;
+    let trendingSkip = 0;
+
+    if (req.query.cursor) {
+      try {
+        const decoded    = Buffer.from(req.query.cursor, "base64").toString("utf8");
+        const parsed     = JSON.parse(decoded);
+        friendsSkip      = parsed.friendsSkip  || 0;
+        trendingSkip     = parsed.trendingSkip || 0;
+      } catch (_) {
+        return res.status(400).json({ error: "Invalid cursor" });
+      }
+    }
+
+    // ── 2. How many from each source per page ──────────────────────────────
+    const FRIENDS_TARGET  = Math.ceil(limit * 0.6);  // 6 when limit=10
+    const TRENDING_TARGET = limit - FRIENDS_TARGET;   // 4 when limit=10
+
+    // ── 3. Get IDs of people this user follows ─────────────────────────────
+    const followDocs   = await Follow.find({ followerId: userId }).select("followingId").lean();
+    const followingIds = followDocs.map(f => f.followingId);
+
+    // ── 4. Fetch friends posts pool ────────────────────────────────────────
+    //    Posts from people the user follows, newest first
+    let friendPosts = [];
+    if (followingIds.length > 0) {
+      friendPosts = await Post.find({ authorId: { $in: followingIds } })
+        .sort({ createdAt: -1 })
+        .skip(friendsSkip)
+        .limit(FRIENDS_TARGET + 4)           // small buffer
+        .populate("authorId", "username email profileImage displayName")
+        .lean();
+    }
+
+    const friendsTaken    = Math.min(friendPosts.length, FRIENDS_TARGET);
+    const friendPostIds   = friendPosts.slice(0, friendsTaken).map(p => p._id);
+
+    // Gap: if friends pool gave fewer than target, trending fills the rest
+    const friendsGap      = FRIENDS_TARGET - friendsTaken;
+    const trendingTarget  = TRENDING_TARGET + friendsGap;
+
+    // ── 5. Fetch trending posts pool ───────────────────────────────────────
+    //    Posts from people the user does NOT follow (and not themselves),
+    //    sorted by engagement (likes * 3 + comments * 2), then newest first.
+    //    Exclude any IDs already in friendPosts to prevent duplicates.
+    const trendingPosts = await Post.find({
+      authorId: { $nin: [...followingIds, userId] },
+      _id:      { $nin: friendPostIds }      // no duplication
+    })
+      .sort({ likesCount: -1, commentsCount: -1, createdAt: -1 })
+      .skip(trendingSkip)
+      .limit(trendingTarget + 4)             // small buffer
+      .populate("authorId", "username email profileImage displayName")
+      .lean();
+
+    const trendingTaken = Math.min(trendingPosts.length, trendingTarget);
+
+    // Gap: if trending ran dry, backfill with more friends posts
+    const trendingGap   = trendingTarget - trendingTaken;
+    let extraFriendPosts = [];
+    if (trendingGap > 0 && friendPosts.length > friendsTaken) {
+      extraFriendPosts = friendPosts.slice(friendsTaken, friendsTaken + trendingGap);
+    }
+
+    // ── 6. Interleave: F F F T F F T F T T (approx 60/40 ratio) ──────────
+    const friendsSlice  = friendPosts.slice(0, friendsTaken);
+    const trendingSlice = trendingPosts.slice(0, trendingTaken);
+    const combined      = [...friendsSlice, ...extraFriendPosts, ...trendingSlice];
+
+    // Interleave for better UX: every 3 friends posts, 2 trending
+    const merged = [];
+    let fi = 0, ti = 0;
+    const allFriends  = [...friendsSlice, ...extraFriendPosts];
+    const allTrending = trendingSlice;
+
+    while (merged.length < limit) {
+      // Add up to 3 friends posts
+      for (let i = 0; i < 3 && fi < allFriends.length && merged.length < limit; i++) {
+        merged.push({ ...allFriends[fi], _feedSource: "friends" });
+        fi++;
+      }
+      // Add up to 2 trending posts
+      for (let i = 0; i < 2 && ti < allTrending.length && merged.length < limit; i++) {
+        merged.push({ ...allTrending[ti], _feedSource: "trending" });
+        ti++;
+      }
+      // If both exhausted, break
+      if (fi >= allFriends.length && ti >= allTrending.length) break;
+    }
+
+    // ── 7. All caught up? ─────────────────────────────────────────────────
+    const allCaughtUp = merged.length === 0;
+
+    // ── 8. Build next cursor ──────────────────────────────────────────────
+    const nextFriendsSkip  = friendsSkip  + friendsTaken  + extraFriendPosts.length;
+    const nextTrendingSkip = trendingSkip + trendingTaken;
+    const nextCursorObj    = { friendsSkip: nextFriendsSkip, trendingSkip: nextTrendingSkip };
+    const nextCursor       = allCaughtUp
+      ? null
+      : Buffer.from(JSON.stringify(nextCursorObj)).toString("base64");
+
+    return res.json({
+      success: true,
+      data: merged,
+      pagination: {
+        hasMore:     !allCaughtUp,
+        nextCursor,
+        allCaughtUp,
+        message:     allCaughtUp ? "You are all caught up! Check back next time 🎉" : null,
+        page: {
+          friendsOnThisPage:  fi,
+          trendingOnThisPage: ti,
+          total: merged.length
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error("GET /api/posts/feed error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch feed" });
   }
 });
 
@@ -213,27 +385,6 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("DELETE /api/posts/:id error:", err);
     return res.status(500).json({ error: err.message || "Failed to delete post" });
-  }
-});
-
-/**
- * GET /api/posts/user/:userId
- * Get all posts by a specific user
- */
-router.get("/user/:userId", async (req, res) => {
-  try {
-    const posts = await Post.find({ authorId: req.params.userId })
-      .sort({ createdAt: -1 })
-      .populate("authorId", "username email");
-
-    return res.json({
-      success: true,
-      data: posts
-    });
-
-  } catch (err) {
-    console.error("GET /api/posts/user/:userId error:", err);
-    return res.status(500).json({ error: err.message || "Failed to fetch user posts" });
   }
 });
 
