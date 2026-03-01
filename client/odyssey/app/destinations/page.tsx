@@ -262,11 +262,15 @@ const DestinationsPage: React.FC = () => {
                   className="relative h-56 rounded-2xl overflow-hidden cursor-pointer group shadow-lg"
                   onClick={() => handlePlaceClick(search)}
                 >
-                  <img
-                    src={`https://source.unsplash.com/600x400/?${search.name}`}
-                    alt={search.name}
-                    className="w-full h-full object-cover brightness-75 group-hover:scale-110 transition duration-500"
-                  />
+                  {(search as any).img_url ? (
+                    <img
+                      src={(search as any).img_url}
+                      alt={search.name}
+                      className="w-full h-full object-cover brightness-75 group-hover:scale-110 transition duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <h3 className="text-white text-xl font-bold">{search.name}</h3>

@@ -1,4 +1,33 @@
 const supabase = require("../config/supabaseClient");
+const { getThumbnailsForPlaces } = require("./imageService");
+
+/**
+ * Attach img_url from place_images to an array of place objects.
+ * Looks up by each item's id (uuid from pois/cities/countries) first,
+ * then falls back to place_id (integer from places table, cast to string UUID lookup).
+ */
+async function attachImageUrls(items) {
+  if (!items || items.length === 0) return items;
+
+  // Collect all UUIDs to look up
+  const ids = items
+    .map(item => item.id || item.place_id)
+    .filter(Boolean)
+    .map(String);
+
+  // Only attempt lookup for UUID-shaped ids (pois/cities/countries)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidIds = ids.filter(id => uuidRegex.test(id));
+
+  if (uuidIds.length === 0) return items;
+
+  const thumbnailMap = await getThumbnailsForPlaces(uuidIds);
+
+  return items.map(item => {
+    const key = String(item.id || item.place_id);
+    return { ...item, img_url: thumbnailMap[key] || null };
+  });
+}
 
 /// -- ->Note for other developers working with AI -- //
 async function searchPlacesDynamic(filters) {
@@ -139,11 +168,14 @@ async function searchPlacesDynamic(filters) {
     });
   };
 
-  return [
+  const finalResults = [
     ...dedup(formattedCountries),
     ...dedup(formattedCities),
     ...dedup(formattedPlaces)  // already ordered: city-FK first, then text-only
   ];
+
+  // Attach thumbnail images
+  return attachImageUrls(finalResults);
 }
 
 async function getTrendingPlaces(userCountry) {
@@ -168,6 +200,13 @@ async function getTrendingPlaces(userCountry) {
   const { data, error } = await query.limit(8);
   if (error) throw error;
   return data;
+}
+
+// Wraps getTrendingPlaces to attach images
+const _originalGetTrending = getTrendingPlaces;
+async function getTrendingPlacesWithImages(userCountry) {
+  const places = await _originalGetTrending(userCountry);
+  return attachImageUrls(places || []);
 }
 
 async function insertPlaceFromAI(place) {
@@ -252,7 +291,7 @@ async function getTopCities(countryId) {
     .limit(10);
 
   if (error) throw error;
-  return data;
+  return attachImageUrls(data || []);
 }
 
 async function getTopPOIs(countryId) {
@@ -263,7 +302,7 @@ async function getTopPOIs(countryId) {
     .order('popularity_score', { ascending: false })
     .limit(10);
   if (error) throw error;
-  return data;
+  return attachImageUrls(data || []);
 }
 
 async function getCityPOIs(cityId) {
@@ -273,13 +312,13 @@ async function getCityPOIs(cityId) {
     .eq('city_id', cityId)
     .order('popularity_score', { ascending: false }); // Return all? Or limit?
   if (error) throw error;
-  return data;
+  return attachImageUrls(data || []);
 }
 
 module.exports = {
   searchPlacesDynamic,
   insertPlaceFromAI,
-  getTrendingPlaces,
+  getTrendingPlaces: getTrendingPlacesWithImages,
   getTopCities,
   getTopPOIs,
   getCityPOIs

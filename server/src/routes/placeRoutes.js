@@ -1,6 +1,7 @@
 const express = require("express");
 const supabase = require("../config/supabaseClient");
 const { searchPlacesDynamic, insertPlaceFromAI, getTrendingPlaces } = require("../services/placeService.js");
+const { getImagesForPlace } = require("../services/imageService");
 
 const router = express.Router();
 
@@ -34,11 +35,20 @@ router.post("/places", async (req, res) => {
   }
 });
 
-// Public GET Single Place
+// Public GET Single Place — includes images
 router.get("/places/:id", async (req, res) => {
   const { data, error } = await supabase.from('places').select('*, cities(name), countries(name)').eq('place_id', req.params.id).single();
   if (error) return res.status(404).json({ error: "Not Found" });
-  res.json(data);
+
+  // Fetch images if this place has a UUID-shaped id
+  let images = [];
+  try {
+    // places table uses integer IDs, but we can still try fetching images 
+    // if there's a linked pois record (same google_place_id) with UUID
+    images = await getImagesForPlace(String(data.place_id));
+  } catch (e) { /* no images */ }
+
+  res.json({ ...data, images, img_url: images[0]?.url || null });
 });
 
 // Public GET Single City
