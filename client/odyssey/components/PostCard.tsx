@@ -6,6 +6,7 @@ import { MessageCircle, Calendar, MapPin } from 'lucide-react';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
 import ShareButton from './ShareButton';
+import TripUpdateCard from './TripUpdateCard';
 import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
@@ -14,6 +15,12 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPostClick }: PostCardProps) {
+  // If it's a trip update (auto-generated), render special card
+  if (post.type === 'auto') {
+    return <TripUpdateCard post={post} onPostClick={onPostClick} />;
+  }
+
+  // Otherwise, render regular blog post card
   const router = useRouter();
   // Ensure likesCount is never negative
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));

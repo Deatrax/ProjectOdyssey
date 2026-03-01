@@ -24,6 +24,19 @@ const postSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Trip progress data (for auto-generated trip update posts)
+  tripProgress: {
+    locations: [{
+      name: String,
+      placeId: String,
+      visitedAt: Date,
+      photos: [String], // Array of photo URLs
+      isCurrentLocation: Boolean
+    }],
+    currentLocationName: String,
+    totalLocations: Number,
+    completionPercentage: Number
+  },
   likesCount: {
     type: Number,
     default: 0

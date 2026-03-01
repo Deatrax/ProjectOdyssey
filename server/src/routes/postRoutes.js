@@ -236,4 +236,91 @@ router.get("/user/:userId", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/posts/trip-update
+ * Create a trip update post with progress data
+ * 
+ * Body:
+ * {
+ *   tripId: "uuid-from-supabase",
+ *   tripName: "Trip Name",
+ *   tripProgress: {
+ *     locations: [
+ *       {
+ *         name: "Location A",
+ *         placeId: "ChIJ...",
+ *         visitedAt: "2024-01-01T10:00:00Z",
+ *         photos: ["url1", "url2"],
+ *         isCurrentLocation: true
+ *       }
+ *     ],
+ *     currentLocationName: "Location A",
+ *     totalLocations: 5,
+ *     completionPercentage: 40
+ *   }
+ * }
+ */
+router.post("/trip-update", authMiddleware, async (req, res) => {
+  try {
+    const { tripId, tripName, tripProgress } = req.body;
+    const authorId = req.user.id;
+
+    // Validation
+    if (!tripId || !tripName || !tripProgress) {
+      return res.status(400).json({ 
+        error: "tripId, tripName, and tripProgress are required" 
+      });
+    }
+
+    // Create auto-generated content
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "heading",
+          attrs: { level: 2 },
+          content: [
+            {
+              type: "text",
+              text: `Trip Update: ${tripName}`
+            }
+          ]
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: `I've visited ${tripProgress.locations?.length || 0} locations on my journey! Currently at ${tripProgress.currentLocationName}.`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Create trip update post
+    const post = await Post.create({
+      authorId,
+      type: "auto",
+      content,
+      tripId,
+      tripName,
+      tripProgress
+    });
+
+    // Populate author details
+    await post.populate("authorId", "username email");
+
+    return res.status(201).json({
+      success: true,
+      message: "Trip update post created successfully",
+      data: post
+    });
+
+  } catch (err) {
+    console.error("POST /api/posts/trip-update error:", err);
+    return res.status(500).json({ error: err.message || "Failed to create trip update" });
+  }
+});
+
 module.exports = router;

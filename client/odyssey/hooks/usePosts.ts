@@ -8,13 +8,27 @@ export interface Post {
     _id: string;
     username: string;
     email: string;
+    profilePicture?: string;
   };
   type: 'blog' | 'auto';
   content: any; // BlockNote JSON structure
   tripId?: string;
   tripName?: string;
+  tripProgress?: {
+    locations: Array<{
+      name: string;
+      placeId: string;
+      visitedAt: Date;
+      photos: string[];
+      isCurrentLocation: boolean;
+    }>;
+    currentLocationName: string;
+    totalLocations: number;
+    completionPercentage: number;
+  };
   likesCount: number;
   commentsCount: number;
+  isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
 }
