@@ -104,3 +104,23 @@ export interface PublicProfileResponse {
   success: boolean;
   data: PublicProfile;
 }
+
+// ─── Search History Types ─────────────────────────────────────────────────
+
+export interface SearchHistoryEntry {
+  _id: string;       // history entry ID — use this for DELETE /:entryId
+  query: string;     // search term used when the user was clicked
+  updatedAt: string;
+  user: {
+    _id: string;
+    username: string;
+    displayName: string;
+    profileImage: string;
+  };
+}
+
+export interface SearchHistoryResponse {
+  success: boolean;
+  count: number;
+  data: SearchHistoryEntry[];
+}
