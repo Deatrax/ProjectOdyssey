@@ -42,7 +42,7 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
     const isBreak = item.isBreak;
 
     return (
-        <div ref={setNodeRef} style={style} className={`group relative pl-4 pr-3 py-3 rounded-xl border shadow-sm hover:shadow-md transition-all mb-3 flex gap-3 items-start z-10 w-[95%] ml-auto ${
+        <div ref={setNodeRef} style={style} className={`group relative pl-4 pr-3 py-3 rounded-xl border shadow-sm hover:shadow-md transition-all flex gap-3 items-start z-10 w-full ${
             isBreak ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'
         }`}>
             {/* Time Indicator Line */}
@@ -86,11 +86,22 @@ function SortableTimelineItem({ item, onRemove, onEdit }: { item: ItineraryItem;
 }
 
 export default function TimelineView({ day, items = [], onRemoveItem, onEditItem, onAddItem, onAddMealBreak }: TimelineViewProps) {
-    // Generate hours 08:00 to 22:00
-    const hours = Array.from({ length: 15 }, (_, i) => {
-        const h = i + 8;
+    // Generate hours 04:00 to 22:00 (start of day at 4am per plan)
+    const START_HOUR = 4;
+    const END_HOUR = 23;
+    const HOUR_HEIGHT = 64; // px per hour
+    const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => {
+        const h = i + START_HOUR;
         return `${h.toString().padStart(2, '0')}:00`;
     });
+
+    /** Convert a "HH:MM" string into a pixel offset from the start hour */
+    const timeToTop = (time: string): number => {
+        const [hStr, mStr] = (time || `${String(START_HOUR).padStart(2,'0')}:00`).split(':');
+        const h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        return (h - START_HOUR) * HOUR_HEIGHT + (m / 60) * HOUR_HEIGHT;
+    };
 
     // We need to render the droppable area for the DAY
     const { setNodeRef } = useDroppable({
@@ -121,39 +132,41 @@ export default function TimelineView({ day, items = [], onRemoveItem, onEditItem
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative" ref={setNodeRef}>
                 <SortableContext items={sortedItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     {/* Render Hour Slots Visualization */}
-                    <div className="relative min-h-[800px]">
+                    <div className="relative" style={{ minHeight: `${(END_HOUR - START_HOUR) * HOUR_HEIGHT}px` }}>
                         {/* Background Grid */}
                         <div className="absolute inset-0 pointer-events-none">
                             {hours.map((hour, i) => (
-                                <div key={hour} className="flex h-16 border-b border-dashed border-gray-100 last:border-0" style={{ top: `${i * 64}px`, position: 'absolute', width: '100%' }}>
+                                <div key={hour} className="flex h-16 border-b border-dashed border-gray-100 last:border-0" style={{ top: `${i * HOUR_HEIGHT}px`, position: 'absolute', width: '100%' }}>
                                     <span className="text-xs font-mono text-gray-300 w-12 pt-2">{hour}</span>
                                     <div className="flex-1"></div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Items Layer - Positioning logic could be absolute based on time, but for now specific DnD list is safer */}
-                        {/* If we want strict time slots, we'd map items to slots. But DnD list is requested. 
-                           Let's overlay the list ON TOP of the grid for visual cue. 
-                           Ideally, dragging releases into a 'slot'. 
-                           For V1, keep list but sort by time. 
-                        */}
-                        <div className="pl-12 pt-2 space-y-2">
-                            {sortedItems.length > 0 ? (
-                                sortedItems.map((item) => (
+                        {/* Items Layer — absolutely positioned to align with hour ticks */}
+                        {sortedItems.length > 0 ? (
+                            sortedItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="absolute"
+                                    style={{
+                                        top: `${timeToTop(item.time || `${String(START_HOUR).padStart(2,'0')}:00`)}px`,
+                                        left: '48px',
+                                        right: '0px',
+                                    }}
+                                >
                                     <SortableTimelineItem
-                                        key={item.id}
                                         item={item}
                                         onRemove={() => onRemoveItem(item.id)}
                                         onEdit={() => onEditItem(item)}
                                     />
-                                ))
-                            ) : (
-                                <div className="text-center py-20 text-gray-400 italic">
-                                    Drag places here from the right
                                 </div>
-                            )}
-                        </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-20 text-gray-400 italic" style={{ paddingLeft: '48px' }}>
+                                Drag places here from the right
+                            </div>
+                        )}
 
                     </div>
                 </SortableContext>
