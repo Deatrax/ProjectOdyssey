@@ -12,6 +12,7 @@ Rules:
 - searchQueries: 1-4 short keywords/place names to search in the database (lowercase).
   Extract the MOST SPECIFIC place names, landmarks, or descriptive terms.
   Examples: "sundarbans", "tea garden", "cox's bazar", "museum"
+- IMPORTANT: Check userContext.exploreSurroundings. If FALSE, do NOT extract generalized region names; extract ONLY the EXACT city/location mentioned.
 - country: the country name mentioned or implied (null if not clear).
 - city: the city/district name mentioned or implied (null if not clear).
 - category: one of "nature", "history", "museum", "urban", "beach", "adventure" (null if not clear).

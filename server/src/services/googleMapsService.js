@@ -19,31 +19,31 @@ class GoogleMapsService {
    */
   async checkQuota(apiType) {
     const today = new Date().toISOString().split('T')[0];
-    
+
     try {
       if (!supabase) {
         console.warn('Supabase not configured, skipping quota check');
         return 0;
       }
-      
+
       const { data, error } = await supabase
         .from('api_usage_logs')
         .select('count')
         .eq('api_type', apiType)
         .eq('date', today)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') { // Ignore "not found" error
         console.error('Quota check error:', error);
         return 0;
       }
-      
+
       const currentCount = data?.count || 0;
-      
+
       if (currentCount >= this.DAILY_LIMITS[apiType]) {
         throw new Error(`Daily quota exceeded for ${apiType}. Current: ${currentCount}/${this.DAILY_LIMITS[apiType]}. Try again tomorrow.`);
       }
-      
+
       return currentCount;
     } catch (error) {
       if (error.message.includes('quota exceeded')) {
@@ -59,12 +59,12 @@ class GoogleMapsService {
    */
   async incrementQuota(apiType) {
     const today = new Date().toISOString().split('T')[0];
-    
+
     try {
       if (!supabase) {
         return; // Skip if Supabase not configured
       }
-      
+
       // Use upsert to handle both insert and update
       const { error } = await supabase
         .from('api_usage_logs')
@@ -121,7 +121,7 @@ class GoogleMapsService {
         .eq('search_query', cacheKey)
         .gt('expires_at', new Date().toISOString())
         .single();
-      
+
       if (cached) {
         console.log('✅ Cache hit - no API call for:', query);
         return cached.place_data;
@@ -132,10 +132,10 @@ class GoogleMapsService {
 
     // Check quota
     await this.checkQuota('autocomplete');
-    
+
     // Call Google Places Autocomplete API
     console.log('⚠️ API call - Places Autocomplete for:', query);
-    
+
     try {
       const url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
       const params = {
@@ -143,14 +143,14 @@ class GoogleMapsService {
         key: GOOGLE_MAPS_API_KEY,
         types: '(regions)',
       };
-      
+
       if (location) {
         params.location = `${location.lat},${location.lng}`;
         params.radius = 50000; // 50km
       }
-      
+
       const response = await axios.get(url, { params });
-      
+
       if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
         console.error('Google API error:', response.data);
         throw new Error(`Google API error: ${response.data.status}`);
@@ -163,10 +163,10 @@ class GoogleMapsService {
         types: p.types || [],
         secondaryText: p.structured_formatting?.secondary_text || ''
       }));
-      
+
       // Increment quota counter
       await this.incrementQuota('autocomplete');
-      
+
       // Cache for 7 days
       if (supabase) {
         try {
@@ -179,7 +179,7 @@ class GoogleMapsService {
           console.error('Cache save error:', cacheError);
         }
       }
-      
+
       return results;
     } catch (error) {
       console.error('Search places error:', error.message);
@@ -202,7 +202,7 @@ class GoogleMapsService {
         .select('*')
         .eq('place_id', placeId)
         .single();
-      
+
       // Cache valid for 30 days
       if (existing && new Date(existing.fetched_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) {
         console.log('✅ Database hit - no API call for place:', placeId);
@@ -214,9 +214,9 @@ class GoogleMapsService {
 
     // Check quota (Place Details is EXPENSIVE)
     await this.checkQuota('placeDetails');
-    
+
     console.log('⚠️ API call - Place Details (EXPENSIVE $17/1k) for:', placeId);
-    
+
     try {
       const url = 'https://maps.googleapis.com/maps/api/place/details/json';
       const params = {
@@ -224,16 +224,16 @@ class GoogleMapsService {
         key: GOOGLE_MAPS_API_KEY,
         fields: 'name,formatted_address,geometry,photos,rating,reviews,opening_hours,website,formatted_phone_number,types,price_level,editorial_summary'
       };
-      
+
       const response = await axios.get(url, { params });
-      
+
       if (response.data.status !== 'OK') {
         console.error('Place details error:', response.data);
         throw new Error(`Google API error: ${response.data.status}`);
       }
 
       const place = response.data.result;
-      
+
       const details = {
         placeId: placeId,
         name: place.name,
@@ -242,7 +242,7 @@ class GoogleMapsService {
           lat: place.geometry?.location?.lat,
           lng: place.geometry?.location?.lng
         },
-        photos: (place.photos || []).slice(0, 5).map(photo => 
+        photos: (place.photos || []).slice(0, 5).map(photo =>
           `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
         ),
         rating: place.rating || 0,
@@ -261,10 +261,10 @@ class GoogleMapsService {
         priceLevel: place.price_level,
         description: place.editorial_summary?.overview || null
       };
-      
+
       // Increment quota
       await this.incrementQuota('placeDetails');
-      
+
       // Store permanently in cache
       if (supabase) {
         try {
@@ -277,7 +277,7 @@ class GoogleMapsService {
           console.error('Cache save error:', cacheError);
         }
       }
-      
+
       return details;
     } catch (error) {
       console.error('Place details error:', error.message);
@@ -294,17 +294,17 @@ class GoogleMapsService {
     }
 
     await this.checkQuota('directions');
-    
+
     console.log('⚠️ API call - Directions for route');
-    
+
     try {
       const url = 'https://maps.googleapis.com/maps/api/directions/json';
       const origin = waypoints[0];
       const destination = waypoints[waypoints.length - 1];
-      const waypointsParam = waypoints.slice(1, -1).map(w => 
+      const waypointsParam = waypoints.slice(1, -1).map(w =>
         typeof w === 'string' ? `place_id:${w}` : `${w.lat},${w.lng}`
       ).join('|');
-      
+
       const params = {
         origin: typeof origin === 'string' ? `place_id:${origin}` : `${origin.lat},${origin.lng}`,
         destination: typeof destination === 'string' ? `place_id:${destination}` : `${destination.lat},${destination.lng}`,
@@ -312,13 +312,13 @@ class GoogleMapsService {
         mode: transportMode,
         optimize: true
       };
-      
+
       if (waypointsParam) {
         params.waypoints = `optimize:true|${waypointsParam}`;
       }
-      
+
       const response = await axios.get(url, { params });
-      
+
       if (response.data.status !== 'OK') {
         console.error('Directions error:', response.data);
         throw new Error(`Google API error: ${response.data.status}`);
@@ -326,7 +326,7 @@ class GoogleMapsService {
 
       const route = response.data.routes[0];
       const legs = route.legs;
-      
+
       const routeData = {
         polyline: route.overview_polyline.points,
         legs: legs.map(leg => ({
@@ -344,9 +344,9 @@ class GoogleMapsService {
         totalDuration: legs.reduce((sum, leg) => sum + leg.duration.value, 0),
         bounds: route.bounds
       };
-      
+
       await this.incrementQuota('directions');
-      
+
       return routeData;
     } catch (error) {
       console.error('Route generation error:', error.message);
@@ -358,19 +358,20 @@ class GoogleMapsService {
    * GEOCODING: Convert address to coordinates (fallback only)
    */
   async geocode(address) {
+    console.log('⚠️ API call - Geocoding for:', address);
     try {
       const url = 'https://maps.googleapis.com/maps/api/geocode/json';
       const params = {
         address: address,
         key: GOOGLE_MAPS_API_KEY
       };
-      
+
       const response = await axios.get(url, { params });
-      
+
       if (response.data.status !== 'OK' || !response.data.results.length) {
         return null;
       }
-      
+
       const result = response.data.results[0];
       return {
         coordinates: {

@@ -4,14 +4,15 @@ import React, { useState } from "react";
 import CountryInputForm from "./CountryInputForm";
 import DistrictInputForm from "./DistrictInputForm";
 import PlaceForm from "./PlaceForm";
+import AIImportForm from "./AIImportForm";
 
-type EntityType = "COUNTRY" | "DISTRICT" | "PLACE";
+type EntityType = "COUNTRY" | "DISTRICT" | "PLACE" | "AI_IMPORT";
 
 export default function DbControlPage() {
   const [selectedType, setSelectedType] = useState<EntityType>("COUNTRY");
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className={`mx-auto ${selectedType === "AI_IMPORT" ? "max-w-6xl" : "max-w-4xl"}`}>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Database Control</h1>
 
@@ -25,14 +26,18 @@ export default function DbControlPage() {
             <option value="COUNTRY">Country</option>
             <option value="DISTRICT">District (City)</option>
             <option value="PLACE">Place (POI)</option>
+            <option value="AI_IMPORT">⚡ AI Bulk Import</option>
           </select>
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+      <div className={`bg-white rounded-2xl shadow-lg border border-gray-200 ${
+        selectedType === "AI_IMPORT" ? "p-6" : "p-8"
+      }`}>
         {selectedType === "COUNTRY" && <CountryInputForm />}
         {selectedType === "DISTRICT" && <DistrictInputForm />}
         {selectedType === "PLACE" && <PlaceForm />}
+        {selectedType === "AI_IMPORT" && <AIImportForm />}
       </div>
     </div>
   );

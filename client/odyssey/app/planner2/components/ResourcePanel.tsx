@@ -53,6 +53,10 @@ interface ResourcePanelProps {
     clusteringLoading?: boolean;
     onClusteringContinue?: (selectedPlaces: any[]) => void;
     onClusteringCancel?: () => void;
+    aiClusteringEnabled?: boolean;
+    onAiClusteringToggle?: (enabled: boolean) => void;
+    exploreSurroundings?: boolean;
+    onExploreSurroundingsToggle?: (enabled: boolean) => void;
     itineraryOptions?: any[];
     onSelectItineraryOption?: (option: any) => void;
     // Custom Requirements
@@ -157,6 +161,10 @@ export default function ResourcePanel({
     clusteringLoading = false,
     onClusteringContinue,
     onClusteringCancel,
+    aiClusteringEnabled = false,
+    onAiClusteringToggle,
+    exploreSurroundings = true,
+    onExploreSurroundingsToggle,
     itineraryOptions = [],
     onSelectItineraryOption,
     // Custom Requirements
@@ -314,19 +322,79 @@ export default function ResourcePanel({
                                     </div>
                                 )}
 
-                                <form onSubmit={onSendMessage} className="p-3 bg-white border-t border-gray-100">
-                                    <div className="relative flex items-center bg-gray-50 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-[#4A9B7F] transition-all px-2">
-                                        <input
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            placeholder="Ask Odyssey..."
-                                            className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 outline-none"
-                                        />
-                                        <button type="submit" disabled={loading} className="p-2 bg-[#4A9B7F] text-white rounded-full hover:bg-[#3d8269] transition-transform active:scale-95 disabled:opacity-50">
-                                            <Send className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </form>
+                                <div className="p-3 bg-white border-t border-gray-100 space-y-2">
+                                    {/* AI Clustering Toggle */}
+                                    {onAiClusteringToggle && (
+                                        <div className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${
+                                            aiClusteringEnabled
+                                                ? 'bg-purple-50 border-purple-200'
+                                                : 'bg-gray-50 border-gray-200'
+                                        }`}>
+                                            <div className="flex items-center gap-2">
+                                                <Sparkles className={`w-3.5 h-3.5 ${ aiClusteringEnabled ? 'text-purple-600' : 'text-gray-400'}`} />
+                                                <span className={`text-xs font-semibold ${ aiClusteringEnabled ? 'text-purple-700' : 'text-gray-500'}`}>
+                                                    AI Trip Analysis
+                                                </span>
+                                                {aiClusteringEnabled && (
+                                                    <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-medium">ON</span>
+                                                )}
+                                            </div>
+                                            {/* Toggle switch */}
+                                            <button
+                                                type="button"
+                                                onClick={() => onAiClusteringToggle(!aiClusteringEnabled)}
+                                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                                                    aiClusteringEnabled ? 'bg-purple-500' : 'bg-gray-300'
+                                                }`}
+                                            >
+                                                <span
+                                                    className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
+                                                    style={{ transform: aiClusteringEnabled ? 'translateX(18px)' : 'translateX(2px)' }}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Explore Surroundings Toggle (only if AI Clustering is ON) */}
+                                    {aiClusteringEnabled && onExploreSurroundingsToggle && (
+                                        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-gray-100 bg-gray-50/50">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className={`w-3 h-3 ${exploreSurroundings ? 'text-blue-500' : 'text-gray-400'}`} />
+                                                <span className="text-[11px] font-medium text-gray-600">
+                                                    {exploreSurroundings ? "Search Broadly (Include Surroundings)" : "Strict City Search (Exact Location Only)"}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => onExploreSurroundingsToggle(!exploreSurroundings)}
+                                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${
+                                                    exploreSurroundings ? 'bg-blue-400' : 'bg-gray-300'
+                                                }`}
+                                            >
+                                                <span
+                                                    className="inline-block h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-transform"
+                                                    style={{ transform: exploreSurroundings ? 'translateX(14px)' : 'translateX(2px)' }}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={onSendMessage}>
+                                        <div className="relative flex items-center bg-gray-50 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-[#4A9B7F] transition-all px-2">
+                                            <input
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                placeholder={aiClusteringEnabled ? "Describe your trip (AI will analyze & cluster)..." : "Ask Odyssey..."}
+                                                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 outline-none"
+                                            />
+                                            <button type="submit" disabled={loading} className={`p-2 text-white rounded-full transition-transform active:scale-95 disabled:opacity-50 ${
+                                                aiClusteringEnabled ? 'bg-purple-500 hover:bg-purple-600' : 'bg-[#4A9B7F] hover:bg-[#3d8269]'
+                                            }`}>
+                                                <Send className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </>
                         )}
                     </>
