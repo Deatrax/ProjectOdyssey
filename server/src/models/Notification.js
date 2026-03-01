@@ -31,13 +31,13 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["like", "comment"],
+    enum: ["like", "comment", "follow"],
     required: true
   },
   postId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Post",
-    required: true
+    default: null  // Not required for follow notifications
   },
   // Only present for comment notifications
   commentId: {
@@ -72,6 +72,15 @@ notificationSchema.index(
   {
     unique: true,
     partialFilterExpression: { type: "like" }  // only enforce uniqueness for likes
+  }
+);
+
+// Prevent duplicate follow-notifications: one per (actor, recipient, type)
+notificationSchema.index(
+  { actorId: 1, recipientId: 1, type: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: "follow" }  // only enforce uniqueness for follows
   }
 );
 

@@ -335,6 +335,8 @@ router.get("/:userId", optionalAuth, async (req, res) => {
         : Promise.resolve(null)
     ]);
 
+    console.log(`[PROFILE] User ${callerId} viewing ${userId}. isFollowing:`, !!followDoc, 'followDoc:', followDoc);
+
     return res.json({
       success: true,
       data: {

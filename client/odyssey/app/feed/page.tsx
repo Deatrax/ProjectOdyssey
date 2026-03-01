@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PenSquare, Loader2 } from 'lucide-react';
 import { usePosts } from '@/hooks/usePosts';
 import { fetchSavedPosts } from '@/hooks/useSavedPosts';
@@ -17,6 +17,7 @@ import ReviewModal from '@/components/ReviewModal';
 
 export default function FeedPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { posts, loading, error, hasMore, loadMore, refresh } = usePosts(10);
   const smartFeed = useSmartFeed();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,6 +39,17 @@ export default function FeedPage() {
     setIsAuthenticated(!!token);
     setCurrentUserId(userId);
   }, []);
+
+  // Handle notification deep linking - open post modal from query param
+  useEffect(() => {
+    const postId = searchParams.get('post');
+    if (postId) {
+      setSelectedPostId(postId);
+      setModalOpen(true);
+      // Clean up URL without causing a re-render loop
+      router.replace('/feed', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Listen for save/unsave events to refresh saved posts list
   useEffect(() => {

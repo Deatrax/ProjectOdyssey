@@ -2,6 +2,7 @@ const router = require("express").Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const Follow = require("../models/Follow");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 
 /**
  * POST /api/follow/:userId
@@ -13,6 +14,8 @@ router.post("/:userId", authMiddleware, async (req, res) => {
     const followerId = req.user.id;
     const followingId = req.params.userId;
 
+    console.log(`[FOLLOW] User ${followerId} attempting to follow ${followingId}`);
+
     if (followerId === followingId) {
       return res.status(400).json({ error: "You cannot follow yourself" });
     }
@@ -20,11 +23,30 @@ router.post("/:userId", authMiddleware, async (req, res) => {
     // Check target user exists
     const targetUser = await User.findById(followingId).select("username");
     if (!targetUser) {
+      console.log(`[FOLLOW] Target user ${followingId} not found`);
       return res.status(404).json({ error: "User not found" });
     }
 
     // Create follow (will throw if already following due to unique index)
     const follow = await Follow.create({ followerId, followingId });
+    console.log(`[FOLLOW] Follow document created:`, follow);
+
+    // Create notification for the followed user
+    try {
+      await Notification.create({
+        recipientId: followingId,
+        actorId: followerId,
+        type: "follow",
+        postId: null,  // No post associated with follow notifications
+        message: `started following you`
+      });
+      console.log(`[FOLLOW] Notification created for ${followingId}`);
+    } catch (notifErr) {
+      // Ignore duplicate notification errors (11000), log others
+      if (notifErr.code !== 11000) {
+        console.error("Failed to create follow notification:", notifErr);
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -77,7 +99,10 @@ router.get("/check/:userId", authMiddleware, async (req, res) => {
     const followerId = req.user.id;
     const followingId = req.params.userId;
 
+    console.log(`[FOLLOW CHECK] Checking if ${followerId} follows ${followingId}`);
+
     const follow = await Follow.findOne({ followerId, followingId });
+    console.log(`[FOLLOW CHECK] Result:`, follow ? 'Following' : 'Not following');
 
     return res.json({
       success: true,

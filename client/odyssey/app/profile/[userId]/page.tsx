@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [followersCount, setFollowersCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -39,6 +40,7 @@ export default function ProfilePage() {
         if (json.success) {
           setProfile(json.data);
           setFollowersCount(json.data.stats?.followersCount ?? 0);
+          setFollowingCount(json.data.stats?.followingCount ?? 0);
         } else {
           setError(json.error ?? 'Failed to load profile');
         }
@@ -53,12 +55,36 @@ export default function ProfilePage() {
     fetchProfile();
   }, [userId]);
 
-  const handleFollowed = () => {
-    setFollowersCount(prev => prev + 1);
+  const handleFollowed = async () => {
+    // Fetch actual stats from server to ensure accuracy
+    try {
+      const res = await fetch(`${BASE}/api/follow/stats/${userId}`);
+      const json = await res.json();
+      if (json.success) {
+        setFollowersCount(json.data.followersCount);
+        setFollowingCount(json.data.followingCount);
+      }
+    } catch (err) {
+      console.error('Failed to fetch updated stats:', err);
+      // Fallback to optimistic update if fetch fails
+      setFollowersCount(prev => prev + 1);
+    }
   };
 
-  const handleUnfollowed = () => {
-    setFollowersCount(prev => Math.max(0, prev - 1));
+  const handleUnfollowed = async () => {
+    // Fetch actual stats from server to ensure accuracy
+    try {
+      const res = await fetch(`${BASE}/api/follow/stats/${userId}`);
+      const json = await res.json();
+      if (json.success) {
+        setFollowersCount(json.data.followersCount);
+        setFollowingCount(json.data.followingCount);
+      }
+    } catch (err) {
+      console.error('Failed to fetch updated stats:', err);
+      // Fallback to optimistic update if fetch fails
+      setFollowersCount(prev => Math.max(0, prev - 1));
+    }
   };
 
   if (loading) {
@@ -195,7 +221,7 @@ export default function ProfilePage() {
               <p className="text-xs text-gray-500 uppercase tracking-wide">Followers</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-gray-800">{profile.stats.followingCount}</p>
+              <p className="text-xl font-bold text-gray-800">{followingCount}</p>
               <p className="text-xs text-gray-500 uppercase tracking-wide">Following</p>
             </div>
           </div>

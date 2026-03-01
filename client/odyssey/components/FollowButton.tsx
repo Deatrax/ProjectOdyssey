@@ -33,8 +33,12 @@ export default function FollowButton({
     e.stopPropagation(); // prevent card click
     const prev = isFollowing;
     await toggle();
-    if (!prev && onFollowed) onFollowed();
-    if (prev && onUnfollowed) onUnfollowed();
+    // Only trigger callbacks after successful toggle
+    // Wait a moment to ensure backend has processed the follow/unfollow
+    setTimeout(() => {
+      if (!prev && onFollowed) onFollowed();
+      if (prev && onUnfollowed) onUnfollowed();
+    }, 100);
   };
 
   const isSmall = size === 'sm';

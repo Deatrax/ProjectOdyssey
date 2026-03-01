@@ -154,8 +154,9 @@ const ProfilePage: React.FC = () => {
   const [visitStats, setVisitStats] = useState<{ count: number, countryStats: Record<string, number> }>({ count: 0, countryStats: {} });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Follow stats (live from API)
-  const followStats = useFollowStats(userData?._id);
+  // Follow stats (live from API) - refresh key to force refetch
+  const [followStatsRefreshKey, setFollowStatsRefreshKey] = useState(0);
+  const followStats = useFollowStats(userData?._id, followStatsRefreshKey);
 
   // Image upload state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -233,6 +234,15 @@ const ProfilePage: React.FC = () => {
     };
 
     fetchVisitStats();
+  }, []);
+
+  // Refresh follow stats when page comes into focus (after following/unfollowing elsewhere)
+  useEffect(() => {
+    const handleFocus = () => {
+      setFollowStatsRefreshKey(prev => prev + 1);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   // Handle opening review modal from query parameters

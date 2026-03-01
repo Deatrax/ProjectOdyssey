@@ -66,20 +66,31 @@ export async function getFollowStats(
 
 /**
  * Returns live follow stats for any user (no auth required).
+ * @param userId - The user ID to fetch stats for
+ * @param refreshKey - Optional key to force refresh when changed
  */
-export function useFollowStats(userId: string | null) {
+export function useFollowStats(userId: string | null, refreshKey?: any) {
   const [followersCount, setFollowersCount] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const stats = await getFollowStats(userId);
+      setFollowersCount(stats.followersCount);
+      setFollowingCount(stats.followingCount);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!userId) return;
-    getFollowStats(userId).then(({ followersCount, followingCount }) => {
-      setFollowersCount(followersCount);
-      setFollowingCount(followingCount);
-    });
-  }, [userId]);
+    refresh();
+  }, [userId, refreshKey]);
 
-  return { followersCount, followingCount };
+  return { followersCount, followingCount, loading, refresh };
 }
 
 /**
