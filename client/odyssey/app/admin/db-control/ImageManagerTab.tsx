@@ -40,6 +40,12 @@ export default function ImageManagerTab() {
   const [populating, setPopulating] = useState(false);
   const [populateLog, setPopulateLog] = useState<string[]>([]);
 
+  // Batch Populate State
+  const [batchPopulating, setBatchPopulating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchCurrentName, setBatchCurrentName] = useState("");
+
   const limit = 20;
 
   const fetchEntities = useCallback(async () => {
@@ -136,15 +142,84 @@ export default function ImageManagerTab() {
     }
   };
 
+  // Batch populate images for all missing entities on current page
+  const handleBatchPopulate = async () => {
+    const missingEntities = entities.filter((e) => !e.has_images);
+    if (missingEntities.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to fetch images for ${missingEntities.length} places? This may take some time.`)) return;
+
+    setBatchPopulating(true);
+    setBatchProgress(0);
+    setBatchTotal(missingEntities.length);
+    setPopulateLog(["Starting batch population..."]);
+
+    for (let i = 0; i < missingEntities.length; i++) {
+      const ent = missingEntities[i];
+      setBatchCurrentName(ent.name);
+      try {
+        const res = await fetch("http://localhost:4000/api/admin/images/populate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            place_id: ent.id,
+            place_type: ent.type,
+            place_name: ent.name,
+            google_place_id: ent.google_place_id,
+          }),
+        });
+        const data = await res.json();
+        setPopulateLog((prev) => [...prev, `[${i + 1}/${missingEntities.length}] ${ent.name}: ${data.total || 0} images`]);
+      } catch (err: any) {
+        setPopulateLog((prev) => [...prev, `[${i + 1}/${missingEntities.length}] ${ent.name}: ❌ Error`]);
+      }
+      setBatchProgress(i + 1);
+    }
+
+    setBatchPopulating(false);
+    fetchEntities(); // Refresh list
+    
+    // If the currently selected entity was updated, refresh its images
+    if (selectedEntity && !selectedEntity.has_images) {
+        selectEntity(selectedEntity);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Left Column: List of Entities */}
       <div className="w-full lg:w-1/2 flex flex-col gap-4 border-r border-gray-200 pr-0 lg:pr-6 h-[800px]">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 mb-1">🖼️ Image Library</h2>
-          <p className="text-sm text-gray-500">
-            Browse places to see exactly which ones are missing images.
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 mb-1">🖼️ Image Library</h2>
+            <p className="text-sm text-gray-500">
+              Browse places to see exactly which ones are missing images.
+            </p>
+          </div>
+          
+          {entities.filter(e => !e.has_images).length > 0 && (
+            <button
+              onClick={handleBatchPopulate}
+              disabled={batchPopulating || populating}
+              className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2 ${
+                batchPopulating || populating 
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed" 
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+              }`}
+            >
+              {batchPopulating ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {batchProgress} / {batchTotal} ({batchCurrentName})
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  Batch Fetch ({entities.filter(e => !e.has_images).length})
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Filters */}
