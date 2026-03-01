@@ -125,8 +125,29 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 /**
+ * GET /api/trips/stats/summary
+ * Get user trip statistics for profile/stats page
+ * MUST be before /:id to avoid Express matching 'stats' as an itinerary ID
+ */
+router.get("/stats/summary", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stats = await TripMemoryModel.getUserTripStats(userId);
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/trips/timeline
  * Get all trips for timeline view (past and upcoming)
+ * MUST be before /:id to avoid Express matching 'timeline' as an itinerary ID
  */
 router.get("/timeline", authMiddleware, async (req, res) => {
   try {
@@ -135,7 +156,7 @@ router.get("/timeline", authMiddleware, async (req, res) => {
 
     // Get all user itineraries with memory data
     const itineraries = await ItineraryModel.getUserItineraries(userId);
-    
+
     // Try to get timeline trips, but handle if table doesn't exist
     let timelineTrips = [];
     try {
@@ -150,7 +171,7 @@ router.get("/timeline", authMiddleware, async (req, res) => {
       const memory = timelineTrips.find(t => t.itinerary_id === itin.id);
       const tripStartDate = itin.trip_start_date ? new Date(itin.trip_start_date) : new Date(itin.created_at);
       const tripEndDate = itin.trip_end_date ? new Date(itin.trip_end_date) : tripStartDate;
-      
+
       const isCompleted = tripEndDate <= now;
 
       return {
@@ -171,7 +192,7 @@ router.get("/timeline", authMiddleware, async (req, res) => {
     const pastTrips = enrichedTrips
       .filter(t => t.isCompleted)
       .sort((a, b) => b.startDate - a.startDate);
-    
+
     const upcomingTrips = enrichedTrips
       .filter(t => !t.isCompleted)
       .sort((a, b) => a.startDate - b.startDate);
@@ -342,10 +363,7 @@ router.post("/:itineraryId/memories", authMiddleware, async (req, res) => {
       badgesEarned,
     } = req.body;
 
-    // Ensure record exists
-    await TripMemoryModel.getOrCreate(userId, itineraryId);
-
-    // Update memory
+    // updateMemory now uses upsert — no need for a separate getOrCreate
     const updated = await TripMemoryModel.updateMemory(
       itineraryId,
       userId,
@@ -433,24 +451,7 @@ router.delete("/:itineraryId/memories/photos/:photoUrl", authMiddleware, async (
   }
 });
 
-/**
- * GET /api/trips/stats/summary
- * Get user trip statistics for profile/stats page
- */
-router.get("/stats/summary", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const stats = await TripMemoryModel.getUserTripStats(userId);
-
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    console.error("Error fetching stats:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+// Note: /stats/summary route moved above /:id — see line ~127
 
 // Helper function to extract image from itinerary
 function extractTripImage(itinerary) {

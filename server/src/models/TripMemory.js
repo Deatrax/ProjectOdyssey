@@ -78,7 +78,11 @@ class TripMemoryModel {
       badgesEarned
     } = updateData;
 
+    // Build upsert payload — always includes the primary keys so upsert can
+    // match existing rows or create a new one atomically.
     const payload = {
+      itinerary_id: itineraryId,
+      user_id: userId,
       updated_at: new Date().toISOString(),
     };
 
@@ -92,14 +96,15 @@ class TripMemoryModel {
 
     const { data, error } = await supabase
       .from("trip_memories")
-      .update(payload)
-      .eq("itinerary_id", itineraryId)
-      .eq("user_id", userId)
+      .upsert(payload, {
+        onConflict: "itinerary_id,user_id",
+        ignoreDuplicates: false,
+      })
       .select()
       .single();
 
     if (error) {
-      console.error("Supabase update error:", error);
+      console.error("Supabase upsert error:", error);
       throw new Error(`Failed to update trip memory: ${error.message}`);
     }
 
