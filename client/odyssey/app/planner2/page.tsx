@@ -99,6 +99,7 @@ export default function PlannerPage() {
   const [stage, setStage] = useState<"chat" | "clustering" | "options" | "confirmation">("chat");
   const [clusteringData, setClusteringData] = useState<any>(null);
   const [clusteringLoading, setClusteringLoading] = useState(false);
+  const [aiClusteringEnabled, setAiClusteringEnabled] = useState(false); // user-controlled toggle
 
   // 7. Itinerary Generation State (Stage 2)
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -515,7 +516,7 @@ export default function PlannerPage() {
         return separatorCount >= 1;
       };
 
-      const isClusteringRequest = hasTripKeywords || hasMultiDayPlan || hasMultipleLocations();
+      const isClusteringRequest = aiClusteringEnabled && (hasTripKeywords || hasMultiDayPlan || hasMultipleLocations());
 
       if (isClusteringRequest) {
         setClusteringLoading(true);
@@ -1192,6 +1193,8 @@ export default function PlannerPage() {
                   clusteringLoading={clusteringLoading}
                   onClusteringContinue={handleClusteringContinue}
                   onClusteringCancel={() => setStage("chat")}
+                  aiClusteringEnabled={aiClusteringEnabled}
+                  onAiClusteringToggle={setAiClusteringEnabled}
                   itineraryOptions={itineraryOptions}
                   onSelectItineraryOption={(option: any) => { setSelectedItinerary(option); setConfirmationOpen(true); }}
                   // Custom Requirements
