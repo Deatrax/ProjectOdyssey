@@ -48,6 +48,9 @@ type ItineraryItem = {
   lat?: number;
   lng?: number;
   isBreak?: boolean;
+  country?: string;
+  entryCost?: number | null;
+  currency?: string;
 };
 
 type Trip = {
@@ -307,8 +310,15 @@ export default function PlannerPage() {
                     };
                   })
                 : [];
-              // Group trip pinned first, personal trips follow
-              setTrips([groupTrip, ...personalTrips]);
+              // Group trip pinned first, personal trips follow — dedupe by ID
+              const combined = [groupTrip, ...personalTrips];
+              const seen = new Set<string>();
+              const deduped = combined.filter(t => {
+                if (seen.has(t.id)) return false;
+                seen.add(t.id);
+                return true;
+              });
+              setTrips(deduped);
             } else {
               setTrips([groupTrip]);
             }
@@ -785,7 +795,8 @@ export default function PlannerPage() {
             category: item.category || "place",
             placeId: item.placeId || undefined,
             lat: item.lat || undefined,
-            lng: item.lng || undefined
+            lng: item.lng || undefined,
+            country: item.country || undefined,
           })),
           tripDuration: activeTrip?.days || 3,
           userContext: { budget: "medium", pace: "moderate" },
@@ -857,6 +868,8 @@ export default function PlannerPage() {
               time: ai.timeRange?.split("-")[0] || "09:00",
               description: ai.notes || "",
               source: "ai" as const,
+              entryCost: ai.entryCost ?? null,
+              currency: ai.currency || selectedItinerary.currency || undefined,
             };
           });
           rebuiltSchedule[dayNum] = recalculateDayTimes(items);
@@ -958,10 +971,11 @@ export default function PlannerPage() {
           placeId: p.place_id || p.id,
           category: p.type || 'Place',
           visitDurationMin: 60,
-          description: p.short_desc || p.country || '',
+          description: p.short_desc || '',
           images: p.img_url ? [p.img_url] : [`https://source.unsplash.com/400x300/?${p.name}`],
           lat: p.latitude,
           lng: p.longitude,
+          country: p.country || undefined,
           source: 'db' as const,
         }));
         setSearchResults(places);

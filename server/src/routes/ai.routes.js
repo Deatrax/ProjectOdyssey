@@ -375,12 +375,12 @@ const COUNTRY_CURRENCY_MAP = {
 };
 
 function getCurrencyForCountry(countryName) {
-  if (!countryName) return { code: "USD", symbol: "$" };
+  if (!countryName) return { code: "BDT", symbol: "৳" };
   const key = countryName.toLowerCase().trim();
   for (const [pattern, currency] of Object.entries(COUNTRY_CURRENCY_MAP)) {
     if (key.includes(pattern) || pattern.includes(key)) return currency;
   }
-  return { code: "USD", symbol: "$" };
+  return { code: "BDT", symbol: "৳" };
 }
 
 // ═══════════════════════════════════════════════════════════════
