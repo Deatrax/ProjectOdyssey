@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react"; // Import useEffect
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import ReviewModal from "@/components/ReviewModal";
+import TripTimeline from "@/components/timeline/TripTimeline";
 
 // --- Types & Interfaces ---
 interface Itinerary {
@@ -270,8 +271,8 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Timeline Section */}
-        <div className="bg-gray-300 rounded-2xl p-8 text-center mb-8">
-          <h2 className="text-4xl font-bold text-gray-700">Your Timeline</h2>
+        <div className="mb-8">
+          <TripTimeline />
         </div>
       </div>
 
