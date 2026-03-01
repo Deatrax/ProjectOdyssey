@@ -52,7 +52,7 @@ const TimelinePage: React.FC = () => {
 
     return (
         <div className="bg-[#FFF5E9] min-h-screen font-body">
-            <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-8 py-8">
                 {/* Back button */}
                 <button
                     onClick={() => router.push("/dashboard")}
