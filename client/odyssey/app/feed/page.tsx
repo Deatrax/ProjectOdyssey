@@ -324,7 +324,7 @@ export default function FeedPage() {
             className="hidden lg:flex items-center gap-2 px-6 py-3 bg-[#4A9B7F] text-white rounded-xl hover:bg-[#3d8268] transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <PenSquare className="w-5 h-5" />
-            <span className="font-medium">Write Story</span>
+            <span className="font-bold">Write Story</span>
           </button>
         </div>
 

@@ -13,6 +13,8 @@ interface FollowButtonProps {
   onFollowed?: () => void;
   /** Called after a successful unfollow */
   onUnfollowed?: () => void;
+  /** Initial follow state (skips the check API call if provided) */
+  initialState?: boolean;
 }
 
 export default function FollowButton({
@@ -20,8 +22,9 @@ export default function FollowButton({
   size = 'sm',
   onFollowed,
   onUnfollowed,
+  initialState,
 }: FollowButtonProps) {
-  const { isFollowing, loading, checked, isSelf, toggle } = useFollowButton(targetUserId);
+  const { isFollowing, loading, checked, isSelf, toggle } = useFollowButton(targetUserId, initialState);
 
   // Don't render on own profile or before check completes
   if (!checked || isSelf) return null;

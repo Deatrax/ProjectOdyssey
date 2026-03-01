@@ -87,11 +87,12 @@ export function useFollowStats(userId: string | null) {
  *
  * - Does NOT render if targetUserId equals the current user's own ID
  *   (caller should check `isSelf` and hide the button accordingly).
+ * - initialState: If provided, skips the initial follow status check (useful when profile already provides isFollowing)
  */
-export function useFollowButton(targetUserId: string | null) {
-  const [isFollowing, setIsFollowing] = useState(false);
+export function useFollowButton(targetUserId: string | null, initialState?: boolean) {
+  const [isFollowing, setIsFollowing] = useState(initialState ?? false);
   const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState(false);
+  const [checked, setChecked] = useState(initialState !== undefined);
   const [isSelf, setIsSelf] = useState(false);
 
   useEffect(() => {
@@ -113,12 +114,19 @@ export function useFollowButton(targetUserId: string | null) {
       return;
     }
 
+    // Skip check if initialState was provided
+    if (initialState !== undefined) {
+      setIsSelf(false);
+      setChecked(true);
+      return;
+    }
+
     setIsSelf(false);
     checkFollowStatus(targetUserId).then(status => {
       setIsFollowing(status);
       setChecked(true);
     });
-  }, [targetUserId]);
+  }, [targetUserId, initialState]);
 
   const toggle = async () => {
     if (!targetUserId || loading || isSelf) return;
