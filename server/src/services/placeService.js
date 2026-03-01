@@ -99,15 +99,36 @@ async function searchPlacesDynamic(filters) {
     short_desc: c.description || c.short_description
   }));
 
-  const formattedPlaces = filteredPlaces.map(p => ({
+  // ── Within POI tier: city-FK-matched places come before text-only matches ─
+  // This prevents unrelated places (e.g. "Faridpur" matching "par" in "paris")
+  // from appearing before the actual POIs that live inside the searched city.
+  const matchedCityIdSet = new Set(matchedCityIds.map(String));
+
+  const cityFkPlaces = []; // POIs that belong to the matched city by FK
+  const textOnlyPlaces = []; // POIs that only matched by text (name/region/etc.)
+
+  for (const p of filteredPlaces) {
+    if (p.city_id && matchedCityIdSet.has(String(p.city_id))) {
+      cityFkPlaces.push(p);
+    } else {
+      textOnlyPlaces.push(p);
+    }
+  }
+
+  const formatPlace = p => ({
     ...p,
     id: String(p.place_id || p.id),
     type: 'POI',
-    district: p.region || p.city  // district label shown in UI
-  }));
+    district: p.region || p.city
+  });
+
+  const formattedPlaces = [
+    ...cityFkPlaces.map(formatPlace),   // 1st: all POIs in the searched city
+    ...textOnlyPlaces.map(formatPlace)  // 2nd: text-matched POIs from anywhere
+  ];
 
   // ════════════════════════════════════════════════════════════════════════
-  // SORT & DEDUPLICATE — COUNTRY → DISTRICT → POI
+  // SORT & DEDUPLICATE — COUNTRY → DISTRICT → POI (city-FK first)
   // ════════════════════════════════════════════════════════════════════════
   const dedup = (arr) => {
     const seen = new Set();
@@ -121,7 +142,7 @@ async function searchPlacesDynamic(filters) {
   return [
     ...dedup(formattedCountries),
     ...dedup(formattedCities),
-    ...dedup(formattedPlaces)
+    ...dedup(formattedPlaces)  // already ordered: city-FK first, then text-only
   ];
 }
 
