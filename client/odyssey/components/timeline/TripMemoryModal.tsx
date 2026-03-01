@@ -121,19 +121,19 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
   const moods = ['🥰 Amazing', '😍 Loved it', '😊 Great', '😌 Peaceful', '😢 Bittersweet'];
   const tripDuration = Math.ceil(
     (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
-      (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60 * 24)
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-fade-in">
+    <div className="fixed inset-0 bg-black/50 z-[1100] flex items-center justify-center animate-fade-in">
       <div className="bg-white rounded-3xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-amber-50 to-orange-50 px-8 py-6 border-b border-gray-200 flex justify-between items-start">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{trip.name}</h2>
             <p className="text-gray-600 text-sm">
-              {new Date(trip.startDate).toLocaleDateString()} 
-              {new Date(trip.startDate).getTime() !== new Date(trip.endDate).getTime() && 
+              {new Date(trip.startDate).toLocaleDateString()}
+              {new Date(trip.startDate).getTime() !== new Date(trip.endDate).getTime() &&
                 ` - ${new Date(trip.endDate).toLocaleDateString()}`}
               <span className="ml-3 text-gray-500">({tripDuration} days)</span>
             </p>
@@ -152,21 +152,19 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
           <div className="flex gap-4 mb-8 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('diary')}
-              className={`pb-3 px-4 font-semibold transition-colors ${
-                activeTab === 'diary'
+              className={`pb-3 px-4 font-semibold transition-colors ${activeTab === 'diary'
                   ? 'text-amber-600 border-b-2 border-amber-600'
                   : 'text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               📔 Trip Diary
             </button>
             <button
               onClick={() => setActiveTab('photos')}
-              className={`pb-3 px-4 font-semibold transition-colors relative ${
-                activeTab === 'photos'
+              className={`pb-3 px-4 font-semibold transition-colors relative ${activeTab === 'photos'
                   ? 'text-amber-600 border-b-2 border-amber-600'
                   : 'text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               📸 Memories {photos.length > 0 && <span className="ml-2 bg-amber-500 text-white text-xs rounded-full px-2 py-0.5">{photos.length}/3</span>}
             </button>
@@ -186,9 +184,8 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
                     <button
                       key={star}
                       onClick={() => setTripRating(star as any)}
-                      className={`text-4xl transition-transform hover:scale-110 ${
-                        star <= tripRating ? 'opacity-100' : 'opacity-30'
-                      }`}
+                      className={`text-4xl transition-transform hover:scale-110 ${star <= tripRating ? 'opacity-100' : 'opacity-30'
+                        }`}
                     >
                       ⭐
                     </button>
@@ -207,11 +204,10 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
                     <button
                       key={moodOption}
                       onClick={() => setMood(moodOption)}
-                      className={`p-3 rounded-xl transition-all font-medium ${
-                        mood === moodOption
+                      className={`p-3 rounded-xl transition-all font-medium ${mood === moodOption
                           ? 'bg-purple-500 text-white shadow-lg scale-105'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {moodOption}
                     </button>
@@ -278,11 +274,10 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
                     <button
                       onClick={handleAddPhoto}
                       disabled={!newPhoto || photos.length >= 3}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-lg font-semibold transition-all ${
-                        newPhoto && photos.length < 3
+                      className={`flex items-center justify-center gap-2 p-3 rounded-lg font-semibold transition-all ${newPhoto && photos.length < 3
                           ? 'bg-amber-500 text-white hover:bg-amber-600'
                           : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
+                        }`}
                     >
                       <Camera className="w-5 h-5" />
                       Add Memory Photo ({photos.length}/3)
@@ -316,9 +311,8 @@ const TripMemoryModal: React.FC<TripMemoryModalProps> = ({
           <button
             onClick={handleSaveMemory}
             disabled={loading}
-            className={`px-6 py-3 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 transition flex items-center gap-2 ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className={`px-6 py-3 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 transition flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
           >
             {loading ? 'Saving...' : '💾 Save Memories'}
           </button>
