@@ -12,6 +12,23 @@ const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 
 /**
+ * Format a mixed ID (UUID or integer) into a valid UUID string.
+ * This handles the case where `places` table uses integer IDs (e.g. 23)
+ * but `place_images` table `place_id` column requires a valid UUID.
+ */
+function formatPlaceIdAsUuid(placeId) {
+    const str = String(placeId).toLowerCase();
+    // If it's already a valid UUID, return it directly
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(str)) {
+        return str;
+    }
+    // Otherwise, assume it's an integer and pad to 12 hex chars for the final block
+    // Using a fake 00000000-0000-0000-0000 block prefix
+    const padded = str.padStart(12, '0');
+    return `00000000-0000-0000-0000-${padded}`;
+}
+
+/**
  * Upload an image buffer or URL to Cloudinary.
  * @param {string} imageUrl - URL of the image to upload
  * @param {string} folder - Cloudinary folder path
@@ -142,10 +159,11 @@ async function populateImages({ place_id, place_type, place_name, google_place_i
             }
 
             // Insert into place_images
+            const uuidPlaceId = formatPlaceIdAsUuid(place_id);
             const { data: inserted, error } = await supabase
                 .from('place_images')
                 .insert({
-                    place_id,
+                    place_id: uuidPlaceId,
                     place_type: place_type.toUpperCase(),
                     url: cloudResult.secure_url,
                     caption: source, // store source in caption field
@@ -185,10 +203,11 @@ async function populateImages({ place_id, place_type, place_name, google_place_i
  * @returns {Promise<object[]>}
  */
 async function getImagesForPlace(placeId, placeType = null) {
+    const uuidPlaceId = formatPlaceIdAsUuid(placeId);
     let query = supabase
         .from('place_images')
         .select('*')
-        .eq('place_id', placeId)
+        .eq('place_id', uuidPlaceId)
         .order('display_order', { ascending: true });
 
     if (placeType) {
@@ -206,10 +225,11 @@ async function getImagesForPlace(placeId, placeType = null) {
  * @returns {Promise<string|null>}
  */
 async function getThumbnail(placeId) {
+    const uuidPlaceId = formatPlaceIdAsUuid(placeId);
     const { data } = await supabase
         .from('place_images')
         .select('url')
-        .eq('place_id', placeId)
+        .eq('place_id', uuidPlaceId)
         .order('display_order', { ascending: true })
         .limit(1)
         .single();
@@ -226,23 +246,43 @@ async function getThumbnail(placeId) {
 async function getThumbnailsForPlaces(placeIds) {
     if (!placeIds || placeIds.length === 0) return {};
 
+    const formattedIds = placeIds.map(formatPlaceIdAsUuid);
+
     // Get the first image for each place using a single query
     const { data, error } = await supabase
         .from('place_images')
         .select('place_id, url')
-        .in('place_id', placeIds)
+        .in('place_id', formattedIds)
         .order('display_order', { ascending: true });
 
     if (error || !data) return {};
 
     // Pick the first image per place_id
-    const map = {};
+    // Note: since we use padded fake UUIDs for integer places internally,
+    // we should return a map mapping the *original* IDs to the URL for easy lookup
+    // BUT the data from Supabase will have the UUID format.
+    // Instead of reconstructing, maybe the caller passes the original IDs.
+    // Let's create a reverse map or just map the returned UUIDs back to integers.
+    const urlMap = {};
     for (const row of data) {
-        if (!map[row.place_id]) {
-            map[row.place_id] = row.url;
+        // row.place_id is the uuid string. 
+        // e.g. 00000000-0000-0000-0000-000000000017
+        // We will store it by the uuid string.
+        if (!urlMap[row.place_id]) {
+            urlMap[row.place_id] = row.url;
         }
     }
-    return map;
+
+    // We want to return a map of [original ID] -> url
+    const result = {};
+    for (const id of placeIds) {
+        const uuidKey = formatPlaceIdAsUuid(id);
+        if (urlMap[uuidKey]) {
+            result[String(id)] = urlMap[uuidKey];
+        }
+    }
+
+    return result;
 }
 
 /**
@@ -290,4 +330,5 @@ module.exports = {
     getThumbnailsForPlaces,
     deleteImage,
     uploadToCloudinary,
+    formatPlaceIdAsUuid,
 };
