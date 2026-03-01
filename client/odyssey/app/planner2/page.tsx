@@ -1076,7 +1076,7 @@ export default function PlannerPage() {
                     onClick={() => setActiveMainTab("map")}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-all ${activeMainTab === "map" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black"}`}
                   >
-                    <MapIcon size={16} /> Map
+                    <MapIcon size={16} /> Preview Map
                   </button>
                 </div>
               </div>
