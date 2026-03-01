@@ -99,38 +99,54 @@ class GamificationService {
      * @returns {number} 0-100
      */
     static async calculateEfficiency(userId) {
+        console.log(`[Gamification] Calculating efficiency for ${userId}`);
         try {
-            // Count completed visits (cheap — no row fetch)
-            const { count: completedVisits, error: visitError } = await supabase
-                .from('visit_logs')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId)
-                .eq('status', 'completed');
-
-            if (visitError) throw visitError;
-
-            // Fetch all confirmed itineraries to count planned activities
+            // 1. Fetch all confirmed itineraries for the user
             const { data: itineraries, error: itinError } = await supabase
                 .from('itineraries')
-                .select('selected_itinerary')
+                .select('id, selected_itinerary')
                 .eq('user_id', userId)
                 .eq('status', 'confirmed');
 
             if (itinError) throw itinError;
+            console.log(`[Gamification] Confirmed itineraries found: ${itineraries.length}`);
 
-            let plannedVisits = 0;
-            itineraries.forEach(itin => {
+            if (itineraries.length === 0) return 0;
+
+            let totalPlannedActivities = 0;
+            let completedPlannedActivities = 0;
+
+            // 2. Iterate through itineraries and match activities with visit_logs
+            for (const itin of itineraries) {
                 const schedule = itin.selected_itinerary?.schedule;
-                if (Array.isArray(schedule)) {
-                    schedule.forEach(day => {
-                        plannedVisits += (day.activities || []).length;
-                    });
+                if (!Array.isArray(schedule)) continue;
+
+                for (const day of schedule) {
+                    const activities = day.activities || [];
+                    for (const activity of activities) {
+                        totalPlannedActivities++;
+
+                        // Check if this specific planned activity has a matching completed visit
+                        const { count, error: visitError } = await supabase
+                            .from('visit_logs')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('user_id', userId)
+                            .eq('itinerary_id', itin.id)
+                            .eq('place_id', activity.place_id)
+                            .eq('status', 'completed');
+
+                        if (!visitError && count > 0) {
+                            completedPlannedActivities++;
+                        }
+                    }
                 }
-            });
+            }
 
-            if (plannedVisits === 0) return 0;
+            console.log(`[Gamification] Total Planned: ${totalPlannedActivities}, Completed Planned: ${completedPlannedActivities}`);
 
-            const efficiency = Math.min(100, Math.round((completedVisits / plannedVisits) * 100));
+            if (totalPlannedActivities === 0) return 0;
+
+            const efficiency = Math.min(100, Math.round((completedPlannedActivities / totalPlannedActivities) * 100));
             return efficiency;
         } catch (err) {
             console.error('calculateEfficiency error:', err);
@@ -145,6 +161,7 @@ class GamificationService {
      * @returns {{ currentStreak: number, personalBest: number }}
      */
     static async calculateAndSyncStreak(userId) {
+        console.log(`[Gamification] Calculating streak for ${userId}`);
         try {
             // 1. Fetch all completed visit dates for this user
             const { data: visits, error } = await supabase
@@ -156,6 +173,7 @@ class GamificationService {
                 .order('exited_at', { ascending: true });
 
             if (error) throw error;
+            console.log(`[Gamification] Found ${visits?.length || 0} visits for streak`);
 
             if (!visits || visits.length === 0) {
                 await User.findByIdAndUpdate(userId, {
