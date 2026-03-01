@@ -143,7 +143,7 @@ router.get("/:id", async (req, res) => {
  */
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { content, tripName } = req.body;
+    const { content, tripName, tripProgress } = req.body;
     const userId = req.user.id;
 
     // Find post
@@ -161,6 +161,33 @@ router.put("/:id", authMiddleware, async (req, res) => {
     // Update fields
     if (content) post.content = content;
     if (tripName !== undefined) post.tripName = tripName;
+
+    // Update tripProgress for trip update posts
+    if (tripProgress && post.type === 'auto') {
+      post.tripProgress = {
+        locations: tripProgress.locations || [],
+        currentLocationName: tripProgress.currentLocationName || '',
+        totalLocations: tripProgress.locations?.length || 0,
+        completionPercentage: tripProgress.completionPercentage || 0
+      };
+
+      // Also regenerate the auto content to reflect update
+      const currentLoc = tripProgress.locations?.find((l) => l.isCurrentLocation);
+      post.content = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: `I've visited ${tripProgress.locations?.length || 0} locations on my journey! Currently at ${tripProgress.currentLocationName || (currentLoc?.name || 'an exciting place')}.`
+              }
+            ]
+          }
+        ]
+      };
+    }
 
     await post.save();
     await post.populate("authorId", "username email");

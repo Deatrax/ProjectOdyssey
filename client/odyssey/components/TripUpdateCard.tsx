@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { MapPin, Calendar, Navigation } from 'lucide-react';
+import { MapPin, Calendar, Navigation, MessageCircle } from 'lucide-react';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
 import ShareButton from './ShareButton';
@@ -44,39 +44,40 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
 
   return (
     <article 
-      className="bg-gradient-to-br from-teal-50 via-white to-teal-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border-2 border-teal-200"
+      className="bg-gradient-to-br from-teal-50 via-white to-teal-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 border-teal-200"
       onClick={handleCardClick}
     >
       {/* Header with special styling for trip update */}
-      <div className="bg-gradient-to-r from-[#4A9B7F] to-teal-600 p-4">
+      <div className="bg-white p-4 border-b border-gray-100 rounded-t-2xl">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center">
-            <img
-              src={post.authorId?.profilePicture || 'https://via.placeholder.com/48'}
-              alt={post.authorId?.username || 'User'}
-              className="w-full h-full rounded-full object-cover"
-            />
-          </div>
+          {post.authorId?.profilePicture ? (
+            <div className="w-12 h-12 rounded-full bg-gray-100 shadow-sm flex items-center justify-center">
+              <img
+                src={post.authorId.profilePicture}
+                alt={post.authorId.username || 'User'}
+                className="w-full h-full rounded-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4A9B7F] to-teal-500 shadow-sm flex items-center justify-center text-white font-bold text-xl">
+              {post.authorId?.username?.charAt(0).toUpperCase() || 'U'}
+            </div>
+          )}
           <div className="flex-1">
-            <h3 className="font-bold text-white text-lg flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
               <span>{post.authorId?.username || 'User'}</span>
-              <span className="text-white/90 font-normal">shared trip progress</span>
+              <span className="text-gray-600 font-normal">has shared trip progress</span>
             </h3>
-            <div className="flex items-center gap-2 text-white/80 text-sm">
+            <div className="flex items-center gap-2 text-gray-500 text-sm">
               <Calendar className="w-4 h-4" />
               <span>{formatDate(post.createdAt)}</span>
             </div>
           </div>
-          {post.type === 'auto' && (
-            <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-              <span className="text-white text-xs font-semibold">✨ Auto-generated</span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Trip Info */}
-      <div className="p-4 bg-white/60 border-b border-teal-100">
+      <div className="p-4 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-[#4A9B7F]" />
@@ -112,16 +113,13 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
                 key={index}
                 className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
                   location.isCurrentLocation 
-                    ? 'bg-green-100 border-2 border-green-400' 
-                    : 'bg-gray-50 hover:bg-gray-100'
+                    ? 'bg-white border-2 border-[#4A9B7F]' 
+                    : 'bg-white border border-gray-200 hover:border-gray-300'
                 }`}
               >
-                {location.isCurrentLocation && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                )}
-                <MapPin className={`w-4 h-4 ${location.isCurrentLocation ? 'text-green-600' : 'text-gray-400'}`} />
+                <MapPin className={`w-4 h-4 ${location.isCurrentLocation ? 'text-[#4A9B7F]' : 'text-gray-400'}`} />
                 <div className="flex-1">
-                  <p className={`text-sm font-medium ${location.isCurrentLocation ? 'text-green-900' : 'text-gray-900'}`}>
+                  <p className={`text-sm font-medium ${location.isCurrentLocation ? 'text-[#4A9B7F]' : 'text-gray-900'}`}>
                     {location.name}
                   </p>
                   {location.visitedAt && (
@@ -131,7 +129,7 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
                   )}
                 </div>
                 {location.isCurrentLocation && (
-                  <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full font-semibold">
+                  <span className="text-xs bg-[#4A9B7F] text-white px-2 py-1 rounded-full font-semibold">
                     Current
                   </span>
                 )}
@@ -143,31 +141,8 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
         </div>
       </div>
 
-      {/* Photos Grid (if available) */}
-      {allPhotos.length > 0 && (
-        <div className="px-4 pb-4">
-          <h5 className="text-sm font-semibold text-gray-700 mb-3">Trip Photos</h5>
-          <div className={`grid gap-2 ${
-            allPhotos.length === 1 ? 'grid-cols-1' :
-            allPhotos.length === 2 ? 'grid-cols-2' :
-            allPhotos.length === 3 ? 'grid-cols-3' :
-            'grid-cols-2'
-          }`}>
-            {allPhotos.map((photo: string, index: number) => (
-              <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-                <img
-                  src={photo}
-                  alt={`Trip photo ${index + 1}`}
-                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Interaction Bar */}
-      <div className="px-4 py-3 bg-gradient-to-r from-teal-50 to-teal-100 border-t border-teal-100 flex items-center justify-between">
+      <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-center justify-between rounded-b-2xl">
         <div className="flex items-center gap-4">
           <div onClick={(e) => e.stopPropagation()}>
             <LikeButton
@@ -181,9 +156,10 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
               e.stopPropagation();
               handleCardClick();
             }}
-            className="flex items-center space-x-1 text-gray-600 hover:text-[#3d8268] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 hover:bg-white/80 transition-all duration-200"
           >
-            <span className="text-sm">{post.commentsCount || 0} Comments</span>
+            <MessageCircle className="w-5 h-5 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">{post.commentsCount || 0}</span>
           </button>
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>

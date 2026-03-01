@@ -38,6 +38,18 @@ export interface CreatePostData {
   content: any;
   tripId?: string;
   tripName?: string;
+  tripProgress?: {
+    locations: Array<{
+      name: string;
+      placeId: string;
+      visitedAt: string;
+      photos: string[];
+      isCurrentLocation: boolean;
+    }>;
+    currentLocationName: string;
+    totalLocations: number;
+    completionPercentage: number;
+  };
 }
 
 export function usePosts(limit: number = 10) {
