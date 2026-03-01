@@ -5,8 +5,8 @@ import { Home, TrendingUp, Bookmark, User, Settings, Calendar } from 'lucide-rea
 import { useRouter, usePathname } from 'next/navigation';
 
 interface LeftSidebarProps {
-  activeFilter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved';
-  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved') => void;
+  activeFilter: 'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved';
+  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved') => void;
   timelineFilter: string;
   onTimelineChange: (timeline: string) => void;
   savedPostsCount?: number;
@@ -93,6 +93,16 @@ export default function LeftSidebar({
             }`}
           >
             🗺️ Trip Updates
+          </button>
+          <button
+            onClick={() => onFilterChange('review')}
+            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+              activeFilter === 'review'
+                ? 'bg-amber-50 text-amber-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            ⭐ Place Reviews
           </button>
           <button
             onClick={() => onFilterChange('my-posts')}

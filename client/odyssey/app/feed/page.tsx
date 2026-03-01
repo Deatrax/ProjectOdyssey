@@ -6,23 +6,27 @@ import { PenSquare, Loader2 } from 'lucide-react';
 import { usePosts } from '@/hooks/usePosts';
 import { fetchSavedPosts } from '@/hooks/useSavedPosts';
 import PostCard from '@/components/PostCard';
+import TripUpdateCard from '@/components/TripUpdateCard';
+import ReviewPostCard from '@/components/ReviewPostCard';
 import LeftSidebar from '@/components/feed/LeftSidebar';
 import RightSidebar from '@/components/feed/RightSidebar';
 import PostDetailModal from '@/components/PostDetailModal';
 import CreatePostModal from '@/components/CreatePostModal';
+import ReviewModal from '@/components/ReviewModal';
 
 export default function FeedPage() {
   const router = useRouter();
   const { posts, loading, error, hasMore, loadMore, refresh } = usePosts(10);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'my-posts' | 'saved'>('blog');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved'>('blog');
   const [timelineFilter, setTimelineFilter] = useState<string>('all');
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -162,6 +166,8 @@ export default function FeedPage() {
       filtered = filtered.filter(post => post.type === 'blog');
     } else if (activeFilter === 'auto') {
       filtered = filtered.filter(post => post.type === 'auto');
+    } else if (activeFilter === 'review') {
+      filtered = filtered.filter(post => post.type === 'review');
     } else if (activeFilter === 'my-posts' && currentUserId) {
       filtered = filtered.filter(post => post.authorId._id === currentUserId);
     }
@@ -342,13 +348,27 @@ export default function FeedPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {filteredPosts.map((post) => (
-                  <PostCard 
-                    key={post._id} 
-                    post={post} 
-                    onPostClick={handleOpenPostModal}
-                  />
-                ))}
+                {filteredPosts.map((post) =>
+                  post.type === 'auto' ? (
+                    <TripUpdateCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  ) : post.type === 'review' ? (
+                    <ReviewPostCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  ) : (
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      onPostClick={handleOpenPostModal}
+                    />
+                  )
+                )}
               </div>
             )}
 
@@ -410,6 +430,18 @@ export default function FeedPage() {
           setCreateModalOpen(false);
           refresh();
         }}
+        onOpenReview={() => {
+          setCreateModalOpen(false);
+          setReviewModalOpen(true);
+        }}
+      />
+
+      {/* Review Modal — opened from feed, share-to-feed pre-checked */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        defaultShareToFeed={true}
+        onSuccess={refresh}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import ShareButton from './ShareButton';
 import CommentSection from './CommentSection';
 import PostContentViewer from './PostContentViewer';
 import EditTripUpdateModal from './EditTripUpdateModal';
+import EditReviewModal from './EditReviewModal';
 
 interface PostDetailModalProps {
   postId: string;
@@ -23,6 +24,7 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
   const [commentsCount, setCommentsCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editTripModalOpen, setEditTripModalOpen] = useState(false);
+  const [editReviewModalOpen, setEditReviewModalOpen] = useState(false);
 
   useEffect(() => {
     if (post) {
@@ -92,6 +94,8 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
   const handleEdit = () => {
     if (post?.type === 'auto') {
       setEditTripModalOpen(true);
+    } else if (post?.type === 'review') {
+      setEditReviewModalOpen(true);
     } else {
       alert('Edit functionality coming soon for blog posts!');
     }
@@ -108,7 +112,17 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
         onClose={() => setEditTripModalOpen(false)}
         onUpdated={() => {
           setEditTripModalOpen(false);
-          // Re-fetch post by closing and reopening would reload; trigger onDeleted-style refresh
+          window.location.reload();
+        }}
+      />
+    )}
+    {editReviewModalOpen && post && post.type === 'review' && post.reviewData && (
+      <EditReviewModal
+        post={post}
+        isOpen={editReviewModalOpen}
+        onClose={() => setEditReviewModalOpen(false)}
+        onUpdated={() => {
+          setEditReviewModalOpen(false);
           window.location.reload();
         }}
       />
@@ -274,6 +288,76 @@ export default function PostDetailModal({ postId, isOpen, onClose, onDeleted }: 
                               />
                             </div>
                           ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Review Details (for review posts) */}
+              {post.type === 'review' && post.reviewData && (
+                <div className="px-6 py-6 border-b border-gray-100 space-y-5">
+                  {/* Place + Rating Header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <MapPin className="w-5 h-5 text-amber-500" />
+                        <h4 className="font-bold text-gray-900 text-xl">{post.reviewData.placeName}</h4>
+                      </div>
+                      {post.reviewData.placeType && (
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                          {post.reviewData.placeType === 'POI' ? 'Point of Interest' : post.reviewData.placeType === 'CITY' ? 'City' : post.reviewData.placeType === 'COUNTRY' ? 'Country' : post.reviewData.placeType}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <span key={i} className={`text-xl ${i < post.reviewData!.rating ? 'text-amber-400' : 'text-gray-300'}`}>★</span>
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-amber-600">{post.reviewData.rating} / 5</span>
+                    </div>
+                  </div>
+
+                  {/* Review Title */}
+                  {post.reviewData.title && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="font-semibold text-gray-800 italic text-lg">&ldquo;{post.reviewData.title}&rdquo;</p>
+                    </div>
+                  )}
+
+                  {/* Review Comment */}
+                  {post.reviewData.comment && (
+                    <div>
+                      <h5 className="font-semibold text-gray-700 mb-2">Review</h5>
+                      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{post.reviewData.comment}</p>
+                    </div>
+                  )}
+
+                  {/* Visit Date */}
+                  {post.reviewData.visitDate && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>Visited: <span className="font-medium text-gray-700">{new Date(post.reviewData.visitDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></span>
+                    </div>
+                  )}
+
+                  {/* Review Images */}
+                  {post.reviewData.images && post.reviewData.images.length > 0 && (
+                    <div>
+                      <h5 className="font-semibold text-gray-700 mb-3">Photos</h5>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {post.reviewData.images.filter(Boolean).map((src: string, index: number) => (
+                          <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-amber-50">
+                            <img
+                              src={src}
+                              alt={`Review photo ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

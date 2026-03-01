@@ -9,9 +9,11 @@ interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPostCreated?: () => void;
+  /** Called when the user wants to open the Write-a-Review form */
+  onOpenReview?: () => void;
 }
 
-export default function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostModalProps) {
+export default function CreatePostModal({ isOpen, onClose, onPostCreated, onOpenReview }: CreatePostModalProps) {
   const [postType, setPostType] = useState<'select' | 'blog' | 'trip-update' | 'trip-source' | 'existing-trip'>('select');
   const [content, setContent] = useState<any>(null);
   const [tripName, setTripName] = useState('');
@@ -484,23 +486,25 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
               </div>
             </button>
 
-            {/* Coming Soon - Review */}
-            <div className="w-full p-6 border-2 border-gray-100 rounded-xl bg-gray-50 text-left opacity-60 cursor-not-allowed">
+            {/* Review a Place */}
+            <button
+              onClick={() => { onClose(); onOpenReview?.(); }}
+              className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-[#4A9B7F] hover:bg-teal-50/30 transition-all group text-left"
+            >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                   ⭐
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-600 mb-1 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">
                     Review a Place
-                    <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Coming Soon</span>
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-600">
                     Share your rating and review for restaurants, hotels, and attractions
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>

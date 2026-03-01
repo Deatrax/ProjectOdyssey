@@ -316,7 +316,7 @@ router.get("/:id", async (req, res) => {
  */
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { content, tripName, tripProgress } = req.body;
+    const { content, tripName, tripProgress, reviewData } = req.body;
     const userId = req.user.id;
 
     // Find post
@@ -360,6 +360,47 @@ router.put("/:id", authMiddleware, async (req, res) => {
           }
         ]
       };
+    }
+
+    // Update reviewData for review posts, regenerate BlockNote content
+    if (reviewData && post.type === 'review') {
+      post.reviewData = {
+        reviewId: post.reviewData?.reviewId ?? null,
+        placeName: reviewData.placeName ?? post.reviewData?.placeName,
+        placeType: reviewData.placeType ?? post.reviewData?.placeType ?? 'POI',
+        rating: Number(reviewData.rating ?? post.reviewData?.rating),
+        title: reviewData.title ?? post.reviewData?.title ?? null,
+        comment: reviewData.comment ?? post.reviewData?.comment ?? null,
+        images: Array.isArray(reviewData.images) ? reviewData.images : (post.reviewData?.images ?? []),
+        visitDate: post.reviewData?.visitDate ?? null
+      };
+
+      const rd = post.reviewData;
+      const stars = '⭐'.repeat(rd.rating) + '☆'.repeat(5 - rd.rating);
+      const contentBlocks = [
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: `Review: ${rd.placeName}  ${stars}` }]
+        }
+      ];
+      if (rd.title) {
+        contentBlocks.push({
+          type: 'paragraph',
+          content: [{ type: 'text', text: `"${rd.title}"`, marks: [{ type: 'italic' }] }]
+        });
+      }
+      if (rd.comment) {
+        contentBlocks.push({
+          type: 'paragraph',
+          content: [{ type: 'text', text: rd.comment }]
+        });
+      }
+      contentBlocks.push({
+        type: 'paragraph',
+        content: [{ type: 'text', text: `📍 ${rd.placeName}  •  Rated ${rd.rating}/5` }]
+      });
+      post.content = { type: 'doc', content: contentBlocks };
     }
 
     await post.save();
