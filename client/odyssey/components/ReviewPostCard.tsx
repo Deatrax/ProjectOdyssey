@@ -9,6 +9,7 @@ import type { Post } from '@/hooks/usePosts';
 
 interface ReviewPostCardProps {
   post: Post;
+  feedSource?: 'friends' | 'trending';
   onPostClick?: (postId: string) => void;
 }
 
@@ -32,7 +33,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export default function ReviewPostCard({ post, onPostClick }: ReviewPostCardProps) {
+export default function ReviewPostCard({ post, feedSource, onPostClick }: ReviewPostCardProps) {
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));
 
   const reviewData = post.reviewData;
@@ -59,6 +60,16 @@ export default function ReviewPostCard({ post, onPostClick }: ReviewPostCardProp
       className="bg-gradient-to-br from-amber-50 via-white to-amber-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 border-amber-200"
       onClick={handleCardClick}
     >
+      {/* Feed source badge */}
+      {feedSource && (
+        <div className="px-4 pt-3 pb-0">
+          {feedSource === 'friends' ? (
+            <span className="text-xs text-blue-500 font-medium">👥 From someone you follow</span>
+          ) : (
+            <span className="text-xs text-orange-400 font-medium">🔥 Trending</span>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white p-4 border-b border-gray-100 rounded-t-2xl">
         <div className="flex items-center gap-3">

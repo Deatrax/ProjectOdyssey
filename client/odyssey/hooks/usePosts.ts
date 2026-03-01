@@ -41,6 +41,8 @@ export interface Post {
   commentsCount: number;
   reviewData?: ReviewData;
   isLiked?: boolean;
+  /** Populated by the smart feed endpoint only */
+  _feedSource?: 'friends' | 'trending';
   createdAt: string;
   updatedAt: string;
 }

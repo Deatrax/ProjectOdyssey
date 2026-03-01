@@ -9,10 +9,11 @@ import type { Post } from '@/hooks/usePosts';
 
 interface TripUpdateCardProps {
   post: Post;
+  feedSource?: 'friends' | 'trending';
   onPostClick?: (postId: string) => void;
 }
 
-export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProps) {
+export default function TripUpdateCard({ post, feedSource, onPostClick }: TripUpdateCardProps) {
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));
 
   const handleCardClick = () => {
@@ -47,6 +48,16 @@ export default function TripUpdateCard({ post, onPostClick }: TripUpdateCardProp
       className="bg-gradient-to-br from-teal-50 via-white to-teal-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border-2 border-teal-200"
       onClick={handleCardClick}
     >
+      {/* Feed source badge */}
+      {feedSource && (
+        <div className="px-4 pt-3 pb-0">
+          {feedSource === 'friends' ? (
+            <span className="text-xs text-blue-500 font-medium">👥 From someone you follow</span>
+          ) : (
+            <span className="text-xs text-orange-400 font-medium">🔥 Trending</span>
+          )}
+        </div>
+      )}
       {/* Header with special styling for trip update */}
       <div className="bg-white p-4 border-b border-gray-100 rounded-t-2xl">
         <div className="flex items-center gap-3">
