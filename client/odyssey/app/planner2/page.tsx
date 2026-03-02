@@ -260,7 +260,23 @@ export default function PlannerPage() {
 
   const loadTrips = async () => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      // ── Guest Trips (LocalStorage) ─────────────────────────────────────────
+      const savedGuestTrips = localStorage.getItem("guestTrips");
+      if (savedGuestTrips) {
+        try {
+          const parsed = JSON.parse(savedGuestTrips);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTrips(parsed);
+            const toActivate = parsed.find((t: any) => t.trip_status === "active") || parsed[0];
+            setActiveTripId(toActivate.id);
+            return;
+          }
+        } catch (e) { console.error("Error parsing guest trips", e); }
+      }
+      setShowSetup(true);
+      return;
+    }
 
     try {
       // ── Priority 1: active group trip ────────────────────────────────────
@@ -527,14 +543,47 @@ export default function PlannerPage() {
   };
 
   const handleCreateTrip = async (data: { title: string; days: number; travelers: number; startDate: string }) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Please login to create a trip");
-      return;
-    }
-
     const schedule: Record<number, ItineraryItem[]> = {};
     for (let i = 1; i <= data.days; i++) schedule[i] = [];
+
+    const token = localStorage.getItem("token");
+    
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      let guestTrips: Trip[] = [];
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try { guestTrips = JSON.parse(saved); } catch (e) {}
+      }
+
+      if (guestTrips.length >= 3) {
+        const wantsLogin = confirm("You have reached the limit of 3 free trips. Please login to create more!\n\nClick OK to go to login.");
+        if (wantsLogin) router.push("/login?from=planner2");
+        return;
+      }
+
+      // Demote current active guest trip
+      guestTrips = guestTrips.map(t => ({ ...t, trip_status: "planning" as const }));
+
+      const newGuestTrip: Trip = {
+        id: `guest-trip-${Date.now()}`,
+        tripName: data.title,
+        days: data.days,
+        travelers: data.travelers,
+        startDate: data.startDate,
+        status: "draft" as const,
+        trip_status: "active" as const,
+        schedule: schedule
+      };
+      
+      guestTrips.unshift(newGuestTrip);
+      localStorage.setItem("guestTrips", JSON.stringify(guestTrips));
+      
+      setTrips(guestTrips);
+      setActiveTripId(newGuestTrip.id);
+      setShowSetup(false);
+      return;
+    }
 
     const newTripPayload = {
       tripName: data.title,
@@ -1236,7 +1285,20 @@ export default function PlannerPage() {
 
   const saveTrip = async (trip: Trip) => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try {
+          const guestTrips: Trip[] = JSON.parse(saved);
+          const updated = guestTrips.map(t => t.id === trip.id ? trip : t);
+          localStorage.setItem("guestTrips", JSON.stringify(updated));
+        } catch (e) { console.error("Error saving guest trip", e); }
+      }
+      setUnsavedChanges(false);
+      return;
+    }
+    
     try {
       await fetch(`http://localhost:4000/api/trips/${trip.id}`, {
         method: "PUT",
@@ -1260,7 +1322,27 @@ export default function PlannerPage() {
   const handleDeleteTrip = async (tripId: string) => {
     if (!confirm("Are you sure you want to delete this trip?")) return;
     const token = localStorage.getItem("token");
-    if (!token) return;
+    
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try {
+          let guestTrips: Trip[] = JSON.parse(saved);
+          guestTrips = guestTrips.filter(t => t.id !== tripId);
+          localStorage.setItem("guestTrips", JSON.stringify(guestTrips));
+          setTrips(guestTrips);
+          
+          if (activeTripId === tripId) {
+            const next = guestTrips.find(t => t.trip_status !== "cancelled" && t.status !== "completed");
+            if (next) setActiveTripId(next.id);
+            else { setActiveTripId(null); setShowSetup(true); }
+          }
+        } catch (e) { console.error("Error deleting guest trip", e); }
+      }
+      return;
+    }
+
     try {
       // Soft delete — mark cancelled so it disappears from the sidebar but data is preserved
       await fetch(`http://localhost:4000/api/trips/${tripId}`, {

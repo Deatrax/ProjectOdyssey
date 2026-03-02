@@ -331,4 +331,5 @@ module.exports = {
     deleteImage,
     uploadToCloudinary,
     formatPlaceIdAsUuid,
+    fetchUnsplashPhotos,
 };

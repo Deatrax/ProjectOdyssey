@@ -2,6 +2,7 @@ const User = require("../models/User");
 const VisitLog = require("../models/VisitLog");
 const { getTrendingPlaces } = require("./placeService");
 const { callGemini } = require("./ai/geminiClient");
+const { fetchUnsplashPhotos } = require("./imageService");
 
 class RecommendationService {
     /**
@@ -88,16 +89,35 @@ Rules:
         }
 
         // 6. Post-process (Add Image URLs)
-        const processedPlaces = result.recommended_places.map((rec, idx) => ({
-            ...rec,
-            // Using a more reliable way to get Unsplash images by keyword
-            card_image_url: `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop&sig=${idx}`, // Base high-quality travel image
-            card_image_url: `https://images.unsplash.com/featured/?${encodeURIComponent(rec.destination_name)},travel&sig=${idx}`,
-            sub_places: rec.sub_places.map((sp, sIdx) => ({
-                ...sp,
-                image_url: `https://images.unsplash.com/featured/?${encodeURIComponent(sp.place_name)},${encodeURIComponent(rec.destination_name)}&sig=${idx}${sIdx}`
-            }))
-        }));
+        const processedPlaces = [];
+        for (let idx = 0; idx < result.recommended_places.length; idx++) {
+            const rec = result.recommended_places[idx];
+
+            // Fetch main destination image
+            const mainPhotos = await fetchUnsplashPhotos(`${rec.destination_name} travel landscape`, 1);
+            const card_image_url = mainPhotos.length > 0
+                ? mainPhotos[0]
+                : `https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop&sig=${idx}`;
+
+            // Process sub-places
+            const sub_places = [];
+            for (let sIdx = 0; sIdx < rec.sub_places.length; sIdx++) {
+                const sp = rec.sub_places[sIdx];
+                const subPhotos = await fetchUnsplashPhotos(`${sp.place_name} ${rec.destination_name}`, 1);
+                sub_places.push({
+                    ...sp,
+                    image_url: subPhotos.length > 0
+                        ? subPhotos[0]
+                        : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800&auto=format&fit=crop&sig=${idx}${sIdx}`
+                });
+            }
+
+            processedPlaces.push({
+                ...rec,
+                card_image_url,
+                sub_places
+            });
+        }
 
         // 7. Save to User document (MongoDB)
         user.weeklyRecommendations = processedPlaces;

@@ -154,7 +154,7 @@ const DashboardPage: React.FC = () => {
               <div className="text-gray-500 text-sm italic">Loading your trips...</div>
             ) : trips.length === 0 ? (
               <div
-                onClick={() => router.push('/planner')}
+                onClick={() => router.push('/planner2')}
                 className="w-full sm:w-auto flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/60 border-2 border-dashed border-gray-300 cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition shadow-sm"
               >
                 <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +203,7 @@ const DashboardPage: React.FC = () => {
                 return (
                   <div
                     key={trip.id}
-                    onClick={() => router.push('/planner')}
+                    onClick={() => router.push('/planner2')}
                     className="relative w-1/2 sm:w-44 h-36 rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition shadow-lg group"
                   >
                     {tripImage ? (
@@ -232,7 +232,7 @@ const DashboardPage: React.FC = () => {
 
             {/* 'Add New' Placeholder */}
             <div
-              onClick={() => router.push('/planner')}
+              onClick={() => router.push('/planner2')}
               className="w-1/2 sm:w-44 h-36 rounded-2xl bg-gray-300/60 flex items-center justify-center cursor-pointer hover:bg-gray-400/60 transition shadow-lg"
             >
               <svg className="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
