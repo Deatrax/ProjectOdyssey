@@ -7,6 +7,7 @@ import Image from "next/image";
 import VisitMap from "./VisitMap";
 import TravelStatsCard from "./TravelStatsCard";
 import TravelActivityChart from "@/components/TravelActivityChart";
+import { useFollowStats } from "@/hooks/useFollow";
 
 // --- Types & Interfaces ---
 interface TripCardProps {
@@ -153,6 +154,10 @@ const ProfilePage: React.FC = () => {
   const [visitStats, setVisitStats] = useState<{ count: number, countryStats: Record<string, number> }>({ count: 0, countryStats: {} });
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // Follow stats (live from API) - refresh key to force refetch
+  const [followStatsRefreshKey, setFollowStatsRefreshKey] = useState(0);
+  const followStats = useFollowStats(userData?._id, followStatsRefreshKey);
+
   // Image upload state
   const [showEditModal, setShowEditModal] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ profile?: string, cover?: string }>({});
@@ -229,6 +234,15 @@ const ProfilePage: React.FC = () => {
     };
 
     fetchVisitStats();
+  }, []);
+
+  // Refresh follow stats when page comes into focus (after following/unfollowing elsewhere)
+  useEffect(() => {
+    const handleFocus = () => {
+      setFollowStatsRefreshKey(prev => prev + 1);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   // Handle opening review modal from query parameters
@@ -538,8 +552,8 @@ const ProfilePage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.url) {
-          setNewReview((prev) => ({ ...prev, images: [...prev.images, data.url] }));
+        if (data.success && data.imageUrl) {
+          setNewReview((prev) => ({ ...prev, images: [...prev.images, data.imageUrl] }));
         }
       } else {
         console.error("Upload failed");
@@ -848,12 +862,12 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-600 text-sm mt-1">Reviews</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">342</p>
+            <p className="text-3xl font-bold text-gray-900">{followStats.followersCount}</p>
             <p className="text-gray-600 text-sm mt-1">Followers</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg">
-            <p className="text-3xl font-bold text-gray-900">{Object.keys(visitStats.countryStats || {}).length}</p>
-            <p className="text-gray-600 text-sm mt-1">Countries</p>
+            <p className="text-3xl font-bold text-gray-900">{followStats.followingCount}</p>
+            <p className="text-gray-600 text-sm mt-1">Following</p>
           </div>
         </div>
 

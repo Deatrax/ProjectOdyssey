@@ -5,8 +5,8 @@ import { Home, TrendingUp, Bookmark, User, Settings, Calendar } from 'lucide-rea
 import { useRouter, usePathname } from 'next/navigation';
 
 interface LeftSidebarProps {
-  activeFilter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved';
-  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'my-posts' | 'saved') => void;
+  activeFilter: 'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved' | 'smart';
+  onFilterChange: (filter: 'all' | 'blog' | 'auto' | 'review' | 'my-posts' | 'saved' | 'smart') => void;
   timelineFilter: string;
   onTimelineChange: (timeline: string) => void;
   savedPostsCount?: number;
@@ -75,6 +75,16 @@ export default function LeftSidebar({
         </h3>
         <div className="space-y-1">
           <button
+            onClick={() => onFilterChange('smart')}
+            className={`w-full text-left px-3 py-2 rounded-lg transition-all font-medium ${
+              activeFilter === 'smart'
+                ? 'bg-gradient-to-r from-amber-50 to-teal-50 text-[#4A9B7F] border border-teal-200'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            ✨ For You
+          </button>
+          <button
             onClick={() => onFilterChange('blog')}
             className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
               activeFilter === 'blog'
@@ -83,6 +93,26 @@ export default function LeftSidebar({
             }`}
           >
             ✍️ Blog Stories
+          </button>
+          <button
+            onClick={() => onFilterChange('auto')}
+            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+              activeFilter === 'auto'
+                ? 'bg-teal-50 text-[#4A9B7F] font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            🗺️ Trip Updates
+          </button>
+          <button
+            onClick={() => onFilterChange('review')}
+            className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+              activeFilter === 'review'
+                ? 'bg-amber-50 text-amber-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            ⭐ Place Reviews
           </button>
           <button
             onClick={() => onFilterChange('my-posts')}

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import NotificationBell from "./NotificationBell";
 
 const NavBar = () => {
     const pathname = usePathname();
@@ -11,18 +12,20 @@ const NavBar = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [token, setToken] = useState<string>("");
 
     // Initial Auth Check & Session Extension
     React.useEffect(() => {
-        const token = localStorage.getItem("token");
-        setIsLoggedIn(!!token);
+        const storedToken = localStorage.getItem("token");
+        setIsLoggedIn(!!storedToken);
+        setToken(storedToken || "");
 
         // Slide session if logged in and NOT "remember me"
-        if (token) {
+        if (storedToken) {
             const rememberMe = localStorage.getItem("rememberMe") === "true";
             if (!rememberMe) {
                 // Extend for 2 hours
-                document.cookie = `token=${token}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
+                document.cookie = `token=${storedToken}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
             }
         }
     }, [pathname]);
@@ -102,11 +105,10 @@ const NavBar = () => {
 
             {/* Profile & Mobile Toggle */}
             <div className="flex items-center gap-3 relative">
-                <button className="p-2 text-gray-700 hover:bg-black/5 rounded-full transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                </button>
+                {/* Notification Bell - Only show when logged in */}
+                {isLoggedIn && token && (
+                    <NotificationBell token={token} />
+                )}
 
                 {/* Auth State Switch */}
                 {!isLoggedIn ? (
