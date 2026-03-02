@@ -1,9 +1,19 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import NotificationBell from "./NotificationBell";
+
+const getApiBase = () => {
+    if (typeof window !== "undefined") {
+        const { hostname, protocol } = window.location;
+        if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+            return `${protocol}//${hostname}:4000`;
+        }
+    }
+    return "http://localhost:4000";
+};
 
 const NavBar = () => {
     const pathname = usePathname();
@@ -12,9 +22,10 @@ const NavBar = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userProfileImage, setUserProfileImage] = useState<string>("");
     const [token, setToken] = useState<string>("");
 
-    // Initial Auth Check & Session Extension
+    // Initial Auth Check & Session Extension, Fetch User Profile Image
     React.useEffect(() => {
         const storedToken = localStorage.getItem("token");
         setIsLoggedIn(!!storedToken);
@@ -27,6 +38,27 @@ const NavBar = () => {
                 // Extend for 2 hours
                 document.cookie = `token=${storedToken}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
             }
+
+            // Fetch user profile image
+            const fetchUserProfile = async () => {
+                try {
+                    const apiBase = getApiBase();
+                    const res = await fetch(`${apiBase}/api/user/profile`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    if (res.ok) {
+                        const userData = await res.json();
+                        if (userData.user?.profileImage) {
+                            setUserProfileImage(userData.user.profileImage);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch user profile:", err);
+                }
+            };
+
+            fetchUserProfile();
         }
     }, [pathname]);
 
@@ -133,11 +165,11 @@ const NavBar = () => {
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     >
-                        <div
+                    <div
                             className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden cursor-pointer border border-white shadow-sm hover:shadow-md transition-shadow"
                             onClick={() => router.push("/profile")}
                         >
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                            <img src={userProfileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" className="w-full h-full object-cover" />
                         </div>
 
                         {/* Bridge pseudo-element to bridge gap if needed, but relative positioning usually handles it. Adding padding-top to dropdown container helps too. */}

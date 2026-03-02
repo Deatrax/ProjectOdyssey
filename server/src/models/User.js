@@ -70,6 +70,11 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  badges: [{
+    id: String,
+    earningDate: { type: Date, default: Date.now },
+    isNew: { type: Boolean, default: true }
+  }],
   // Streak tracking
   currentStreak: { type: Number, default: 0 },
   personalBest: { type: Number, default: 0 },

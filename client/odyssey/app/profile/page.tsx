@@ -944,6 +944,7 @@ const ProfilePage: React.FC = () => {
                 <TravelStatsCard
                   xp={gamificationStats?.xp ?? userData.xp ?? 0}
                   level={gamificationStats?.level ?? userData.level ?? 1}
+                  badges={userData.badges || []}
                   efficiency={gamificationStats?.efficiency ?? 0}
                   streak={gamificationStats?.streak.current ?? 0}
                   personalBest={gamificationStats?.streak.personalBest ?? 0}

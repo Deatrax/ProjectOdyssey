@@ -1,6 +1,6 @@
 "use strict";
 
-import React from "react";
+import React, { useState } from "react";
 import {
     Trophy,
     Flame,
@@ -9,10 +9,21 @@ import {
     Users,
     Zap
 } from "lucide-react";
+import BadgeModal from "./BadgeModal";
+
+interface Badge {
+    id: string;
+    name: string;
+    emoji: string;
+    description: string;
+    earningDate: string;
+    isNew: boolean;
+}
 
 interface TravelStatsCardProps {
     xp?: number;
     level?: number;
+    badges?: Badge[];
     efficiency?: number;   // dynamic — replaces hardcoded 92
     streak?: number;       // dynamic — replaces hardcoded 14
     personalBest?: number; // for "Personal Best!" badge logic
@@ -21,12 +32,14 @@ interface TravelStatsCardProps {
 
 const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
     xp = 0,
-    level = 1,
+    level = 1, badges = [],
     efficiency = 0,
     streak = 0,
     personalBest = 0,
     loading = false,
 }) => {
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
+
     // Determine dynamic title based on XP
     const getTravelTitle = (points: number) => {
         if (points >= 6000) return "Master Nomad";
@@ -36,6 +49,9 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
     };
 
     const travelTitle = getTravelTitle(xp);
+
+    // Get most recent badge (first in array since they're sorted by date)
+    const topBadge = badges && badges.length > 0 ? badges[0] : null;
 
     // Badge derived from level (still dynamic via xp/level prop)
     const badge = {
@@ -51,6 +67,7 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
     const streakMessage = streak > 0 && streak >= personalBest ? "Personal Best!" : "Keep it up!";
 
     return (
+        <>
         <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 overflow-hidden relative">
             {/* Decorative background element */}
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#4A9B7F]/5 rounded-full blur-3xl"></div>
@@ -103,18 +120,41 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
 
             {/* Main Grid Section: Badge, Streak, Leaderboard */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Badge Section */}
-                <div className="group bg-gray-50 p-6 rounded-2xl border border-transparent hover:border-[#4A9B7F]/20 hover:bg-white hover:shadow-md transition-all">
+                {/* Badge Section - Clickable */}
+                <div
+                    onClick={() => setShowBadgeModal(true)}
+                    className="group bg-gray-50 p-6 rounded-2xl border border-transparent hover:border-[#4A9B7F]/20 hover:bg-white hover:shadow-md transition-all cursor-pointer"
+                >
                     <div className="flex items-center gap-3 mb-4">
                         <Award className="text-[#4A9B7F] w-5 h-5" />
                         <h4 className="font-bold text-gray-800">Top Badge</h4>
                     </div>
                     <div className="flex flex-col items-center text-center">
-                        <div className="text-5xl mb-3 transform transition-transform group-hover:scale-110 duration-300">
-                            {badge.icon}
-                        </div>
-                        <p className="font-black text-gray-900">{badge.name}</p>
-                        <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest">{badge.level} Level</p>
+                        {topBadge ? (
+                            <>
+                                <div className="text-5xl mb-3 transform transition-transform group-hover:scale-110 duration-300">
+                                    {topBadge.emoji}
+                                </div>
+                                <p className="font-black text-gray-900">{topBadge.name}</p>
+                                <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest mt-1">
+                                    Click to view all
+                                </p>
+                                {topBadge.isNew && (
+                                    <div className="mt-3 inline-block bg-yellow-400 text-gray-900 px-2 py-1 rounded-full text-[10px] font-black">
+                                        🆕 NEW
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-5xl mb-3 opacity-30">🎯</div>
+                                <p className="font-black text-gray-900">No Badges Yet</p>
+                                <p className="text-xs text-gray-500 mt-2">Earn badges by exploring and contributing</p>
+                                <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest mt-3">
+                                    Click to view requirements
+                                </p>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -163,6 +203,10 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
                 </div>
             </div>
         </div>
+
+        {/* Badge Modal */}
+        {showBadgeModal && <BadgeModal badges={badges} onClose={() => setShowBadgeModal(false)} />}
+    </>
     );
 };
 
