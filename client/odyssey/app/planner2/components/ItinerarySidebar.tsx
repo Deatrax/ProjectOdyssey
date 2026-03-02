@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Layout, CheckCircle, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Layout, CheckCircle, Trash2, Rocket } from "lucide-react";
 
 interface Itinerary {
     id: string;
     tripName: string;
-    status?: "draft" | "confirmed" | "completed";
+    status?: "draft" | "confirmed" | "completed" | "active";
     startDate?: string;
 }
 
@@ -16,6 +16,7 @@ interface ItinerarySidebarProps {
     onSelectItinerary: (id: string) => void;
     onNewTrip: () => void;
     onDeleteTrip?: (id: string) => void;
+    onActivateTrip?: (id: string) => void;
 }
 
 export default function ItinerarySidebar({
@@ -23,13 +24,14 @@ export default function ItinerarySidebar({
     activeItineraryId,
     onSelectItinerary,
     onNewTrip,
-    onDeleteTrip
+    onDeleteTrip,
+    onActivateTrip
 }: ItinerarySidebarProps) {
     const [completedCollapsed, setCompletedCollapsed] = useState(true);
 
     // Group itineraries
     const activeItineraries = itineraries.filter(
-        (i) => !i.status || i.status === "draft" || i.status === "confirmed"
+        (i) => !i.status || i.status === "draft" || i.status === "confirmed" || i.status === "active"
     );
     const completedItineraries = itineraries.filter((i) => i.status === "completed");
 
@@ -55,47 +57,66 @@ export default function ItinerarySidebar({
                             <p className="text-sm text-gray-400 px-2 italic">No active trips</p>
                         )}
                         {activeItineraries.map((trip) => {
-                            const isActive = activeItineraryId === trip.id;
+                            const isSelected = activeItineraryId === trip.id;
+                            const isActivePlan = trip.status === "active";
                             return (
                                 <div
                                     key={trip.id}
-                                    className={`group relative w-full text-left p-3 rounded-xl transition-all cursor-pointer ${isActive
+                                    className={`group relative w-full text-left p-3 rounded-xl transition-all cursor-pointer ${isSelected
                                         ? "bg-[#F5EFE7] ring-1 ring-[#4A9B7F] shadow-sm"
                                         : "hover:bg-gray-50 text-gray-600"
                                         }`}
                                     onClick={() => onSelectItinerary(trip.id)}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? "bg-[#4A9B7F] text-white" : "bg-gray-100 text-gray-400"
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActivePlan ? "bg-green-500 text-white" : isSelected ? "bg-[#4A9B7F] text-white" : "bg-gray-100 text-gray-400"
                                             }`}>
-                                            <Layout className="w-4 h-4" />
+                                            {isActivePlan ? <Rocket className="w-4 h-4" /> : <Layout className="w-4 h-4" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className={`text-sm font-medium truncate ${isActive ? "text-gray-900" : "text-gray-600"
+                                            <h4 className={`text-sm font-medium truncate ${isSelected ? "text-gray-900" : "text-gray-600"
                                                 }`}>
                                                 {trip.tripName || "Untitled Trip"}
                                             </h4>
-                                            <div className="flex items-center gap-2 mt-0.5">
+                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                                 {trip.startDate && (
                                                     <p className="text-xs text-gray-400">{trip.startDate}</p>
                                                 )}
-                                                {isActive && (
+                                                {isActivePlan && (
+                                                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full uppercase border border-green-200">
+                                                        🚀 Active Plan
+                                                    </span>
+                                                )}
+                                                {isSelected && !isActivePlan && (
                                                     <span className="text-[10px] font-bold text-[#4A9B7F] bg-[#4A9B7F]/10 px-1.5 py-0.5 rounded-full uppercase">
-                                                        Active
+                                                        Editing
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
-                                        {/* Delete Button */}
-                                        {onDeleteTrip && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }}
-                                                className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                title="Delete trip"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                            {/* Activate Button */}
+                                            {onActivateTrip && !isActivePlan && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onActivateTrip(trip.id); }}
+                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-green-600 hover:bg-green-50 transition-all"
+                                                    title="Activate this trip for Trip Mode"
+                                                >
+                                                    <Rocket className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                            {/* Delete Button */}
+                                            {onDeleteTrip && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeleteTrip(trip.id); }}
+                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                                                    title="Delete trip"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );

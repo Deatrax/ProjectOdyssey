@@ -13,6 +13,7 @@ Hard rules:
 - Each place must have: name, placeId (if known, else null), category, reasoning (why include this place).
 - Group places by SPECIFIC CITY/REGION names (e.g., "Sylhet City", "Sreemangal", "Cox's Bazar", "Dhaka")
 - Use REAL location names that users would recognize (NOT generic names like "Northern Region")
+- IMPORTANT: Check userContext.exploreSurroundings. If true, you may suggest places in the broader surrounding region. If FALSE, you MUST STRICTLY limit suggestions to places EXACTLY inside the requested location/city limit. DO NOT suggest places in neighboring towns when FALSE.
 - Provide 2-5 location groups, with 2-4 places per location.
 - Add a brief explanation of why these specific locations are recommended for the trip.
 

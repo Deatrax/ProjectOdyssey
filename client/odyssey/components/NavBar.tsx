@@ -83,7 +83,7 @@ const NavBar = () => {
                     { name: "Trip Mode", path: "/trip" },
                     { name: "Destinations", path: "/destinations" },
                     { name: "Groups", path: "/groups" },
-                    { name: "Co-travellers", path: "/co-travellers" },
+                    { name: "Co-travellers", path: "/feed" },
                 ] : [
                     { name: "Home", path: "/" },
                     { name: "Planner", path: "/planner2" },
@@ -153,7 +153,7 @@ const NavBar = () => {
                                     Saved Places
                                 </Link>
                                 <Link href="/admin" className="block px-4 py-3 text-sm text-gray-800 hover:bg-[#FCE1CC] rounded-xl transition-colors font-medium">
-                                    Settings
+                                    [ADMIN] Settings
                                 </Link>
                                 <div className="h-px bg-gray-200 my-1 mx-2"></div>
                                 <button

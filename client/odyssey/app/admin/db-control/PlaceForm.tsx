@@ -10,6 +10,69 @@ declare global {
     }
 }
 
+function SearchableSelect({ options, value, onChange, placeholder, disabled }: { options: any[], value: string, onChange: (val: string) => void, placeholder: string, disabled?: boolean }) {
+    const [search, setSearch] = useState("");
+    const [open, setOpen] = useState(false);
+    
+    const selectedObj = options.find(o => String(o.id) === String(value));
+    const selectedName = selectedObj ? selectedObj.name : placeholder;
+    
+    // Filter and limit to 100 items to prevent DOM bloat
+    const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase())).slice(0, 100);
+    
+    return (
+        <div className="relative">
+            {open && (
+                <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setOpen(false)}></div>
+            )}
+            <div 
+                className={`w-full p-3 border rounded-lg bg-white flex justify-between items-center cursor-pointer relative z-50 ${disabled ? 'opacity-50 pointer-events-none' : ''} ${open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-300'}`}
+                onClick={() => setOpen(!open)}
+            >
+                <span className={!selectedObj ? "text-gray-500" : "text-gray-900"}>{selectedName}</span>
+                <span className="text-gray-400 text-xs text-center w-4">{open ? "▲" : "▼"}</span>
+            </div>
+            
+            {open && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-72 overflow-hidden flex flex-col">
+                    <div className="p-2 bg-gray-50 border-b">
+                        <input 
+                            type="text" 
+                            autoFocus
+                            className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            placeholder="Type to search..." 
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-1">
+                        {filtered.map(o => (
+                            <div 
+                                key={o.id} 
+                                className={`p-2 px-3 text-sm rounded cursor-pointer ${String(value) === String(o.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-100 text-gray-700'}`}
+                                onClick={() => {
+                                    onChange(o.id);
+                                    setSearch("");
+                                    setOpen(false);
+                                }}
+                            >
+                                {o.name}
+                            </div>
+                        ))}
+                        {filtered.length === 0 && (
+                            <div className="p-3 text-sm text-gray-500 text-center">No matches found</div>
+                        )}
+                        {options.filter(o => o.name.toLowerCase().includes(search.toLowerCase())).length > 100 && (
+                            <div className="p-2 text-xs text-gray-400 text-center italic border-t mt-1 pt-2">Type to see more...</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function PlaceForm({ initialData = null, onSuccess }: { initialData?: any, onSuccess?: () => void }) {
     const [countries, setCountries] = useState<any[]>([]);
     const [cities, setCities] = useState<any[]>([]);
@@ -88,7 +151,7 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
     // Load Cities when Country changes
     useEffect(() => {
         if (formData.country_id) {
-            fetch(`http://localhost:4000/api/admin/cities?country_id=${formData.country_id}`)
+            fetch(`http://localhost:4000/api/admin/cities?country_id=${formData.country_id}&limit=10000`)
                 .then(res => res.json())
                 .then(data => { if (data.success) setCities(data.data); })
                 .catch(err => console.error(err));
@@ -254,30 +317,22 @@ export default function PlaceForm({ initialData = null, onSuccess }: { initialDa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg border">
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Country</label>
-                        <select
-                            name="country_id"
-                            value={formData.country_id}
-                            onChange={handleChange}
-                            className="w-full p-3 border rounded-lg bg-white"
-                            required
-                        >
-                            <option value="">Select Country...</option>
-                            {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                        <SearchableSelect 
+                            options={countries} 
+                            value={formData.country_id} 
+                            onChange={(val) => setFormData({ ...formData, country_id: val, city_id: "" })} 
+                            placeholder="Select Country..." 
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">District (City)</label>
-                        <select
-                            name="city_id"
-                            value={formData.city_id}
-                            onChange={handleChange}
-                            className="w-full p-3 border rounded-lg bg-white"
-                            required
+                        <SearchableSelect 
+                            options={cities} 
+                            value={formData.city_id} 
+                            onChange={(val) => setFormData({ ...formData, city_id: val })} 
+                            placeholder="Select District..." 
                             disabled={!formData.country_id}
-                        >
-                            <option value="">Select District...</option>
-                            {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                        />
                     </div>
                 </div>
 

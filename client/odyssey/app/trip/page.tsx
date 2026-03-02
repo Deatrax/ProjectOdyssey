@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import MapComponent from "../components/MapComponent";
 import { useVisitTracking } from "../hooks/useVisitTracking";
@@ -14,6 +14,13 @@ type Item = {
     category?: string;
     visitDurationMin?: number;
     time?: string;
+    description?: string;
+    lat?: number;
+    lng?: number;
+    isBreak?: boolean;
+    isCommute?: boolean;
+    commuteMode?: "transit" | "driving";
+    commuteDurationMin?: number;
     coordinates?: {
         lat: number;
         lng: number;
@@ -47,6 +54,61 @@ function shortUser(userId: string): string {
     return `User …${userId.slice(-6)}`;
 }
 
+/** Normalize schedule from backend — handles both Record<number, Item[]> and Array<{day, items}> formats */
+function normalizeScheduleToArray(schedule: any): ItineraryDay[] {
+    if (!schedule) return [];
+
+    // Already array format
+    if (Array.isArray(schedule)) {
+        return schedule.map((d: any) => ({
+            day: d.day,
+            items: (d.items || []).map((item: any, idx: number) => ({
+                id: item.id || `item-${d.day}-${idx}`,
+                placeId: item.placeId,
+                name: item.name || item.place || 'Unknown',
+                category: item.category,
+                visitDurationMin: item.visitDurationMin || 60,
+                time: item.time || '09:00',
+                description: item.description,
+                lat: item.lat || item.coordinates?.latitude || item.coordinates?.lat,
+                lng: item.lng || item.coordinates?.longitude || item.coordinates?.lng,
+                isBreak: item.isBreak || false,
+                isCommute: item.isCommute || false,
+                commuteMode: item.commuteMode,
+                commuteDurationMin: item.commuteDurationMin,
+            }))
+        }));
+    }
+
+    // Record format: { "1": [...], "2": [...] }
+    if (typeof schedule === 'object') {
+        return Object.keys(schedule)
+            .map(Number)
+            .filter(n => !isNaN(n))
+            .sort((a, b) => a - b)
+            .map(dayNum => ({
+                day: dayNum,
+                items: (Array.isArray(schedule[dayNum]) ? schedule[dayNum] : (schedule[String(dayNum)] || [])).map((item: any, idx: number) => ({
+                    id: item.id || `item-${dayNum}-${idx}`,
+                    placeId: item.placeId,
+                    name: item.name || item.place || 'Unknown',
+                    category: item.category,
+                    visitDurationMin: item.visitDurationMin || 60,
+                    time: item.time || '09:00',
+                    description: item.description,
+                    lat: item.lat || item.coordinates?.latitude || item.coordinates?.lat,
+                    lng: item.lng || item.coordinates?.longitude || item.coordinates?.lng,
+                    isBreak: item.isBreak || false,
+                    isCommute: item.isCommute || false,
+                    commuteMode: item.commuteMode,
+                    commuteDurationMin: item.commuteDurationMin,
+                }))
+            }));
+    }
+
+    return [];
+}
+
 export default function TripPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -54,12 +116,14 @@ export default function TripPage() {
     const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
     const [selectedDay, setSelectedDay] = useState<number>(1);
     const [mapCollapsed, setMapCollapsed] = useState(false);
+    const [geoEnabled, setGeoEnabled] = useState(true);
+    const [showMobileMap, setShowMobileMap] = useState(false);
 
     // Group-trip state
     const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-    // Load Itinerary (group-first, same as planner)
+    // Load Itinerary — prefer "active" trip, not just latest
     useEffect(() => {
         const loadSavedItinerary = async () => {
             try {
@@ -69,12 +133,10 @@ export default function TripPage() {
                     return;
                 }
 
-                // Decode user ID from the JWT so the visit hook can isolate this
-                // user's active visit from other group members' in-progress logs.
                 const uid = decodeJwtId(token);
                 setCurrentUserId(uid);
 
-                // ── GROUP CHECK (same logic as planner) ──────────────────────
+                // ── GROUP CHECK ──────────────────────────────
                 const groupRes = await fetch("http://localhost:4000/api/groups/mine/active", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -87,18 +149,18 @@ export default function TripPage() {
                         setSavedItinerary({
                             id: itin.id,
                             tripName: `${groupData.group.title}`,
-                            schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : [],
+                            schedule: normalizeScheduleToArray(selectedItin?.schedule),
                         });
                         setGroupInfo({
                             id: groupData.group.id,
                             title: groupData.group.title,
                             memberCount: groupData.group.member_count ?? 0,
                         });
-                        return; // skip personal itinerary lookup
+                        return;
                     }
                 }
 
-                // ── PERSONAL ITINERARY FALLBACK ──────────────────────────────
+                // ── PERSONAL ITINERARY — FIND ACTIVE PLAN ──────────────────
                 const res = await fetch("http://localhost:4000/api/trips", {
                     method: "GET",
                     headers: {
@@ -111,15 +173,20 @@ export default function TripPage() {
 
                 const data = await res.json();
                 if (data.success && data.data && data.data.length > 0) {
-                    const latestItinerary = data.data[0];
-                    const selectedItin = latestItinerary.selected_itinerary;
+                    // Prefer trip with status "active", fall back to first non-completed
+                    const activeTrip = data.data.find((t: any) => t.status === "active");
+                    const fallbackTrip = data.data.find((t: any) => t.status !== "completed") || data.data[0];
+                    const selectedTrip = activeTrip || fallbackTrip;
 
-                    setSavedItineraryId(latestItinerary.id);
-                    setSavedItinerary({
-                        id: latestItinerary.id,
-                        tripName: latestItinerary.trip_name,
-                        schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : [],
-                    });
+                    if (selectedTrip) {
+                        const selectedItin = selectedTrip.selected_itinerary;
+                        setSavedItineraryId(selectedTrip.id);
+                        setSavedItinerary({
+                            id: selectedTrip.id,
+                            tripName: selectedTrip.trip_name,
+                            schedule: normalizeScheduleToArray(selectedItin?.schedule),
+                        });
+                    }
                 }
             } catch (err) {
                 console.error("Error loading saved itinerary:", err);
@@ -132,8 +199,6 @@ export default function TripPage() {
     }, [router]);
 
     // Visit Tracking Hook
-    // Pass currentUserId so the hook isolates THIS user's active check-in;
-    // visitHistory still contains ALL group members' logs (itinerary-scoped).
     const {
         currentVisit,
         visitHistory,
@@ -147,37 +212,25 @@ export default function TripPage() {
     );
 
     // ── GROUP SYNC via SSE ────────────────────────────────────────────────────
-    // Opens ONE persistent HTTP connection per client.
-    // The backend subscribes to Supabase Realtime on visit_logs and pushes a
-    // tiny "changed" event only when something actually changes.
-    // This means zero requests when the group is idle — unlike polling.
-    //
-    // Fallback: if the server signals Realtime is unavailable (not configured
-    // in Supabase dashboard), we fall back to a light 30s poll instead of 10s.
     useEffect(() => {
         if (!groupInfo || !savedItineraryId) return;
 
         const token = localStorage.getItem('token') || '';
-        // EventSource cannot send custom headers — pass token as query param.
         const url = `http://localhost:4000/api/visits/stream/${savedItineraryId}?token=${encodeURIComponent(token)}`;
 
         let fallbackInterval: ReturnType<typeof setInterval> | null = null;
         const es = new EventSource(url);
 
-        // Server pushes this when a visit_log row changes
         es.addEventListener('changed', () => {
             fetchVisitHistory();
         });
 
-        // Server pushes this if Supabase Realtime isn't configured on the table.
-        // Fall back to infrequent polling (30s) so sync still works.
         es.addEventListener('unavailable', () => {
             console.warn('[GroupTrip] Realtime unavailable, falling back to 30s poll.');
             fallbackInterval = setInterval(() => fetchVisitHistory(), 30_000);
         });
 
         es.onerror = () => {
-            // Browser auto-reconnects — no manual action needed.
             console.warn('[GroupTrip] SSE reconnecting...');
         };
 
@@ -187,11 +240,11 @@ export default function TripPage() {
         };
     }, [groupInfo, savedItineraryId, fetchVisitHistory]);
 
-    // Geofencing Hook for Auto-Checkin
+    // Geofencing Hook — respect geoEnabled toggle
     const { geofenceStatus, userLocation } = useGeofencing({
-        enabled: !!savedItineraryId,
+        enabled: geoEnabled && !!savedItineraryId,
         itineraryId: savedItineraryId || undefined,
-        autoCheckin: true,
+        autoCheckin: geoEnabled,
         throttleInterval: 10000,
     });
 
@@ -211,6 +264,7 @@ export default function TripPage() {
 
     // Handle Auto-Actions & Notifications
     useEffect(() => {
+        if (!geoEnabled) return;
         if (geofenceStatus?.action === 'auto_checked_in' && geofenceStatus.place) {
             if (!currentVisit) {
                 sendNotification("Arrived!", `You have arrived at ${geofenceStatus.place.placeName}`);
@@ -234,7 +288,24 @@ export default function TripPage() {
                 });
             }
         }
-    }, [geofenceStatus, currentVisit, checkIn, checkOut]);
+    }, [geofenceStatus, currentVisit, checkIn, checkOut, geoEnabled]);
+
+    // Compute the "next" unvisited location for navigation routing
+    const nextLocation = useMemo(() => {
+        if (!savedItinerary?.schedule) return null;
+        const currentDayData = savedItinerary.schedule.find((d: any) => d.day === selectedDay);
+        if (!currentDayData) return null;
+        for (const item of currentDayData.items) {
+            if (item.isCommute || item.isBreak) continue;
+            const placeKey = item.placeId || item.id;
+            const isCompleted = visitHistory.some((v: any) => v.place_id === placeKey && v.status === 'completed');
+            const isCurrent = currentVisit?.place_id === placeKey;
+            if (!isCompleted && !isCurrent && (item.lat || item.placeId)) {
+                return item;
+            }
+        }
+        return null;
+    }, [savedItinerary, selectedDay, visitHistory, currentVisit]);
 
 
     if (loading) {
@@ -248,9 +319,10 @@ export default function TripPage() {
     if (!savedItinerary) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-[#FFF5E9]">
-                <div className="text-xl font-odyssey text-gray-600 mb-4">No active trip found.</div>
+                <div className="text-xl font-odyssey text-gray-600 mb-2">No active trip found.</div>
+                <p className="text-sm text-gray-500 mb-4">Go to Planner and activate a trip to use Trip Mode.</p>
                 <button
-                    onClick={() => router.push("/planner")}
+                    onClick={() => router.push("/planner2")}
                     className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
                 >
                     Go to Planner
@@ -261,6 +333,11 @@ export default function TripPage() {
 
     const currentDayItems = savedItinerary.schedule.find((d: any) => d.day === selectedDay)?.items || [];
     const visitedCount = visitHistory.filter((v: any) => v.status === 'completed').length;
+
+    // Filter items suitable for map display (need coordinates or placeId)
+    const mapItems = currentDayItems.filter((i: Item) =>
+        (i.placeId || (i.lat && i.lng)) && !i.isBreak && !i.isCommute
+    );
 
     return (
         <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-[#FFF5E9]">
@@ -275,24 +352,58 @@ export default function TripPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                         </svg>
                         <span className="truncate">Group Trip · {groupInfo.title}</span>
-                        <span className="ml-auto flex-shrink-0 text-white/80">syncing every 10s</span>
+                        <span className="ml-auto flex-shrink-0 text-white/80">syncing</span>
                     </div>
                 )}
 
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-20">
                     <h1 className="text-2xl font-bold font-odyssey text-gray-900 mb-2">{savedItinerary.tripName}</h1>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="text-sm text-gray-500 font-medium">
                             {visitedCount} place{visitedCount !== 1 ? 's' : ''} visited{groupInfo ? ' (group total)' : ''}
                         </div>
-                        <button
-                            onClick={() => setMapCollapsed(!mapCollapsed)}
-                            className="md:hidden text-sm bg-gray-100 px-3 py-1 rounded-lg"
-                        >
-                            {mapCollapsed ? 'Show Map' : 'Hide Map'}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Geolocation Toggle */}
+                            <button
+                                onClick={() => setGeoEnabled(!geoEnabled)}
+                                className={`text-xs px-3 py-1 rounded-lg flex items-center gap-1 border transition-all ${geoEnabled
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-gray-100 text-gray-500 border-gray-200'
+                                    }`}
+                            >
+                                📍 {geoEnabled ? 'Auto-detect ON' : 'Auto-detect OFF'}
+                            </button>
+                            {/* Map Toggle */}
+                            <button
+                                onClick={() => { setMapCollapsed(!mapCollapsed); setShowMobileMap(false); }}
+                                className="text-sm bg-gray-100 px-3 py-1 rounded-lg hidden md:block"
+                            >
+                                {mapCollapsed ? 'Show Map' : 'Hide Map'}
+                            </button>
+                            <button
+                                onClick={() => setShowMobileMap(!showMobileMap)}
+                                className="text-sm bg-gray-100 px-3 py-1 rounded-lg md:hidden"
+                            >
+                                {showMobileMap ? 'Hide Map' : 'Show Map'}
+                            </button>
+                        </div>
                     </div>
+                    {/* Next destination indicator */}
+                    {nextLocation && (
+                        <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-sm">
+                            <span className="text-blue-500 font-bold">→</span>
+                            <span className="text-blue-800 font-medium">Next: {nextLocation.name}</span>
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${nextLocation.lat && nextLocation.lng ? `${nextLocation.lat},${nextLocation.lng}` : encodeURIComponent(nextLocation.name)}${nextLocation.placeId ? `&destination_place_id=${nextLocation.placeId}` : ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                            >
+                                Navigate →
+                            </a>
+                        </div>
+                    )}
                 </div>
 
                 {/* Day Tabs */}
@@ -317,20 +428,31 @@ export default function TripPage() {
                     <div className="absolute left-[35px] top-6 bottom-6 w-0.5 bg-gray-200" />
 
                     <div className="space-y-8 relative">
-                        {currentDayItems.map((item: any, index: number) => {
+                        {currentDayItems.map((item: Item, index: number) => {
+                            // Skip commute cards in trip mode timeline (they're visual-only in planner)
+                            if (item.isCommute) {
+                                const durationMin = item.commuteDurationMin || 15;
+                                return (
+                                    <div key={`${item.id || 'commute'}-${index}`} className="flex gap-6 relative">
+                                        <div className="w-5 h-5 rounded-full border-4 z-10 flex-shrink-0 mt-1 bg-gray-100 border-gray-200" />
+                                        <div className="flex-1 rounded-xl px-4 py-2 bg-gray-50 border border-dashed border-gray-200">
+                                            <span className="text-xs text-gray-400 flex items-center gap-2">
+                                                {item.commuteMode === 'driving' ? '🚗' : '🚌'} {durationMin} min travel
+                                                <span className="font-mono text-gray-300">{item.time || ''}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             const placeKey = item.placeId || item.id;
-                            //Deatrax: manually resolved code
-                            const visitLog = visitHistory.find(v => v.place_id === (item.placeId || item.id));
-                            // visitHistory is itinerary-scoped: includes ALL group members' logs.
-                            // A place is "completed" if ANY member checked out of it.
+                            const visitLog = visitHistory.find((v: any) => v.place_id === placeKey);
                             const completedLog = visitHistory.find(
                                 (v: any) => v.place_id === placeKey && v.status === 'completed'
                             );
-                            // A place is "active" only if THIS user is currently there.
                             const isCurrent = currentVisit?.place_id === placeKey;
                             const isCompleted = !!completedLog;
                             const isPending = !visitLog && !isCurrent;
-                            // Who completed this place?
                             const completedBy =
                                 completedLog?.user_id === currentUserId
                                     ? 'You'
@@ -338,30 +460,38 @@ export default function TripPage() {
                                         ? shortUser(completedLog.user_id)
                                         : null;
 
+                            // Build navigation URL — use coordinates if placeId is missing
+                            const navUrl = item.placeId
+                                ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.name)}&destination_place_id=${item.placeId}`
+                                : item.lat && item.lng
+                                    ? `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name)}`;
+
                             return (
                                 <div key={`${item.id || 'item'}-${index}`} className="flex gap-6 relative group">
                                     {/* Node */}
                                     <div className={`
-                    w-5 h-5 rounded-full border-4 z-10 flex-shrink-0 mt-1 transition-all duration-300
-                    ${isCompleted ? 'bg-green-500 border-green-200' :
+                                        w-5 h-5 rounded-full border-4 z-10 flex-shrink-0 mt-1 transition-all duration-300
+                                        ${isCompleted ? 'bg-green-500 border-green-200' :
                                             isCurrent ? 'bg-blue-500 border-blue-200 animate-pulse' :
                                                 'bg-white border-gray-300'}
-                  `} />
+                                    `} />
 
                                     {/* Card */}
                                     <div className={`
-                    flex-1 rounded-2xl p-4 transition-all duration-300 border
-                    ${isCurrent ? 'bg-blue-50 border-blue-200 shadow-md transform scale-[1.02]' :
+                                        flex-1 rounded-2xl p-4 transition-all duration-300 border
+                                        ${isCurrent ? 'bg-blue-50 border-blue-200 shadow-md transform scale-[1.02]' :
                                             isCompleted ? 'bg-gray-50 border-gray-100 opacity-75' :
-                                                'bg-white border-gray-100 shadow-sm hover:shadow-md'}
-                  `}>
+                                                item.isBreak ? 'bg-orange-50 border-orange-200' :
+                                                    'bg-white border-gray-100 shadow-sm hover:shadow-md'}
+                                    `}>
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1 block">
                                                     {item.time || 'Flexible Time'}
                                                 </span>
                                                 <h3 className={`font-bold text-gray-900 ${isCurrent ? 'text-lg' : 'text-base'} ${isCompleted ? 'line-through text-gray-500' : ''}`}>
-                                                    {item.name || item.place}
+                                                    {item.isBreak ? `🍽️ ${item.name}` : item.name}
                                                 </h3>
                                             </div>
                                             {isCurrent && (
@@ -380,6 +510,12 @@ export default function TripPage() {
                                             </p>
                                         )}
 
+                                        {/* Duration */}
+                                        <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
+                                            <span>⏱ {item.visitDurationMin || 60} min</span>
+                                            {item.category && <span className="bg-gray-100 px-2 py-0.5 rounded-full">{item.category}</span>}
+                                        </div>
+
                                         {/* Completed-by attribution (group trips) */}
                                         {isCompleted && completedBy && groupInfo && (
                                             <p className="text-xs text-gray-400 mb-2 italic">
@@ -391,7 +527,7 @@ export default function TripPage() {
                                         <div className="flex gap-2 mt-2">
                                             {/* Navigate Button */}
                                             <a
-                                                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.name || item.place)}${item.placeId ? `&destination_place_id=${item.placeId}` : ''}`}
+                                                href={navUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-xs border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
@@ -404,12 +540,15 @@ export default function TripPage() {
                                                 Navigate
                                             </a>
 
-                                            {!isCompleted && !isCurrent && (
+                                            {!isCompleted && !isCurrent && !item.isBreak && (
                                                 <button
                                                     onClick={() => checkIn({
                                                         placeId: placeKey,
-                                                        placeName: item.name || item.place,
-                                                        location: { lat: 0, lng: 0 }
+                                                        placeName: item.name,
+                                                        location: {
+                                                            lat: item.lat || 0,
+                                                            lng: item.lng || 0
+                                                        }
                                                     })}
                                                     className="text-xs bg-black text-white px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
                                                 >
@@ -437,25 +576,24 @@ export default function TripPage() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL: Map */}
+            {/* RIGHT PANEL: Map (Desktop) */}
             {!mapCollapsed && (
                 <div className="hidden md:block flex-1 relative h-full bg-gray-100">
-                    {/*Deatrax: manually resolved code by accepting current instead of incoming*/}
                     <MapComponent
-                        items={currentDayItems.filter((i: any) => (i.placeId || (i.lat && i.lng)) && !i.isBreak)}
+                        items={mapItems}
                         userLocation={userLocation}
-                        geofences={currentDayItems
-                            .filter((i: any) => i.lat && i.lng && !i.isBreak)
-                            .map((i: any) => {
+                        geofences={mapItems
+                            .filter((i: Item) => i.lat && i.lng)
+                            .map((i: Item) => {
                                 const isCurrent = currentVisit?.place_id === (i.placeId || i.id);
-                                const isCompleted = visitHistory.find(v => v.place_id === (i.placeId || i.id))?.status === 'completed';
-                                let color = '#22c55e'; // Default Green (Pending)
-                                if (isCurrent) color = '#3b82f6'; // Blue (Active)
-                                if (isCompleted) color = '#9ca3af'; // Gray (Completed)
+                                const isCompleted = visitHistory.find((v: any) => v.place_id === (i.placeId || i.id))?.status === 'completed';
+                                let color = '#22c55e';
+                                if (isCurrent) color = '#3b82f6';
+                                if (isCompleted) color = '#9ca3af';
 
                                 return {
-                                    lat: i.lat,
-                                    lng: i.lng,
+                                    lat: i.lat!,
+                                    lng: i.lng!,
                                     radius: 100,
                                     color
                                 };
@@ -473,21 +611,87 @@ export default function TripPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                         </svg>
                     </button>
+
+                    {/* Next destination banner on map */}
+                    {nextLocation && (
+                        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg z-[400] flex items-center gap-3">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-xs text-gray-500 font-medium">Next Stop</div>
+                                <div className="text-sm font-bold text-gray-900 truncate">{nextLocation.name}</div>
+                            </div>
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${nextLocation.lat && nextLocation.lng ? `${nextLocation.lat},${nextLocation.lng}` : encodeURIComponent(nextLocation.name)}${nextLocation.placeId ? `&destination_place_id=${nextLocation.placeId}` : ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-600 transition-colors"
+                            >
+                                Go →
+                            </a>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Re-expand button when map is collapsed */}
+            {/* Re-expand button when map is collapsed (desktop) */}
             {mapCollapsed && (
                 <button
                     onClick={() => setMapCollapsed(false)}
-                    className="hidden md:block absolute top-1/2 right-0 bg-white p-3 rounded-l-xl shadow-lg hover:bg-gray-50 z-50 text-gray-600 transform -translate-y-1/2 border border-r-0 border-gray-200"
+                    className="hidden md:flex absolute top-1/2 right-0 bg-white p-3 rounded-l-xl shadow-lg hover:bg-gray-50 z-50 text-gray-600 transform -translate-y-1/2 border border-r-0 border-gray-200 flex-col items-center gap-1"
                     title="Show Map"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0Zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m0 0l3-3m-3 3l-3-3m9-1.5V15m0 0l3-3m-3 3l-3-3" />
                     </svg>
-                    <span className="block text-xs font-bold mt-1 writing-vertical text-orientation-up">MAP</span>
+                    <span className="block text-xs font-bold mt-1">MAP</span>
                 </button>
+            )}
+
+            {/* Mobile Map Overlay */}
+            {showMobileMap && (
+                <div className="fixed inset-0 z-50 md:hidden bg-gray-100">
+                    <MapComponent
+                        items={mapItems}
+                        userLocation={userLocation}
+                        geofences={mapItems
+                            .filter((i: Item) => i.lat && i.lng)
+                            .map((i: Item) => ({
+                                lat: i.lat!,
+                                lng: i.lng!,
+                                radius: 100,
+                                color: currentVisit?.place_id === (i.placeId || i.id) ? '#3b82f6' :
+                                    visitHistory.find((v: any) => v.place_id === (i.placeId || i.id))?.status === 'completed' ? '#9ca3af' : '#22c55e'
+                            }))}
+                        onClose={() => setShowMobileMap(false)}
+                    />
+                    {/* Close button */}
+                    <button
+                        onClick={() => setShowMobileMap(false)}
+                        className="absolute top-4 right-4 bg-white p-3 rounded-full shadow-lg z-[400]"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    {/* Next destination on mobile map */}
+                    {nextLocation && (
+                        <div className="absolute bottom-6 left-4 right-4 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg z-[400] flex items-center gap-3">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-xs text-gray-500">Next Stop</div>
+                                <div className="text-sm font-bold truncate">{nextLocation.name}</div>
+                            </div>
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${nextLocation.lat && nextLocation.lng ? `${nextLocation.lat},${nextLocation.lng}` : encodeURIComponent(nextLocation.name)}${nextLocation.placeId ? `&destination_place_id=${nextLocation.placeId}` : ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-lg font-bold"
+                            >
+                                Go →
+                            </a>
+                        </div>
+                    )}
+                </div>
             )}
 
         </div>

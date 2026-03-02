@@ -33,6 +33,16 @@ export default function DestinationDetailsPage() {
                 setData(mainData);
                 checkCollectionStatus(mainData);
 
+                // Fetch images for the hero section
+                fetch(`http://localhost:4000/api/admin/images/${id}`)
+                    .then(r => r.json())
+                    .then(imgData => {
+                        if (imgData.success && imgData.images?.length > 0) {
+                            setData((prev: any) => ({ ...prev, _cover_url: imgData.images[0].url }));
+                        }
+                    })
+                    .catch(() => {});
+
                 // Fetch Related Data based on Type
                 if (type === 'country') {
                     fetch(`http://localhost:4000/api/countries/${id}/top-cities`)
@@ -91,13 +101,17 @@ export default function DestinationDetailsPage() {
     if (loading) return <div className="min-h-screen bg-[#FFF5E9] flex items-center justify-center">Loading...</div>;
     if (!data) return <div className="min-h-screen bg-[#FFF5E9] flex items-center justify-center">Not Found</div>;
 
-    const bgImage = data.name ? `https://source.unsplash.com/1600x900/?${data.name},travel` : "";
+    const bgImage = data._cover_url || data.img_url || "";
 
     return (
         <div className="min-h-screen bg-[#FFF5E9] font-body text-gray-900 pb-20">
             {/* Hero Section */}
             <div className="relative h-[60vh] w-full">
-                <img src={bgImage} className="w-full h-full object-cover brightness-75" alt={data.name} />
+                {bgImage ? (
+                    <img src={bgImage} className="w-full h-full object-cover brightness-75" alt={data.name} />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-teal-500 via-blue-500 to-indigo-600" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#FFF5E9] via-transparent to-transparent"></div>
 
                 <div className="absolute bottom-0 left-0 right-0 p-8 max-w-7xl mx-auto">
@@ -156,7 +170,11 @@ export default function DestinationDetailsPage() {
                                 {topCities.map(city => (
                                     <Link key={city.id} href={`/destinations/view/city/${city.id}`} className="block group">
                                         <div className="relative h-40 rounded-xl overflow-hidden shadow-sm">
-                                            <img src={`https://source.unsplash.com/400x300/?${city.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={city.name} />
+                                            {city.img_url ? (
+                                                <img src={city.img_url} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={city.name} />
+                                            ) : (
+                                                <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500" />
+                                            )}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
                                                 <h3 className="text-white font-bold text-lg">{city.name}</h3>
                                             </div>
@@ -179,7 +197,11 @@ export default function DestinationDetailsPage() {
                                     <Link key={poi.id} href={`/destinations/view/poi/${poi.id}`} className="block group">
                                         <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all flex gap-4 items-center">
                                             <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                                                <img src={`https://source.unsplash.com/200x200/?${poi.name}`} className="w-full h-full object-cover" alt={poi.name} />
+                                                {poi.img_url ? (
+                                                    <img src={poi.img_url} className="w-full h-full object-cover" alt={poi.name} />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gradient-to-br from-amber-300 to-orange-400" />
+                                                )}
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-gray-900 group-hover:text-[#4A9B7F] transition-colors">{poi.name}</h3>
@@ -201,7 +223,11 @@ export default function DestinationDetailsPage() {
                                     <Link key={poi.id} href={`/destinations/view/poi/${poi.id}`} className="block group">
                                         <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all flex gap-4">
                                             <div className="w-32 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                                                <img src={`https://source.unsplash.com/300x200/?${poi.name}`} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={poi.name} />
+                                                {poi.img_url ? (
+                                                    <img src={poi.img_url} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={poi.name} />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gradient-to-br from-green-400 to-teal-500" />
+                                                )}
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="font-bold text-lg text-gray-900 group-hover:text-[#4A9B7F] transition-colors mb-1">{poi.name}</h3>

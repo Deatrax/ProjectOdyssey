@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 
+interface PlaceImage {
+    id: string;
+    url: string;
+    caption: string;
+}
+
 interface Place {
     id: string;
     name: string;
@@ -24,6 +30,8 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
     const [relatedPlaces, setRelatedPlaces] = useState<Place[]>([]);
     const [loadingRelated, setLoadingRelated] = useState(false);
     const [itemsInCollection, setItemsInCollection] = useState<string[]>([]);
+    const [galleryImages, setGalleryImages] = useState<PlaceImage[]>([]);
+    const [loadingGallery, setLoadingGallery] = useState(false);
 
     // Check collection status on mount/open
     useEffect(() => {
@@ -32,6 +40,22 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
             setItemsInCollection(collections.map((c: any) => c.name));
         }
     }, [isOpen]);
+
+    // Fetch gallery images
+    useEffect(() => {
+        if (isOpen && place?.id) {
+            setLoadingGallery(true);
+            fetch(`http://localhost:4000/api/admin/images/${place.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.images) {
+                        setGalleryImages(data.images);
+                    }
+                })
+                .catch(err => console.error('Failed to fetch gallery', err))
+                .finally(() => setLoadingGallery(false));
+        }
+    }, [isOpen, place]);
 
     // Fetch related cities if this is a country
     useEffect(() => {
@@ -47,7 +71,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
 
     if (!isOpen) return null;
 
-    const bgImage = place.img_url || `https://source.unsplash.com/800x600/?${place.name},travel`;
+    const bgImage = place.img_url || (galleryImages[0]?.url) || `https://source.unsplash.com/800x600/?${place.name},travel`;
     const isInCollection = itemsInCollection.includes(place.name);
 
     const handleAddToCollection = () => {
@@ -201,7 +225,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
                                                 onClick={() => window.open(`/destinations/view/city/${city.id}`, '_blank')}
                                             >
                                                 <div className="w-16 h-16 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
-                                                    <img src={`https://source.unsplash.com/100x100/?${city.name}`} alt={city.name} className="w-full h-full object-cover" />
+                                                    <img src={(city as any).img_url || `https://source.unsplash.com/100x100/?${city.name}`} alt={city.name} className="w-full h-full object-cover" />
                                                 </div>
                                                 <div>
                                                     <h4 className="font-bold text-gray-900">{city.name}</h4>
@@ -216,14 +240,24 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, isOpen, on
 
                         {activeTab === 'photos' && (
                             <div className="grid grid-cols-2 gap-4">
-                                {[1, 2, 3, 4].map(i => (
-                                    <img
-                                        key={i}
-                                        src={`https://source.unsplash.com/400x300/?${place.name},landmark,${i}`}
-                                        className="w-full h-40 object-cover rounded-xl"
-                                        alt="Gallery"
-                                    />
-                                ))}
+                                {loadingGallery ? (
+                                    [1, 2, 3, 4].map(i => (
+                                        <div key={i} className="w-full h-40 bg-gray-200 rounded-xl animate-pulse"></div>
+                                    ))
+                                ) : galleryImages.length > 0 ? (
+                                    galleryImages.map((img, i) => (
+                                        <img
+                                            key={img.id || i}
+                                            src={img.url}
+                                            className="w-full h-40 object-cover rounded-xl"
+                                            alt={img.caption || `${place.name} photo ${i + 1}`}
+                                        />
+                                    ))
+                                ) : (
+                                    <div className="col-span-2 text-center py-10 text-gray-500">
+                                        No photos available yet.
+                                    </div>
+                                )}
                             </div>
                         )}
 
