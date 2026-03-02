@@ -5,6 +5,7 @@ const authMiddleware   = require("../middleware/authMiddleware");
 const checkGroupRole   = require("../middleware/checkGroupRole");
 const GroupTripModel   = require("../models/GroupTrip");
 const GroupService     = require("../services/groupService");
+const User             = require("../models/User");
 
 // All group routes require a valid JWT
 router.use(authMiddleware);
@@ -41,7 +42,14 @@ router.get("/discover", async (req, res) => {
       maxCost: maxCost ? parseFloat(maxCost) : undefined,
       openOnly: openOnly !== "false",
     });
-    res.json({ success: true, trips });
+
+    // Enrich with organizer usernames from MongoDB
+    const organizerIds = [...new Set(trips.map((t) => t.organizer_id))];
+    const organizers = await User.find({ _id: { $in: organizerIds } }, "_id username").lean();
+    const organizerMap = Object.fromEntries(organizers.map((u) => [u._id.toString(), u.username]));
+    const enrichedTrips = trips.map((t) => ({ ...t, organizer_name: organizerMap[t.organizer_id] || null }));
+
+    res.json({ success: true, trips: enrichedTrips });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -113,16 +121,27 @@ router.get("/:id", async (req, res) => {
       itinerary = await GroupTripModel.getLinkedItinerary(group.itinerary_id);
     }
 
+    // Fetch organizer name
+    const organizerUser = await User.findById(group.organizer_id, "username").lean();
+    const organizerName = organizerUser?.username || null;
+
     if (!isMember) {
       // Public preview only
       const { invite_code, ...publicData } = group; // never expose invite_code to non-members
       const memberCount = await GroupTripModel.countApprovedMembers(req.params.id);
-      return res.json({ success: true, group: publicData, memberCount, membership: member || null });
+      return res.json({ success: true, group: { ...publicData, organizer_name: organizerName }, memberCount, membership: member || null });
     }
 
     const members = await GroupTripModel.getMembers(req.params.id);
-    const memberCount = members.filter((m) => m.status === "approved").length;
-    res.json({ success: true, group, members, memberCount, membership: member, itinerary });
+
+    // Enrich members with usernames from MongoDB
+    const userIds = [...new Set(members.map((m) => m.user_id))];
+    const users = await User.find({ _id: { $in: userIds } }, "_id username").lean();
+    const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u.username]));
+    const enrichedMembers = members.map((m) => ({ ...m, username: userMap[m.user_id] || null }));
+
+    const memberCount = enrichedMembers.filter((m) => m.status === "approved").length;
+    res.json({ success: true, group: { ...group, organizer_name: organizerName }, members: enrichedMembers, memberCount, membership: member, itinerary });
   } catch (err) {
     res.status(404).json({ error: err.message });
   }

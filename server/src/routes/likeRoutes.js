@@ -2,6 +2,7 @@ const router = require("express").Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const Like = require("../models/Like");
 const Post = require("../models/Post");
+const Notification = require("../models/Notification");
 
 /**
  * POST /api/likes/:postId
@@ -48,6 +49,22 @@ router.post("/:postId", authMiddleware, async (req, res) => {
       await Post.findByIdAndUpdate(postId, {
         $inc: { likesCount: 1 }
       });
+
+      // Notify the post owner (skip if the liker IS the post owner)
+      if (userId !== post.authorId.toString()) {
+        try {
+          // findOneAndUpdate with upsert so duplicate likes (edge-case race)
+          // don't throw duplicate-key errors — just refresh the timestamp.
+          await Notification.findOneAndUpdate(
+            { actorId: userId, postId, type: "like" },
+            { recipientId: post.authorId, actorId: userId, type: "like", postId, read: false },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+        } catch (notifErr) {
+          // Notification failure must never break the like response
+          console.error("Notification create (like) error:", notifErr.message);
+        }
+      }
 
       return res.json({
         success: true,

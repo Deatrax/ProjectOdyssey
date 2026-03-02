@@ -17,10 +17,15 @@ const postRoutes = require("./routes/postRoutes"); // Social Feed - Posts
 const commentRoutes = require("./routes/commentRoutes"); // Social Feed - Comments
 const likeRoutes = require("./routes/likeRoutes"); // Social Feed - Likes
 const savedPostRoutes = require("./routes/savedPostRoutes"); // Social Feed - Saved Posts
+const followRoutes = require('./routes/followRoutes'); // Follow / Friends
+const userRoutes = require('./routes/userRoutes'); // User Search & Public Profiles
 const reviewRoutes = require("./routes/reviewRoutes"); // Review Routes
+const notificationRoutes = require('./routes/notificationRoutes'); // Notifications
 const uploadRoutes = require("./routes/uploadRoutes"); // Upload Routes
 const groupRoutes = require("./routes/groupRoutes"); // Group Trip Planning
+const groupChatRoutes = require('./routes/groupChatRoutes'); // Group Chat
 const recommendationRoutes = require("./routes/recommendationRoutes");
+const gamificationRoutes = require("./routes/gamificationRoutes");
 const imageRoutes = require("./routes/imageRoutes");
 const { startScheduler } = require("./services/recommendationScheduler");
 
@@ -88,11 +93,16 @@ app.use('/api/posts', postRoutes); // Social Feed - Posts
 app.use('/api/comments', commentRoutes); // Social Feed - Comments
 app.use('/api/likes', likeRoutes); // Social Feed - Likes
 app.use('/api/saved-posts', savedPostRoutes); // Social Feed - Saved Posts
+app.use('/api/follow', followRoutes); // Follow / Friends
+app.use('/api/users', userRoutes); // User Search & Public Profiles
+app.use('/api/notifications', notificationRoutes); // Notifications
 app.use('/api/groups', groupRoutes); //DEATRAX: From Incoming
+app.use('/api/groups/:groupId/messages', groupChatRoutes); // Group Chat
 app.use('/api/reviews', reviewRoutes); //DEATRAX: From Current
 app.use('/api/upload', uploadRoutes); //DEATRAX: From Current
 app.use('/api/recommendations', recommendationRoutes); //DEATRAX: From Current
 app.use('/api/admin/images', imageRoutes); // Image Management
+app.use('/api/gamification', gamificationRoutes); // Gamification Stats
 
 // 5. Start Scheduler
 startScheduler();

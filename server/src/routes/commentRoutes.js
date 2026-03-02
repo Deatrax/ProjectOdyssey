@@ -2,6 +2,7 @@ const router = require("express").Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const Comment = require("../models/Comment");
 const Post = require("../models/Post");
+const Notification = require("../models/Notification");
 
 /**
  * POST /api/comments
@@ -44,6 +45,22 @@ router.post("/", authMiddleware, async (req, res) => {
     await Post.findByIdAndUpdate(postId, {
       $inc: { commentsCount: 1 }
     });
+
+    // Notify the post owner (skip if the commenter IS the post owner)
+    if (userId !== post.authorId.toString()) {
+      try {
+        await Notification.create({
+          recipientId: post.authorId,
+          actorId:     userId,
+          type:        "comment",
+          postId:      postId,
+          commentId:   comment._id
+        });
+      } catch (notifErr) {
+        // Notification failure must never break the comment response
+        console.error("Notification create (comment) error:", notifErr.message);
+      }
+    }
 
     // Populate user details
     await comment.populate("userId", "username email");

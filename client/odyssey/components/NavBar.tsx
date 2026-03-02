@@ -1,8 +1,19 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import NotificationBell from "./NotificationBell";
+
+const getApiBase = () => {
+    if (typeof window !== "undefined") {
+        const { hostname, protocol } = window.location;
+        if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+            return `${protocol}//${hostname}:4000`;
+        }
+    }
+    return "http://localhost:4000";
+};
 
 const NavBar = () => {
     const pathname = usePathname();
@@ -11,19 +22,43 @@ const NavBar = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userProfileImage, setUserProfileImage] = useState<string>("");
+    const [token, setToken] = useState<string>("");
 
-    // Initial Auth Check & Session Extension
+    // Initial Auth Check & Session Extension, Fetch User Profile Image
     React.useEffect(() => {
-        const token = localStorage.getItem("token");
-        setIsLoggedIn(!!token);
+        const storedToken = localStorage.getItem("token");
+        setIsLoggedIn(!!storedToken);
+        setToken(storedToken || "");
 
         // Slide session if logged in and NOT "remember me"
-        if (token) {
+        if (storedToken) {
             const rememberMe = localStorage.getItem("rememberMe") === "true";
             if (!rememberMe) {
                 // Extend for 2 hours
-                document.cookie = `token=${token}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
+                document.cookie = `token=${storedToken}; path=/; max-age=${2 * 60 * 60}; SameSite=Lax`;
             }
+
+            // Fetch user profile image
+            const fetchUserProfile = async () => {
+                try {
+                    const apiBase = getApiBase();
+                    const res = await fetch(`${apiBase}/api/user/profile`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    if (res.ok) {
+                        const userData = await res.json();
+                        if (userData.user?.profileImage) {
+                            setUserProfileImage(userData.user.profileImage);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch user profile:", err);
+                }
+            };
+
+            fetchUserProfile();
         }
     }, [pathname]);
 
@@ -102,11 +137,10 @@ const NavBar = () => {
 
             {/* Profile & Mobile Toggle */}
             <div className="flex items-center gap-3 relative">
-                <button className="p-2 text-gray-700 hover:bg-black/5 rounded-full transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                </button>
+                {/* Notification Bell - Only show when logged in */}
+                {isLoggedIn && token && (
+                    <NotificationBell token={token} />
+                )}
 
                 {/* Auth State Switch */}
                 {!isLoggedIn ? (
@@ -131,11 +165,11 @@ const NavBar = () => {
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     >
-                        <div
+                    <div
                             className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden cursor-pointer border border-white shadow-sm hover:shadow-md transition-shadow"
                             onClick={() => router.push("/profile")}
                         >
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                            <img src={userProfileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" className="w-full h-full object-cover" />
                         </div>
 
                         {/* Bridge pseudo-element to bridge gap if needed, but relative positioning usually handles it. Adding padding-top to dropdown container helps too. */}

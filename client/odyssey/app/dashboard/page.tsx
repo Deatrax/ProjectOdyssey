@@ -246,32 +246,30 @@ const DashboardPage: React.FC = () => {
         <RecommendedPlaces />
 
         {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-[#3A3A3A] text-white rounded-2xl p-8 flex flex-col items-center justify-center h-52 shadow-xl">
-            <h3 className="text-4xl font-bold mb-6 text-center">Check out what your Friends are doing!</h3>
+            <h3 className="text-2xl font-bold mb-6 text-center">Check out what your Friends are doing!</h3>
             <button
               onClick={() => router.push("/groups")}
-              className="bg-gray-300 text-gray-800 px-8 py-3 rounded-full flex items-center justify-center gap-2 hover:bg-gray-400 transition font-semibold"
+              className="bg-gray-300 text-gray-800 px-6 py-3 rounded-full flex items-center justify-center gap-2 hover:bg-gray-400 transition font-semibold text-sm"
             >
-              👥 Browse Group Trips <span className="font-bold text-2xl">→</span>
+              👥 Browse Group Trips <span className="font-bold text-xl">→</span>
             </button>
           </div>
-          <div className="grid grid-rows-2 gap-4">
-            <div className="bg-[#ADC4CE] text-gray-900 rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full">
-              <h3 className="text-4xl font-bold">Share Pictures</h3>
-            </div>
-            <div
-              onClick={() => setShowReviewModal(true)}
-              className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-32 sm:h-full cursor-pointer hover:bg-gray-800 transition"
-            >
-              <h3 className="text-4xl font-bold">Review a place</h3>
-            </div>
+          <div
+            onClick={() => setShowReviewModal(true)}
+            className="bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl h-52 cursor-pointer hover:bg-gray-800 transition"
+          >
+            <h3 className="text-3xl font-bold">Review a place</h3>
           </div>
-        </div>
-
-        {/* Timeline Section */}
-        <div className="bg-gray-300 rounded-2xl p-8 text-center mb-8">
-          <h2 className="text-4xl font-bold text-gray-700">Your Timeline</h2>
+          <div
+            onClick={() => router.push('/timeline')}
+            className="bg-[#ADC4CE] text-gray-900 rounded-2xl flex flex-col items-center justify-center shadow-xl h-52 cursor-pointer hover:brightness-95 transition group"
+          >
+            <span className="text-5xl mb-3">📅</span>
+            <h3 className="text-3xl font-bold">Your Timeline</h3>
+            <span className="mt-3 text-sm font-medium text-gray-600 group-hover:translate-x-1 transition-transform inline-block">View all trips →</span>
+          </div>
         </div>
       </div>
 

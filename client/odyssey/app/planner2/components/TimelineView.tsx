@@ -21,6 +21,8 @@ type ItineraryItem = {
     commuteDurationMin?: number;
     lat?: number;
     lng?: number;
+    entryCost?: number | null;
+    currency?: string;
 };
 
 interface TimelineViewProps {
@@ -134,6 +136,13 @@ function SortableTimelineItem({ item, onRemove, onEdit, onAddMealBreak, index, o
                         </span>
                     )}
                 </div>
+                {item.entryCost !== null && item.entryCost !== undefined && !isBreak && (
+                    <div className="mt-1 text-xs font-semibold text-[#4A9B7F]">
+                        {item.entryCost === 0
+                            ? "Free entry"
+                            : `${item.currency || ""} ${item.entryCost.toLocaleString()}`.trim()}
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">

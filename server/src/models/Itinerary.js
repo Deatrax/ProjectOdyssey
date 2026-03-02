@@ -35,7 +35,7 @@ class ItineraryModel {
    * @returns {object} saved itinerary with ID
    */
   static async createItinerary(userId, itineraryData) {
-    const { tripName, selectedPlaces, selectedItinerary, status = "draft" } = itineraryData;
+    const { tripName, selectedPlaces, selectedItinerary, status = "draft", trip_status = "planning" } = itineraryData;
 
     const { data, error } = await supabase
       .from("itineraries")
@@ -45,6 +45,7 @@ class ItineraryModel {
         selected_places: selectedPlaces || [],
         selected_itinerary: selectedItinerary || null,
         status: status,
+        trip_status: trip_status,
       })
       .select();
 
@@ -82,13 +83,32 @@ class ItineraryModel {
       .from("itineraries")
       .select("*")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("trip_status", { ascending: true })   // "active" < "planning" alphabetically → active first
+      .order("created_at", { ascending: false });  // then newest first within each status
 
     if (error) {
       console.error("Supabase fetch error:", error);
       throw new Error(`Failed to fetch user itineraries: ${error.message}`);
     }
 
+    // Filter out the special "collection" bucket and soft-deleted (cancelled) trips
+    return data.filter(row => row.status !== 'collection' && row.trip_status !== 'cancelled');
+  }
+
+  /**
+   * Get all itineraries for a user — no filtering (includes collection + cancelled rows).
+   * Used internally by routes that need to find the collection bucket.
+   */
+  static async getUserItinerariesUnfiltered(userId) {
+    const { data, error } = await supabase
+      .from("itineraries")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch user itineraries: ${error.message}`);
+    }
     return data;
   }
 
@@ -96,13 +116,14 @@ class ItineraryModel {
    * Update itinerary (for edits & status changes)
    */
   static async updateItinerary(itineraryId, updateData) {
-    const { tripName, selectedPlaces, selectedItinerary, status } = updateData;
+    const { tripName, selectedPlaces, selectedItinerary, status, trip_status } = updateData;
 
     const payload = {};
     if (tripName !== undefined) payload.trip_name = tripName;
     if (selectedPlaces !== undefined) payload.selected_places = selectedPlaces;
     if (selectedItinerary !== undefined) payload.selected_itinerary = selectedItinerary;
     if (status !== undefined) payload.status = status;
+    if (trip_status !== undefined) payload.trip_status = trip_status;
 
     // Always update the updated_at timestamp
     payload.updated_at = new Date().toISOString();
