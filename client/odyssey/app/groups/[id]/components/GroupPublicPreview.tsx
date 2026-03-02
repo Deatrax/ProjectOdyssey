@@ -19,6 +19,7 @@ interface GroupTrip {
   currency: string;
   status: string;
   organizer_id: string;
+  organizer_name?: string;
   auto_approve: boolean;
 }
 
@@ -158,6 +159,9 @@ export default function GroupPublicPreview({
             )}
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{group.title}</h1>
+          {group.organizer_name && (
+            <p className="text-sm text-gray-500 mt-1">👤 Hosted by <span className="font-medium text-gray-700">{group.organizer_name}</span></p>
+          )}
           {group.description && <p className="text-gray-600 mt-2 text-sm leading-relaxed">{group.description}</p>}
         </div>
 

@@ -16,6 +16,13 @@ CONVERSATION CONTEXT:
 - For example, if they previously mentioned "I love beaches", prioritize coastal destinations.
 - If they asked about a specific destination earlier, remember that context.
 
+PRICING RULES:
+- Use the correct currency for the destination country (BDT for Bangladesh, USD for USA, THB for Thailand, INR for India, EUR for Europe, etc.).
+- For each place item, set "entryCost" to the admission/entry fee in local currency: 0 if free, a number if paid, null if unknown.
+- If dbResults includes "estCostPerDay" for a matching place, use that value for entryCost.
+- "estimatedTotalCost" = total estimated trip spend in local currency.
+- Add "currency" (ISO code, e.g. "BDT") to the itineraryPreview object.
+
 OUTPUT JSON SHAPE (example):
 {
   "reply": "string",
@@ -29,12 +36,14 @@ OUTPUT JSON SHAPE (example):
             "name": "string",
             "category": "nature|history & museum|urban",
             "visitDurationMin": 90,
+            "entryCost": 200,
             "time": "morning|afternoon|evening"
           }
         ]
       }
     ],
-    "estimatedTotalCost": 0
+    "estimatedTotalCost": 0,
+    "currency": "BDT"
   }
 }
 `.trim();
@@ -68,18 +77,20 @@ const responseSchema = {
                     name: { type: "string" },
                     category: { type: "string", enum: ["nature", "history & museum", "urban"] },
                     visitDurationMin: { type: "integer", minimum: 15, maximum: 1440 },
+                    entryCost: { type: ["number", "null"], minimum: 0 },
                     time: { type: "string", enum: ["morning", "afternoon", "evening"] }
                   },
-                  required: ["placeId", "name", "category", "visitDurationMin", "time"]
+                  required: ["placeId", "name", "category", "visitDurationMin", "entryCost", "time"]
                 }
               }
             },
             required: ["day", "items"]
           }
         },
-        estimatedTotalCost: { type: "number", minimum: 0 }
+        estimatedTotalCost: { type: "number", minimum: 0 },
+        currency: { type: "string" }
       },
-      required: ["days", "estimatedTotalCost"]
+      required: ["days", "estimatedTotalCost", "currency"]
     }
   },
   required: ["reply", "itineraryPreview"]

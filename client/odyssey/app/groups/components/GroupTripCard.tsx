@@ -16,6 +16,7 @@ export interface GroupTrip {
   currency: string;
   status: "open" | "full" | "in_progress" | "completed" | "cancelled";
   organizer_id: string;
+  organizer_name?: string;
   // Injected by getMine
   membership?: {
     role: string;
@@ -95,6 +96,9 @@ export default function GroupTripCard({ trip, memberCount, showBadge = false }: 
             <h3 className="text-gray-900 font-semibold text-base truncate">{trip.title}</h3>
             {trip.description && (
               <p className="text-gray-500 text-sm mt-1 line-clamp-2">{trip.description}</p>
+            )}
+            {trip.organizer_name && (
+              <p className="text-xs text-gray-400 mt-1">👤 by {trip.organizer_name}</p>
             )}
           </div>
 
