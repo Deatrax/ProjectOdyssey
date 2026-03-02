@@ -7,6 +7,7 @@ import Image from "next/image";
 import VisitMap from "./VisitMap";
 import TravelStatsCard from "./TravelStatsCard";
 import TravelActivityChart from "@/components/TravelActivityChart";
+import { useGamificationStats } from "@/hooks/useGamificationStats";
 import { useFollowStats } from "@/hooks/useFollow";
 
 // --- Types & Interfaces ---
@@ -195,6 +196,9 @@ const ProfilePage: React.FC = () => {
   // Collections state
   const [collectionTrip, setCollectionTrip] = useState<any>(null);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
+
+  // Gamification stats
+  const { stats: gamificationStats, loading: gamificationLoading } = useGamificationStats();
 
   // General Stats (derived or separate)
   const [stats, setStats] = useState({
@@ -938,8 +942,12 @@ const ProfilePage: React.FC = () => {
               <div className="space-y-6">
                 {/* Travel Stats Card (Gamification) */}
                 <TravelStatsCard
-                  xp={userData.xp || 0}
-                  level={userData.level || 1}
+                  xp={gamificationStats?.xp ?? userData.xp ?? 0}
+                  level={gamificationStats?.level ?? userData.level ?? 1}
+                  efficiency={gamificationStats?.efficiency ?? 0}
+                  streak={gamificationStats?.streak.current ?? 0}
+                  personalBest={gamificationStats?.streak.personalBest ?? 0}
+                  loading={gamificationLoading}
                 />
 
                 {/* Recent Activity */}

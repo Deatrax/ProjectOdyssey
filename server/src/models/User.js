@@ -70,6 +70,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  // Streak tracking
+  currentStreak: { type: Number, default: 0 },
+  personalBest: { type: Number, default: 0 },
+  lastActivityDate: { type: String, default: '' }, // Format: 'YYYY-MM-DD' UTC
   weeklyRecommendations: {
     type: Array,
     default: []

@@ -13,9 +13,20 @@ import {
 interface TravelStatsCardProps {
     xp?: number;
     level?: number;
+    efficiency?: number;   // dynamic — replaces hardcoded 92
+    streak?: number;       // dynamic — replaces hardcoded 14
+    personalBest?: number; // for "Personal Best!" badge logic
+    loading?: boolean;     // skeleton state while fetching
 }
 
-const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) => {
+const TravelStatsCard: React.FC<TravelStatsCardProps> = ({
+    xp = 0,
+    level = 1,
+    efficiency = 0,
+    streak = 0,
+    personalBest = 0,
+    loading = false,
+}) => {
     // Determine dynamic title based on XP
     const getTravelTitle = (points: number) => {
         if (points >= 6000) return "Master Nomad";
@@ -26,25 +37,18 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
 
     const travelTitle = getTravelTitle(xp);
 
-    // Mock static data mixed with dynamic XP
-    const stats = {
-        efficiency: 92,
-        totalXP: xp.toLocaleString(),
-        badge: {
-            name: level > 10 ? "Legendary Explorer" : level > 5 ? "Veteran Voyager" : "Elite Voyager",
-            level: level > 10 ? "Diamond" : level > 5 ? "Platinum" : "Gold",
-            icon: level > 10 ? "💎" : "🏆"
-        },
-        streak: {
-            days: 14,
-            message: "Personal Best!"
-        },
-        leaderboard: {
-            rank: 4,
-            totalFriends: 12,
-            rankChange: "up"
-        }
+    // Badge derived from level (still dynamic via xp/level prop)
+    const badge = {
+        name: level > 10 ? "Legendary Explorer" : level > 5 ? "Veteran Voyager" : "Elite Voyager",
+        level: level > 10 ? "Diamond" : level > 5 ? "Platinum" : "Gold",
+        icon: level > 10 ? "💎" : "🏆"
     };
+
+    // Leaderboard stays static (not in scope for this task)
+    const leaderboard = { rank: 4, totalFriends: 12 };
+
+    // Streak message
+    const streakMessage = streak > 0 && streak >= personalBest ? "Personal Best!" : "Keep it up!";
 
     return (
         <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 overflow-hidden relative">
@@ -71,11 +75,15 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
                     <div>
                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Travel Efficiency</p>
                         <div className="flex items-center gap-2">
-                            <span className="text-2xl font-black text-gray-900">{stats.efficiency}%</span>
+                            {loading ? (
+                                <div className="h-7 w-16 bg-gray-200 rounded animate-pulse" />
+                            ) : (
+                                <span className="text-2xl font-black text-gray-900">{efficiency}%</span>
+                            )}
                             <div className="h-1.5 w-24 bg-gray-200 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-[#4A9B7F] rounded-full"
-                                    style={{ width: `${stats.efficiency}%` }}
+                                    className="h-full bg-[#4A9B7F] rounded-full transition-all duration-700"
+                                    style={{ width: `${efficiency}%` }}
                                 ></div>
                             </div>
                         </div>
@@ -88,7 +96,7 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
                     </div>
                     <div>
                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Points Earned</p>
-                        <p className="text-2xl font-black text-gray-900">{stats.totalXP} <span className="text-sm font-bold text-[#FF8C42]">XP</span></p>
+                        <p className="text-2xl font-black text-gray-900">{xp.toLocaleString()} <span className="text-sm font-bold text-[#FF8C42]">XP</span></p>
                     </div>
                 </div>
             </div>
@@ -103,10 +111,10 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
                     </div>
                     <div className="flex flex-col items-center text-center">
                         <div className="text-5xl mb-3 transform transition-transform group-hover:scale-110 duration-300">
-                            {stats.badge.icon}
+                            {badge.icon}
                         </div>
-                        <p className="font-black text-gray-900">{stats.badge.name}</p>
-                        <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest">{stats.badge.level} Level</p>
+                        <p className="font-black text-gray-900">{badge.name}</p>
+                        <p className="text-xs font-bold text-[#4A9B7F] uppercase tracking-widest">{badge.level} Level</p>
                     </div>
                 </div>
 
@@ -117,13 +125,17 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
                         <h4 className="font-bold text-gray-800">Current Streak</h4>
                     </div>
                     <div className="flex flex-col items-center text-center">
-                        <div className="relative">
-                            <span className="text-5xl font-black text-gray-900">{stats.streak.days}</span>
-                            <span className="text-sm font-bold text-gray-500 absolute -bottom-1 -right-8">DAYS</span>
+                        <div className="flex items-end gap-3">
+                            {loading ? (
+                                <div className="h-12 w-16 bg-gray-200 rounded animate-pulse" />
+                            ) : (
+                                <span className="text-5xl font-black text-gray-900">{streak}</span>
+                            )}
+                            <span className="text-sm font-bold text-gray-500 mb-1">DAYS</span>
                         </div>
                         <div className="mt-4 px-3 py-1 bg-orange-100 rounded-full border border-orange-200">
                             <p className="text-[10px] font-black text-orange-600 uppercase tracking-tighter italic">
-                                {stats.streak.message}
+                                {loading ? "..." : streakMessage}
                             </p>
                         </div>
                     </div>
@@ -138,10 +150,10 @@ const TravelStatsCard: React.FC<TravelStatsCardProps> = ({ xp = 0, level = 1 }) 
                     <div className="flex flex-col items-center text-center">
                         <div className="flex items-baseline gap-1">
                             <span className="text-sm font-bold text-gray-500 uppercase">Rank</span>
-                            <span className="text-5xl font-black text-gray-900">#{stats.leaderboard.rank}</span>
+                            <span className="text-5xl font-black text-gray-900">#{leaderboard.rank}</span>
                         </div>
                         <p className="mt-2 text-sm font-medium text-gray-600">
-                            Top <span className="font-bold text-blue-600">33%</span> among {stats.leaderboard.totalFriends} friends
+                            Top <span className="font-bold text-blue-600">33%</span> among {leaderboard.totalFriends} friends
                         </p>
                         <div className="mt-3 flex items-center gap-1 text-green-600 font-bold text-xs">
                             <Trophy className="w-3 h-3" />

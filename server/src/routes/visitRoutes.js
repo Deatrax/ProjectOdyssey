@@ -6,6 +6,7 @@ const VisitTrackerService = require("../services/visitTracker");
 const GeofenceService = require("../services/geofenceService");
 const VisitLog = require("../models/autoVisitLog");
 const supabase = require("../config/supabaseClient");
+const GamificationService = require("../services/GamificationService");
 
 /**
  * VISIT TRACKING API ROUTES
@@ -151,6 +152,13 @@ router.post("/check-out", async (req, res) => {
       notes,
       photos,
     });
+
+    // Non-blocking streak + XP sync after checkout
+    const userId = req.user?.id;
+    if (userId) {
+      GamificationService.calculateAndSyncStreak(userId).catch(console.error);
+      GamificationService.calculateAndSyncXP(userId).catch(console.error);
+    }
 
     return res.status(200).json({
       success: true,
