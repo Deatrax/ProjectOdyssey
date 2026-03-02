@@ -33,7 +33,7 @@ router.post("/analyze", authMiddleware, async (req, res) => {
     try {
       const keywordsJson = await callGemini({
         system: ragKeywordsSystemPrompt,
-        user: { message },
+        user: { message, userContext },
       });
       const v = validateRagKeywords(keywordsJson);
       if (v.ok) {

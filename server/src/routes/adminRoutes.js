@@ -61,7 +61,12 @@ router.post('/countries', async (req, res) => {
 });
 
 router.get('/countries', async (req, res) => {
-    const { data, error } = await supabase.from('countries').select('*').order('name');
+    const { search } = req.query;
+    let query = supabase.from('countries').select('*').order('name');
+    if (search) {
+        query = query.ilike('name', `%${search}%`);
+    }
+    const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true, data });
 });

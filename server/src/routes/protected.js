@@ -2,6 +2,7 @@ const express = require("express");
 const protect = require("../middleware/authMiddleware");
 const User = require("../models/User");
 const GamificationService = require("../services/GamificationService");
+const BadgeService = require("../services/BadgeService");
 const router = express.Router();
 
 // GET /profile
@@ -9,6 +10,9 @@ router.get("/profile", protect, async (req, res) => {
   try {
     // Trigger XP Sync before fetching
     await GamificationService.calculateAndSyncXP(req.user.id);
+
+    // Trigger Badge Sync before fetching
+    await BadgeService.calculateAndSyncBadges(req.user.id);
 
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });

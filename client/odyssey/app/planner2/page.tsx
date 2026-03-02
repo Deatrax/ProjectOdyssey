@@ -22,6 +22,7 @@ import ItinerarySidebar from "./components/ItinerarySidebar";
 import DayTabs from "./components/DayTabs";
 import TimelineView from "./components/TimelineView";
 import ResourcePanel from "./components/ResourcePanel";
+import PrintView from "./components/PrintView";
 import MapComponent from "../components/MapComponent";
 import LocationModal from "../components/LocationModal";
 import ClusteringView from "../components/ClusteringView";
@@ -31,7 +32,7 @@ import { VisitTrackingPanel } from "../components/visit/VisitTrackingPanel";
 import { useGeofencing } from "../hooks/useGeofencing";
 
 // Icons & UI
-import { Menu, Map as MapIcon, List, Sparkles } from "lucide-react";
+import { Menu, Map as MapIcon, List, Sparkles, Printer } from "lucide-react";
 
 // Types
 type ItineraryItem = {
@@ -48,13 +49,20 @@ type ItineraryItem = {
   lat?: number;
   lng?: number;
   isBreak?: boolean;
+  isCommute?: boolean;
+  commuteMode?: "transit" | "driving";
+  commuteDurationMin?: number;
+  country?: string;
+  entryCost?: number | null;
+  currency?: string;
 };
 
 type Trip = {
   id: string;
   tripName: string;
   startDate?: string;
-  status: "draft" | "confirmed" | "completed";
+  status: "draft" | "confirmed" | "completed" | "active";
+  trip_status?: "planning" | "active" | "completed" | "cancelled";
   days: number;
   travelers: number;
   schedule: Record<number, ItineraryItem[]>;
@@ -73,6 +81,10 @@ export default function PlannerPage() {
   // 2. Data
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
+  // True when the active trip is a shared group trip — locks switching & creation
+  const [isGroupTrip, setIsGroupTrip] = useState(false);
+  // The ID of the group trip (persists even when user browses another trip)
+  const [groupTripId, setGroupTripId] = useState<string | null>(null);
 
   // Derived active trip
   const activeTrip = trips.find(t => t.id === activeTripId) || null;
@@ -80,6 +92,8 @@ export default function PlannerPage() {
   // 3. Active Trip State
   const [currentDay, setCurrentDay] = useState(1);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [dayStartTime, setDayStartTime] = useState("04:00");
+  const [showPrintView, setShowPrintView] = useState(false);
 
   // 4. Resource Panel State
   const [activeRightTab, setActiveRightTab] = useState<"chat" | "destinations" | "summaries" | "visits">("chat");
@@ -99,6 +113,8 @@ export default function PlannerPage() {
   const [stage, setStage] = useState<"chat" | "clustering" | "options" | "confirmation">("chat");
   const [clusteringData, setClusteringData] = useState<any>(null);
   const [clusteringLoading, setClusteringLoading] = useState(false);
+  const [aiClusteringEnabled, setAiClusteringEnabled] = useState(false); // user-controlled toggle
+  const [exploreSurroundings, setExploreSurroundings] = useState(true); // strict vs broad search
 
   // 7. Itinerary Generation State (Stage 2)
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -244,9 +260,102 @@ export default function PlannerPage() {
 
   const loadTrips = async () => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      // ── Guest Trips (LocalStorage) ─────────────────────────────────────────
+      const savedGuestTrips = localStorage.getItem("guestTrips");
+      if (savedGuestTrips) {
+        try {
+          const parsed = JSON.parse(savedGuestTrips);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTrips(parsed);
+            const toActivate = parsed.find((t: any) => t.trip_status === "active") || parsed[0];
+            setActiveTripId(toActivate.id);
+            return;
+          }
+        } catch (e) { console.error("Error parsing guest trips", e); }
+      }
+      setShowSetup(true);
+      return;
+    }
 
     try {
+      // ── Priority 1: active group trip ────────────────────────────────────
+      const groupRes = await fetch("http://localhost:4000/api/groups/mine/active", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (groupRes.ok) {
+        const groupData = await groupRes.json();
+        if (groupData.success && groupData.group && groupData.itinerary) {
+          const itin = groupData.itinerary;
+          const selectedItin = itin.selected_itinerary;
+          const days = selectedItin?.days || 3;
+          const groupTrip: Trip = {
+            id: itin.id,
+            tripName: `[Group] ${groupData.group.title}`,
+            startDate: selectedItin?.startDate || "2024-06-01",
+            days,
+            travelers: selectedItin?.travelers || 1,
+            status: "confirmed",
+            schedule: normalizeSchedule(selectedItin?.schedule, days),
+          };
+          setSavedItineraryId(itin.id);
+          setSavedItinerary({
+            id: itin.id,
+            tripName: groupTrip.tripName,
+            title: selectedItin?.title,
+            description: selectedItin?.description,
+            paceDescription: selectedItin?.paceDescription,
+            estimatedCost: selectedItin?.estimatedCost,
+            schedule: Array.isArray(selectedItin?.schedule) ? selectedItin.schedule : [],
+          });
+          setIsGroupTrip(true);
+          setGroupTripId(groupTrip.id);
+          setActiveTripId(groupTrip.id);
+
+          // Also load personal trips so they appear in the sidebar (just not active)
+          try {
+            const personalRes = await fetch("http://localhost:4000/api/trips", {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (personalRes.ok) {
+              const personalData = await personalRes.json();
+              const personalTrips = (personalData.success && personalData.data)
+                ? personalData.data.map((t: any) => {
+                    const d = t.selected_itinerary?.days || 3;
+                    return {
+                      id: t.id,
+                      tripName: t.trip_name,
+                      startDate: t.selected_itinerary?.startDate || "2024-06-01",
+                      days: d,
+                      travelers: t.selected_itinerary?.travelers || 1,
+                      status: t.status || "draft",
+                      trip_status: t.trip_status || "planning",
+                      schedule: normalizeSchedule(t.selected_itinerary?.schedule, d),
+                    };
+                  })
+                : [];
+              // Group trip pinned first, personal trips follow — dedupe by ID
+              const combined = [groupTrip, ...personalTrips];
+              const seen = new Set<string>();
+              const deduped = combined.filter(t => {
+                if (seen.has(t.id)) return false;
+                seen.add(t.id);
+                return true;
+              });
+              setTrips(deduped);
+            } else {
+              setTrips([groupTrip]);
+            }
+          } catch {
+            setTrips([groupTrip]);
+          }
+          return;
+        }
+      }
+
+      // ── Priority 2: personal itineraries ─────────────────────────────────
+      setIsGroupTrip(false);
+      setGroupTripId(null);
       const res = await fetch("http://localhost:4000/api/trips", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -262,14 +371,18 @@ export default function PlannerPage() {
               days,
               travelers: t.selected_itinerary?.travelers || 1,
               status: t.status || "draft",
+              trip_status: t.trip_status || "planning",
               schedule: normalizeSchedule(t.selected_itinerary?.schedule, days)
             };
           });
           setTrips(loadedTrips);
 
           if (loadedTrips.length > 0) {
-            const firstActive = loadedTrips.find((t: any) => t.status !== "completed");
-            if (firstActive) setActiveTripId(firstActive.id);
+            // Prefer whichever trip was last marked active; fall back to first non-completed
+            const wasActive = loadedTrips.find((t: any) => t.trip_status === "active");
+            const firstPlanning = loadedTrips.find((t: any) => t.status !== "completed");
+            const toActivate = wasActive || firstPlanning;
+            if (toActivate) setActiveTripId(toActivate.id);
             else setShowSetup(true);
           } else {
             setShowSetup(true);
@@ -364,19 +477,37 @@ export default function PlannerPage() {
 
   // --- HELPERS ---
 
-  const recalculateDayTimes = (items: ItineraryItem[], startTime = "09:00"): ItineraryItem[] => {
-    let currentTime = new Date(`2000-01-01T${startTime}`);
-    const TRAVEL_BUFFER_MIN = 15; // Buffer between activities for travel
+  const recalculateDayTimes = (items: ItineraryItem[], startTime?: string): ItineraryItem[] => {
+    const effectiveStart = startTime || dayStartTime || "04:00";
+    let currentTime = new Date(`2000-01-01T${effectiveStart}`);
     return items.map((item, idx) => {
       const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-      const duration = item.visitDurationMin || 60;
+      const duration = item.isCommute ? (item.commuteDurationMin || 15) : (item.visitDurationMin || 60);
       currentTime.setMinutes(currentTime.getMinutes() + duration);
-      // Add travel buffer between activities (not after last item, not after breaks)
-      if (idx < items.length - 1 && !item.isBreak) {
-        currentTime.setMinutes(currentTime.getMinutes() + TRAVEL_BUFFER_MIN);
-      }
       return { ...item, time: timeStr };
     });
+  };
+
+  // --- Insert commute cards between activities that have coordinates ---
+  const insertCommutes = (items: ItineraryItem[]): ItineraryItem[] => {
+    if (items.length < 2) return items;
+    const result: ItineraryItem[] = [];
+    for (let i = 0; i < items.length; i++) {
+      result.push(items[i]);
+      // Don't add commute after the last item, after breaks, after commutes, or if next is a commute
+      if (i < items.length - 1 && !items[i].isBreak && !items[i].isCommute && !items[i + 1].isCommute) {
+        const hasCoords = items[i].lat && items[i].lng && items[i + 1].lat && items[i + 1].lng;
+        result.push({
+          id: `commute-${items[i].id}-${items[i + 1].id}`,
+          name: 'Travel',
+          isCommute: true,
+          commuteMode: 'transit',
+          commuteDurationMin: hasCoords ? 20 : 15, // Estimate; can be refined via Directions API
+          category: 'commute',
+        });
+      }
+    }
+    return result;
   };
 
   // Helper to safely get day items (schedule keys can be numbers or strings from backend)
@@ -387,20 +518,79 @@ export default function PlannerPage() {
 
   // --- ACTIONS ---
 
-  const handleCreateTrip = async (data: { title: string; days: number; travelers: number; startDate: string }) => {
+  // Switch the active trip — updates trip_status in DB (skip for group trips)
+  const handleSelectTrip = async (id: string) => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Please login to create a trip");
-      return;
+    if (token && !isGroupTrip) {
+      // Demote old active trip back to planning
+      if (activeTripId && activeTripId !== id) {
+        fetch(`http://localhost:4000/api/trips/${activeTripId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ trip_status: "planning" })
+        }).catch(() => {});
+        setTrips(prev => prev.map(t => t.id === activeTripId ? { ...t, trip_status: "planning" as const } : t));
+      }
+      // Promote new trip to active
+      fetch(`http://localhost:4000/api/trips/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ trip_status: "active" })
+      }).catch(() => {});
+      setTrips(prev => prev.map(t => t.id === id ? { ...t, trip_status: "active" as const } : t));
     }
+    setActiveTripId(id);
+  };
 
+  const handleCreateTrip = async (data: { title: string; days: number; travelers: number; startDate: string }) => {
     const schedule: Record<number, ItineraryItem[]> = {};
     for (let i = 1; i <= data.days; i++) schedule[i] = [];
+
+    const token = localStorage.getItem("token");
+    
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      let guestTrips: Trip[] = [];
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try { guestTrips = JSON.parse(saved); } catch (e) {}
+      }
+
+      if (guestTrips.length >= 3) {
+        const wantsLogin = confirm("You have reached the limit of 3 free trips. Please login to create more!\n\nClick OK to go to login.");
+        if (wantsLogin) router.push("/login?from=planner2");
+        return;
+      }
+
+      // Demote current active guest trip
+      guestTrips = guestTrips.map(t => ({ ...t, trip_status: "planning" as const }));
+
+      const newGuestTrip: Trip = {
+        id: `guest-trip-${Date.now()}`,
+        tripName: data.title,
+        days: data.days,
+        travelers: data.travelers,
+        startDate: data.startDate,
+        status: "draft" as const,
+        trip_status: "active" as const,
+        schedule: schedule
+      };
+      
+      guestTrips.unshift(newGuestTrip);
+      localStorage.setItem("guestTrips", JSON.stringify(guestTrips));
+      
+      setTrips(guestTrips);
+      setActiveTripId(newGuestTrip.id);
+      setShowSetup(false);
+      return;
+    }
 
     const newTripPayload = {
       tripName: data.title,
       selectedPlaces: [],
       status: "draft",
+      // When group trip is active, new personal trips stay as planning (not activated)
+      trip_status: isGroupTrip ? "planning" : "active",
       selectedItinerary: {
         title: data.title,
         days: data.days,
@@ -411,6 +601,15 @@ export default function PlannerPage() {
     };
 
     try {
+      // Demote current active trip to planning before creating a new active one
+      if (!isGroupTrip && activeTripId) {
+        fetch(`http://localhost:4000/api/trips/${activeTripId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ trip_status: "planning" })
+        }).catch(() => {});
+        setTrips(prev => prev.map(t => t.id === activeTripId ? { ...t, trip_status: "planning" as const } : t));
+      }
       const res = await fetch("http://localhost:4000/api/trips/save", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -425,10 +624,11 @@ export default function PlannerPage() {
           travelers: data.travelers,
           startDate: data.startDate,
           status: "draft" as const,
+          trip_status: (isGroupTrip ? "planning" : "active") as "planning" | "active",
           schedule: schedule
         };
         setTrips([createdTrip, ...trips]);
-        setActiveTripId(createdTrip.id);
+        if (!isGroupTrip) setActiveTripId(createdTrip.id); // keep group trip active if locked
         setShowSetup(false);
       }
     } catch (e) {
@@ -501,28 +701,15 @@ export default function PlannerPage() {
 
     try {
       // Check if this is a clustering request
-      const lowerInput = chatInput.toLowerCase();
-      const hasTripKeywords = lowerInput.includes("trip") || lowerInput.includes("itinerary");
-      const hasMultiDayPlan = /\d+\s*(day|days)/.test(lowerInput);
-
-      const hasMultipleLocations = () => {
-        const hasTravelVerb = lowerInput.includes('plan') || lowerInput.includes('visit') ||
-          lowerInput.includes('travel') || lowerInput.includes('explore');
-        if (!hasTravelVerb) return false;
-        const commaCount = (chatInput.match(/,/g) || []).length;
-        const hasAndSeparator = lowerInput.match(/\s+and\s+/g);
-        const separatorCount = commaCount + (hasAndSeparator ? hasAndSeparator.length : 0);
-        return separatorCount >= 1;
-      };
-
-      const isClusteringRequest = hasTripKeywords || hasMultiDayPlan || hasMultipleLocations();
+      // (Bypass the old fragile keyword heuristics — if the toggle is ON, trigger clustering)
+      const isClusteringRequest = aiClusteringEnabled;
 
       if (isClusteringRequest) {
         setClusteringLoading(true);
         const clusterRes = await fetch("http://localhost:4000/api/clustering/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : "" },
-          body: JSON.stringify({ message: userMsg.text, userContext: { budget: "medium", pace: "moderate" } })
+          body: JSON.stringify({ message: userMsg.text, userContext: { budget: "medium", pace: "moderate", exploreSurroundings } })
         });
 
         if (clusterRes.ok) {
@@ -670,7 +857,8 @@ export default function PlannerPage() {
             category: item.category || "place",
             placeId: item.placeId || undefined,
             lat: item.lat || undefined,
-            lng: item.lng || undefined
+            lng: item.lng || undefined,
+            country: item.country || undefined,
           })),
           tripDuration: activeTrip?.days || 3,
           userContext: { budget: "medium", pace: "moderate" },
@@ -742,6 +930,8 @@ export default function PlannerPage() {
               time: ai.timeRange?.split("-")[0] || "09:00",
               description: ai.notes || "",
               source: "ai" as const,
+              entryCost: ai.entryCost ?? null,
+              currency: ai.currency || selectedItinerary.currency || undefined,
             };
           });
           rebuiltSchedule[dayNum] = recalculateDayTimes(items);
@@ -843,10 +1033,11 @@ export default function PlannerPage() {
           placeId: p.place_id || p.id,
           category: p.type || 'Place',
           visitDurationMin: 60,
-          description: p.short_desc || p.country || '',
+          description: p.short_desc || '',
           images: p.img_url ? [p.img_url] : [`https://source.unsplash.com/400x300/?${p.name}`],
           lat: p.latitude,
           lng: p.longitude,
+          country: p.country || undefined,
           source: 'db' as const,
         }));
         setSearchResults(places);
@@ -858,7 +1049,7 @@ export default function PlannerPage() {
   };
 
   // --- HANDLER: Add Meal Break ---
-  const handleAddMealBreak = (day: number) => {
+  const handleAddMealBreak = (day: number, afterIndex?: number) => {
     if (!activeTrip) return;
     const breakItem: ItineraryItem = {
       id: `break-${Date.now()}-${Math.random()}`,
@@ -868,11 +1059,63 @@ export default function PlannerPage() {
       isBreak: true,
       source: 'db',
     };
-    const currentList = getDayItems(activeTrip.schedule, day);
-    const newList = recalculateDayTimes([...currentList, breakItem]);
+    const currentList = getDayItems(activeTrip.schedule, day).filter(i => !i.isCommute);
+    let newList: ItineraryItem[];
+    if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < currentList.length) {
+      // Insert after the specified index
+      newList = [...currentList.slice(0, afterIndex + 1), breakItem, ...currentList.slice(afterIndex + 1)];
+      
+      // If the preceding item has coordinates, try to search for nearby restaurants
+      const precedingItem = currentList[afterIndex];
+      if (precedingItem?.lat && precedingItem?.lng) {
+        // Fire off nearby search (non-blocking) — update the break item with a restaurant
+        searchNearbyMeals(precedingItem.lat, precedingItem.lng, breakItem.id, day);
+      }
+    } else {
+      newList = [...currentList, breakItem];
+    }
+    const withCommutes = insertCommutes(newList);
+    const recalculated = recalculateDayTimes(withCommutes);
     const newSchedule = { ...activeTrip.schedule };
-    newSchedule[day] = newList;
+    newSchedule[day] = recalculated;
     updateTripSchedule(newSchedule);
+  };
+
+  // --- Search nearby meals and update break item ---
+  const searchNearbyMeals = async (lat: number, lng: number, breakId: string, day: number) => {
+    try {
+      const res = await fetch('http://localhost:4000/api/map/search-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: `restaurants`, location: { lat, lng } })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const places = data.results || [];
+      if (places.length > 0) {
+        // Auto-select the first result but the user can change it
+        const topPlace = places[0];
+        setTrips(prev => prev.map(t => {
+          if (t.id !== activeTripId) return t;
+          const schedule = { ...t.schedule };
+          const dayItems = getDayItems(schedule, day).map(item => {
+            if (item.id === breakId) {
+              return {
+                ...item,
+                name: `🍽️ ${topPlace.name || 'Restaurant'}`,
+                placeId: topPlace.placeId,
+                description: topPlace.secondaryText || topPlace.description || '',
+              };
+            }
+            return item;
+          });
+          schedule[day] = dayItems;
+          return { ...t, schedule };
+        }));
+      }
+    } catch (err) {
+      console.error('Nearby meal search error:', err);
+    }
   };
 
   // --- SIMULATION ---
@@ -918,14 +1161,16 @@ export default function PlannerPage() {
     // Case 2: Reordering within Timeline
     if (activeData?.type === "timeline-item") {
       const activeId = active.id;
-      const daySchedule = getDayItems(activeTrip.schedule, currentDay);
+      // Get non-commute items for reordering
+      const daySchedule = getDayItems(activeTrip.schedule, currentDay).filter(i => !i.isCommute);
       const oldIndex = daySchedule.findIndex(i => i.id === activeId);
       const newIndex = daySchedule.findIndex(i => i.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove(daySchedule, oldIndex, newIndex);
+        const withCommutes = insertCommutes(newOrder);
         const newSchedule = { ...activeTrip.schedule };
-        newSchedule[currentDay] = recalculateDayTimes(newOrder);
+        newSchedule[currentDay] = recalculateDayTimes(withCommutes);
         updateTripSchedule(newSchedule);
       }
     }
@@ -934,7 +1179,7 @@ export default function PlannerPage() {
   const addItemToSchedule = (item: ItineraryItem, day: number) => {
     if (!activeTrip) return;
     // Schedule keys may be strings from backend — try both
-    const currentList = getDayItems(activeTrip.schedule, day);
+    const currentList = getDayItems(activeTrip.schedule, day).filter(i => !i.isCommute);
     const newItem = {
       ...item,
       id: `${item.id}-${Date.now()}`,
@@ -942,7 +1187,8 @@ export default function PlannerPage() {
       source: "db" as const
     };
     const newList = [...currentList, newItem];
-    const recalculatedList = recalculateDayTimes(newList);
+    const withCommutes = insertCommutes(newList);
+    const recalculatedList = recalculateDayTimes(withCommutes);
     const newSchedule = { ...activeTrip.schedule };
     newSchedule[day] = recalculatedList;
     updateTripSchedule(newSchedule);
@@ -953,8 +1199,9 @@ export default function PlannerPage() {
     const newSchedule = { ...activeTrip.schedule };
     const raw = newSchedule[day] ?? newSchedule[String(day) as any];
     const dayItems = Array.isArray(raw) ? raw : [];
-    const filtered = dayItems.filter(i => i.id !== itemId);
-    newSchedule[day] = recalculateDayTimes(filtered);
+    const filtered = dayItems.filter(i => i.id !== itemId && !i.isCommute);
+    const withCommutes = insertCommutes(filtered);
+    newSchedule[day] = recalculateDayTimes(withCommutes);
     updateTripSchedule(newSchedule);
   };
 
@@ -962,6 +1209,71 @@ export default function PlannerPage() {
     const updatedTrip = { ...activeTrip!, schedule: newSchedule };
     setTrips(trips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
     saveTrip(updatedTrip);
+  };
+
+  // --- HANDLER: Activate Trip for Trip Mode ---
+  const handleActivateTrip = async (tripId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      // Deactivate all other trips first
+      for (const trip of trips) {
+        if (trip.status === 'active' && trip.id !== tripId) {
+          await fetch(`http://localhost:4000/api/trips/${trip.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ status: 'draft' })
+          });
+        }
+      }
+      // Activate the selected trip
+      await fetch(`http://localhost:4000/api/trips/${tripId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'active' })
+      });
+      // Update local state
+      setTrips(prev => prev.map(t => ({
+        ...t,
+        status: t.id === tripId ? 'active' as const : (t.status === 'active' ? 'draft' as const : t.status)
+      })));
+    } catch (e) { console.error('Failed to activate trip', e); }
+  };
+
+  // --- HANDLER: Add Day ---
+  const handleAddDay = () => {
+    if (!activeTrip) return;
+    const newDays = activeTrip.days + 1;
+    const newSchedule = { ...activeTrip.schedule, [newDays]: [] };
+    const updatedTrip = { ...activeTrip, days: newDays, schedule: newSchedule };
+    setTrips(trips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
+    saveTrip(updatedTrip);
+  };
+
+  // --- HANDLER: Remove Day ---
+  const handleRemoveDay = () => {
+    if (!activeTrip || activeTrip.days <= 1) return;
+    const newDays = activeTrip.days - 1;
+    const newSchedule = { ...activeTrip.schedule };
+    delete newSchedule[activeTrip.days]; // Remove last day
+    const updatedTrip = { ...activeTrip, days: newDays, schedule: newSchedule };
+    if (currentDay > newDays) setCurrentDay(newDays);
+    setTrips(trips.map(t => t.id === updatedTrip.id ? updatedTrip : t));
+    saveTrip(updatedTrip);
+  };
+
+  // --- HANDLER: Commute Mode Change ---
+  const handleCommuteChange = (commuteId: string, mode: "transit" | "driving") => {
+    if (!activeTrip) return;
+    const newSchedule = { ...activeTrip.schedule };
+    const dayItems = getDayItems(newSchedule, currentDay).map(item => {
+      if (item.id === commuteId) {
+        return { ...item, commuteMode: mode, commuteDurationMin: mode === 'driving' ? 15 : 25 };
+      }
+      return item;
+    });
+    newSchedule[currentDay] = recalculateDayTimes(dayItems);
+    updateTripSchedule(newSchedule);
   };
 
   const handleAddItem = (time: string) => {
@@ -973,7 +1285,20 @@ export default function PlannerPage() {
 
   const saveTrip = async (trip: Trip) => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try {
+          const guestTrips: Trip[] = JSON.parse(saved);
+          const updated = guestTrips.map(t => t.id === trip.id ? trip : t);
+          localStorage.setItem("guestTrips", JSON.stringify(updated));
+        } catch (e) { console.error("Error saving guest trip", e); }
+      }
+      setUnsavedChanges(false);
+      return;
+    }
+    
     try {
       await fetch(`http://localhost:4000/api/trips/${trip.id}`, {
         method: "PUT",
@@ -997,16 +1322,38 @@ export default function PlannerPage() {
   const handleDeleteTrip = async (tripId: string) => {
     if (!confirm("Are you sure you want to delete this trip?")) return;
     const token = localStorage.getItem("token");
-    if (!token) return;
+    
+    if (!token) {
+      // ── Guest Trips ──────────────────────────────────────────────────────
+      const saved = localStorage.getItem("guestTrips");
+      if (saved) {
+        try {
+          let guestTrips: Trip[] = JSON.parse(saved);
+          guestTrips = guestTrips.filter(t => t.id !== tripId);
+          localStorage.setItem("guestTrips", JSON.stringify(guestTrips));
+          setTrips(guestTrips);
+          
+          if (activeTripId === tripId) {
+            const next = guestTrips.find(t => t.trip_status !== "cancelled" && t.status !== "completed");
+            if (next) setActiveTripId(next.id);
+            else { setActiveTripId(null); setShowSetup(true); }
+          }
+        } catch (e) { console.error("Error deleting guest trip", e); }
+      }
+      return;
+    }
+
     try {
+      // Soft delete — mark cancelled so it disappears from the sidebar but data is preserved
       await fetch(`http://localhost:4000/api/trips/${tripId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ trip_status: "cancelled" })
       });
       setTrips(prev => {
         const remaining = prev.filter(t => t.id !== tripId);
         if (activeTripId === tripId) {
-          const next = remaining.find(t => t.status !== "completed");
+          const next = remaining.find(t => t.trip_status !== "cancelled" && t.status !== "completed");
           if (next) setActiveTripId(next.id);
           else { setActiveTripId(null); setShowSetup(true); }
         }
@@ -1043,9 +1390,12 @@ export default function PlannerPage() {
             <ItinerarySidebar
               itineraries={trips}
               activeItineraryId={activeTripId}
-              onSelectItinerary={setActiveTripId}
+              onSelectItinerary={handleSelectTrip}
               onNewTrip={() => setShowSetup(true)}
               onDeleteTrip={handleDeleteTrip}
+              onActivateTrip={handleActivateTrip}
+              isGroupTrip={isGroupTrip}
+              groupTripId={groupTripId}
             />
           ) : (
             <div className="w-12 border-r border-gray-200 bg-white pt-4 flex flex-col items-center">
@@ -1081,17 +1431,30 @@ export default function PlannerPage() {
                 </div>
               </div>
 
-              {/* Generate Button */}
-              <button
-                onClick={handleGenerateItineraries}
-                disabled={collections.length === 0 || optionsLoading}
-                className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
-                  }`}
-                title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
-              >
-                <Sparkles size={16} />
-                {optionsLoading ? "Generating..." : "Generate Itineraries"}
-              </button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                {/* Print Button */}
+                <button
+                  onClick={() => setShowPrintView(true)}
+                  disabled={!activeTrip}
+                  className="flex items-center gap-2 text-gray-600 border border-gray-300 px-3 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
+                  title="Print itinerary"
+                >
+                  <Printer size={16} /> Print
+                </button>
+
+                {/* Generate Button */}
+                <button
+                  onClick={handleGenerateItineraries}
+                  disabled={collections.length === 0 || optionsLoading}
+                  className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all ${collections.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#4A9B7F] to-[#2E6B56]"
+                    }`}
+                  title={collections.length === 0 ? "Add places to your collections first" : "Generate 3 itinerary options"}
+                >
+                  <Sparkles size={16} />
+                  {optionsLoading ? "Generating..." : "Generate Itineraries"}
+                </button>
+              </div>
             </div>
 
             {/* Main Body */}
@@ -1106,6 +1469,9 @@ export default function PlannerPage() {
                         currentDay={currentDay}
                         totalDays={activeTrip.days}
                         onDaySelect={setCurrentDay}
+                        onAddDay={handleAddDay}
+                        onRemoveDay={handleRemoveDay}
+                        startDate={activeTrip.startDate}
                       />
                     </div>
                     <div className="flex-1 overflow-hidden rounded-2xl shadow-sm border border-gray-200 bg-white">
@@ -1115,7 +1481,9 @@ export default function PlannerPage() {
                         onRemoveItem={(id) => removeItemFromSchedule(id, currentDay)}
                         onEditItem={handleViewDetails}
                         onAddItem={handleAddItem}
-                        onAddMealBreak={() => handleAddMealBreak(currentDay)}
+                        onAddMealBreak={(afterIndex) => handleAddMealBreak(currentDay, afterIndex)}
+                        onCommuteChange={handleCommuteChange}
+                        startTime={dayStartTime}
                       />
                     </div>
                   </>
@@ -1192,6 +1560,10 @@ export default function PlannerPage() {
                   clusteringLoading={clusteringLoading}
                   onClusteringContinue={handleClusteringContinue}
                   onClusteringCancel={() => setStage("chat")}
+                  aiClusteringEnabled={aiClusteringEnabled}
+                  onAiClusteringToggle={setAiClusteringEnabled}
+                  exploreSurroundings={exploreSurroundings}
+                  onExploreSurroundingsToggle={setExploreSurroundings}
                   itineraryOptions={itineraryOptions}
                   onSelectItineraryOption={(option: any) => { setSelectedItinerary(option); setConfirmationOpen(true); }}
                   // Custom Requirements
@@ -1236,6 +1608,18 @@ export default function PlannerPage() {
         onClose={() => setLocationModalOpen(false)}
         data={selectedLocation}
       />
+
+      {/* Print View */}
+      {showPrintView && activeTrip && (
+        <PrintView
+          tripName={activeTrip.tripName}
+          startDate={activeTrip.startDate}
+          days={activeTrip.days}
+          travelers={activeTrip.travelers}
+          schedule={activeTrip.schedule}
+          onClose={() => setShowPrintView(false)}
+        />
+      )}
 
       {/* Confirmation Modal */}
       <ConfirmationModal

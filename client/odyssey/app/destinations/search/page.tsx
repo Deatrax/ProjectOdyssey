@@ -93,11 +93,15 @@ function SearchResultsContent() {
                                 }}
                             >
                                 <div className="h-48 overflow-hidden relative">
-                                    <img
-                                        src={`https://source.unsplash.com/600x400/?${place.name}`}
-                                        alt={place.name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-                                    />
+                                    {place.img_url ? (
+                                        <img
+                                            src={place.img_url}
+                                            alt={place.name}
+                                            className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-teal-400 via-blue-400 to-indigo-500" />
+                                    )}
                                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
                                         {place.type}
                                     </div>

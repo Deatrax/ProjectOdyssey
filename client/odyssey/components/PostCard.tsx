@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation';
 import { MessageCircle, Calendar, MapPin } from 'lucide-react';
 import LikeButton from './LikeButton';
 import SaveButton from './SaveButton';
+import ShareButton from './ShareButton';
+import TripUpdateCard from './TripUpdateCard';
 import type { Post } from '@/hooks/usePosts';
 
 interface PostCardProps {
   post: Post;
+  feedSource?: 'friends' | 'trending';
   onPostClick?: (postId: string) => void;
 }
 
-export default function PostCard({ post, onPostClick }: PostCardProps) {
+export default function PostCard({ post, feedSource, onPostClick }: PostCardProps) {
+  // If it's a trip update (auto-generated), render special card
+  if (post.type === 'auto') {
+    return <TripUpdateCard post={post} feedSource={feedSource} onPostClick={onPostClick} />;
+  }
+
+  // Otherwise, render regular blog post card
   const router = useRouter();
   // Ensure likesCount is never negative
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likesCount));
@@ -69,16 +78,26 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
   return (
     <div
       onClick={handlePostClick}
-      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100"
+      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
     >
+      {/* Feed source badge */}
+      {feedSource && (
+        <div className="px-6 pt-4 pb-0">
+          {feedSource === 'friends' ? (
+            <span className="text-xs text-blue-500 font-medium">👥 From someone you follow</span>
+          ) : (
+            <span className="text-xs text-orange-400 font-medium">🔥 Trending</span>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start gap-3 mb-4">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4A9B7F] to-purple-500 flex items-center justify-center text-white font-semibold text-lg">
-            {post.authorId.username?.charAt(0).toUpperCase() || 'U'}
+            {post.authorId?.username?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{post.authorId.username}</h3>
+            <h3 className="font-semibold text-gray-900">{post.authorId?.username || 'Unknown User'}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
               <span>{formatDate(post.createdAt)}</span>
@@ -102,6 +121,28 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
         )}
 
         <p className="text-gray-700 leading-relaxed">{preview}</p>
+        
+        {/* Blog post images */}
+        {post.images && post.images.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {post.images.slice(0, 4).map((img, idx) => (
+              <div key={idx} className="relative aspect-video overflow-hidden rounded-lg">
+                <img
+                  src={img}
+                  alt={`Image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                {idx === 3 && post.images && post.images.length > 4 && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white font-semibold text-xl">
+                      +{post.images.length - 4}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -122,6 +163,9 @@ export default function PostCard({ post, onPostClick }: PostCardProps) {
           </button>
           <div onClick={(e) => e.stopPropagation()}>
             <SaveButton postId={post._id} />
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ShareButton postId={post._id} postTitle={getTitle()} />
           </div>
         </div>
 

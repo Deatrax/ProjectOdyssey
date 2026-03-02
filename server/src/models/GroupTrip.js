@@ -110,9 +110,10 @@ class GroupTripModel {
   static async getActiveMembership(userId) {
     const { data, error } = await supabase
       .from("group_members")
-      .select("group_trip_id, status, group_trips(title)")
+      .select("group_trip_id, status, joined_at, group_trips(title)")
       .eq("user_id", userId)
-      .in("status", ["approved", "pending"])
+      .eq("status", "approved")          // only fully approved memberships
+      .order("joined_at", { ascending: false }) // most recently joined group first
       .limit(1)
       .maybeSingle();
 

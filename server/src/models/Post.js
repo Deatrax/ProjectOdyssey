@@ -8,7 +8,7 @@ const postSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["blog", "auto"],
+    enum: ["blog", "auto", "review"],
     required: true,
     default: "blog"
   },
@@ -16,6 +16,7 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed, // BlockNote JSON structure
     required: true
   },
+  images: [String],  // Array of image URLs for blog posts
   tripId: {
     type: String, // UUID from Supabase itineraries table
     default: null
@@ -23,6 +24,52 @@ const postSchema = new mongoose.Schema({
   tripName: {
     type: String,
     default: null
+  },
+  // Review data (for review-share posts)
+  reviewData: {
+    reviewId: {
+      type: String,   // UUID from Supabase reviews table
+      default: null
+    },
+    placeName: {
+      type: String,
+      default: null
+    },
+    placeType: {
+      type: String,   // POI, CITY, COUNTRY
+      default: null
+    },
+    rating: {
+      type: Number,   // 1-5
+      default: null
+    },
+    title: {
+      type: String,
+      default: null
+    },
+    comment: {
+      type: String,
+      default: null
+    },
+    images: [String],  // Array of photo URLs
+    visitDate: {
+      type: Date,
+      default: null
+    }
+  },
+
+  // Trip progress data (for auto-generated trip update posts)
+  tripProgress: {
+    locations: [{
+      name: String,
+      placeId: String,
+      visitedAt: Date,
+      photos: [String], // Array of photo URLs
+      isCurrentLocation: Boolean
+    }],
+    currentLocationName: String,
+    totalLocations: Number,
+    completionPercentage: Number
   },
   likesCount: {
     type: Number,

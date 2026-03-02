@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Heart, MessageCircle, FileText, MapPin, TrendingUp, PenSquare } from 'lucide-react';
+import { Heart, MessageCircle, FileText, MapPin, TrendingUp, PenSquare, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Post } from '@/hooks/usePosts';
+import UserSearch from '../UserSearch';
 
 interface TrendingDestination {
   id: string;
@@ -20,9 +21,10 @@ interface RightSidebarProps {
   isAuthenticated: boolean;
   currentUserId?: string;
   onCreatePost?: () => void;
+  onPostClick?: (postId: string) => void;
 }
 
-export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId, onCreatePost }: RightSidebarProps) {
+export default function RightSidebar({ userPosts, allPosts, isAuthenticated, currentUserId, onCreatePost, onPostClick }: RightSidebarProps) {
   const router = useRouter();
   const [trendingDestinations, setTrendingDestinations] = useState<TrendingDestination[]>([]);
   const [userActivityStats, setUserActivityStats] = useState({
@@ -125,30 +127,19 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
     };
   }, [userPosts, userActivityStats, statsLoaded]);
 
-  // Get most liked posts this week
-  const popularPosts = useMemo(() => {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    return allPosts
-      .filter(post => new Date(post.createdAt) >= oneWeekAgo)
-      .sort((a, b) => {
-        // First, sort by likes (descending)
-        const likeDiff = (b.likesCount || 0) - (a.likesCount || 0);
-        if (likeDiff !== 0) return likeDiff;
-        
-        // If likes are equal, sort by comments (descending)
-        const commentDiff = (b.commentsCount || 0) - (a.commentsCount || 0);
-        if (commentDiff !== 0) return commentDiff;
-        
-        // If both are equal, sort by date (newer first)
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      .slice(0, 3);
-  }, [allPosts]);
-
   return (
     <div className="sticky top-24 space-y-6">
+      {/* Find People Section */}
+      {isAuthenticated && (
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-5 h-5 text-[#4A9B7F]" />
+            <h3 className="text-lg font-bold text-gray-900">Find People</h3>
+          </div>
+          <UserSearch token={typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined} />
+        </div>
+      )}
+
       {/* User Activity Stats */}
       {isAuthenticated && (
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -228,54 +219,6 @@ export default function RightSidebar({ userPosts, allPosts, isAuthenticated, cur
                 <TrendingUp className="w-4 h-4 text-[#4A9B7F]" />
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Most Liked This Week */}
-      {popularPosts.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-md p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-bold text-gray-900">Trending Posts This Week</h3>
-          </div>
-          <div className="space-y-3">
-            {popularPosts.map((post) => {
-              // Extract title from post
-              const getTitle = () => {
-                if (!post.content || !post.content.content) return 'Untitled';
-                for (const node of post.content.content) {
-                  if (node.type === 'heading' && node.content && node.content[0]?.text) {
-                    return node.content[0].text;
-                  }
-                }
-                return post.tripName || 'Untitled';
-              };
-
-              return (
-                <div
-                  key={post._id}
-                  onClick={() => router.push(`/feed/${post._id}`)}
-                  className="p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all cursor-pointer"
-                >
-                  <p className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
-                    {getTitle()}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3 h-3 text-red-500" />
-                      {post.likesCount || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="w-3 h-3" />
-                      {post.commentsCount || 0}
-                    </span>
-                    <span className="text-gray-400">•</span>
-                    <span>@{post.authorId.username}</span>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       )}
