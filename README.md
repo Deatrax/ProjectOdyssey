@@ -8,6 +8,10 @@ A smart, interactive travel companion platform that delivers automated, personal
 - **Social Trip Planning**: Connect with other travelers, plan trips together, and share your experiences.
 - **Gamified Experiences**: Earn rewards and unlock achievements as you visit new places and complete travel goals.
 - **Geofencing Verification**: Automatically check-in to locations and verify your visits.
+  
+## Image Examples:
+<img width="1469" height="796" alt="image" src="https://github.com/user-attachments/assets/d2242c10-7fa1-4b07-8101-963985c18710" />
+
 
 ## Setup Instructions
 
